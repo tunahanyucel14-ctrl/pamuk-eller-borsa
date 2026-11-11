@@ -1,0 +1,18 @@
+@import "tailwindcss";
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: #080d19;
+  color: white;
+  font-family: Arial, sans-serif;
+}
+
+button {
+  cursor: pointer;
+}
