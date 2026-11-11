@@ -1,5 +1,96 @@
 @import "tailwindcss";
 
+/* Tailwind'e tema renklerini tanıtıyoruz */
+@theme inline {
+  --color-bg: var(--bg);
+  --color-side: var(--side);
+  --color-card: var(--card);
+  --color-inner: var(--inner);
+  --color-line: var(--line);
+  --color-fg: var(--fg);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+  --color-accent-fg: var(--accent-fg);
+  --color-up: var(--up);
+  --color-down: var(--down);
+}
+
+/* TEMA 1: Zümrüt Gece (varsayılan) */
+:root,
+[data-theme="zumrut"] {
+  --bg: #080d18;
+  --side: #0d1423;
+  --card: #111b2c;
+  --inner: #0b1322;
+  --line: rgba(255, 255, 255, 0.09);
+  --fg: #ffffff;
+  --muted: #8b97ad;
+  --accent: #34d399;
+  --accent-fg: #04130d;
+  --up: #34d399;
+  --down: #f87171;
+}
+
+/* TEMA 2: Okyanus */
+[data-theme="okyanus"] {
+  --bg: #06101f;
+  --side: #0a1a30;
+  --card: #0f2542;
+  --inner: #0a1c35;
+  --line: rgba(120, 180, 255, 0.16);
+  --fg: #eaf4ff;
+  --muted: #7f9bbd;
+  --accent: #38bdf8;
+  --accent-fg: #03131f;
+  --up: #4ade80;
+  --down: #fb7185;
+}
+
+/* TEMA 3: Altın Lüks */
+[data-theme="altin"] {
+  --bg: #0b0a08;
+  --side: #13110d;
+  --card: #1a1712;
+  --inner: #120f0b;
+  --line: rgba(255, 215, 130, 0.14);
+  --fg: #fff7e6;
+  --muted: #a39578;
+  --accent: #fbbf24;
+  --accent-fg: #1a1100;
+  --up: #a3e635;
+  --down: #f87171;
+}
+
+/* TEMA 4: Mor Neon */
+[data-theme="mor"] {
+  --bg: #0d0a1a;
+  --side: #140f26;
+  --card: #1b1535;
+  --inner: #130e28;
+  --line: rgba(190, 150, 255, 0.16);
+  --fg: #f5f0ff;
+  --muted: #9a8fbd;
+  --accent: #a78bfa;
+  --accent-fg: #120a2a;
+  --up: #4ade80;
+  --down: #fb7185;
+}
+
+/* TEMA 5: Gün Işığı (açık tema) */
+[data-theme="gunisigi"] {
+  --bg: #f3f6fb;
+  --side: #ffffff;
+  --card: #ffffff;
+  --inner: #eef2f8;
+  --line: rgba(15, 23, 42, 0.12);
+  --fg: #0f172a;
+  --muted: #64748b;
+  --accent: #059669;
+  --accent-fg: #ffffff;
+  --up: #059669;
+  --down: #dc2626;
+}
+
 * {
   box-sizing: border-box;
 }
@@ -8,11 +99,30 @@ html,
 body {
   margin: 0;
   padding: 0;
-  background: #080d19;
-  color: white;
-  font-family: Arial, sans-serif;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  transition: background-color 0.25s ease, color 0.25s ease;
 }
 
 button {
   cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
+/* Sayı kutusundaki küçük oklar gizlensin */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
 }
