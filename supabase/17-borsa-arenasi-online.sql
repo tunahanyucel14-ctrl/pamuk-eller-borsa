@@ -74,7 +74,8 @@ create policy "arena_leaderboard_public_read" on public.arena_leaderboard for se
 revoke all on public.arena_seasons, public.arena_accounts, public.arena_positions, public.arena_trades, public.arena_leaderboard from anon, authenticated;
 grant select on public.arena_seasons, public.arena_leaderboard to anon, authenticated;
 grant all on public.arena_seasons, public.arena_accounts, public.arena_positions, public.arena_trades, public.arena_leaderboard to service_role;
-grant usage, select on all sequences in schema public to service_role;
+revoke all on sequence public.arena_seasons_id_seq, public.arena_positions_id_seq, public.arena_trades_id_seq from anon, authenticated;
+grant usage, select on sequence public.arena_seasons_id_seq, public.arena_positions_id_seq, public.arena_trades_id_seq to service_role;
 
 create or replace function public.arena_ensure_account(p_user_id uuid, p_username text default null)
 returns jsonb language plpgsql security definer set search_path = public, pg_temp as $$
