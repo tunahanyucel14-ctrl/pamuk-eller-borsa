@@ -59,7 +59,7 @@ export default function ButcePage() {
   function change(id:string,index:number,value:string){setRows(old=>old.map(r=>r.id!==id?r:{...r,values:r.values.map((v,i)=>i===index?(value.trim()===""?null:Math.max(0,Number(value.replace(",","."))||0)):v)}));}
   function add(kind:Kind){const name=prompt("Yeni kalemin adı:");if(!name?.trim())return;setRows(old=>[...old,{id:crypto.randomUUID(),name:name.trim().toLocaleUpperCase("tr-TR"),kind,owner:"Ortak",values:Array(12).fill(null)}]);}
   async function deleteMonthData(){
-    if(!aileId || !yonetebilir || deleting)return;
+    if(!aileId || !yazabilir || deleting)return;
     const label=months[month];
     if(!window.confirm(label+" ayına ait bütçe hücreleri ve "+new Date().getFullYear()+" yılı işlem kayıtları silinsin mi? Bu işlem geri alınamaz."))return;
     setDeleting(true);
@@ -73,7 +73,7 @@ export default function ButcePage() {
     setDeleting(false);
   }
   async function deleteAllFinanceData(){
-    if(!aileId || !yazabilir || deleting)return;
+    if(!aileId || !yonetebilir || deleting)return;
     const ok=window.confirm("Bu ailenin TÜM finans verileri silinecek: işlem kayıtları, banka ekstresi aktarım geçmişi, gelir planları, faturalar ve abonelikler, borçlar, hedefler, yatırımlar, kategori bütçeleri ve bütçe tablosu. Hesaplar silinmeyecek; açılış bakiyeleri sıfırlanacak. Kullanıcı hesapları, aile üyeliği, kategoriler ve Borsa Arenası korunur. Devam edilsin mi?");
     if(!ok)return;
     const second=window.prompt("Onaylamak için TAMAM yaz.");
