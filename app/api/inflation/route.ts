@@ -21,8 +21,8 @@ async function getTurkeyMonthly(){
  try{
   const r=await fetch("https://www.tcmb.gov.tr/wps/wcm/connect/en/tcmb+en/main+menu/statistics/inflation+data",{next:{revalidate:21600}});
   if(!r.ok)return null; const html=await r.text();
-  const clean=html.replace(/<[^>]+>/g," ").replace(/&nbsp;/g," ").replace(/&amp;/g,"&").replace(/\\s+/g," ");
-  const row=[...clean.matchAll(/(\\d{2})-(20\\d{2})\\s+([\\d.]+)\\s+([\\d.]+)/g)][0];
+  const clean=html.replace(/<[^>]+>/g," ").replace(/&nbsp;/g," ").replace(/&amp;/g,"&").replace(/\s+/g," ");
+  const row=[...clean.matchAll(/(\d{2})-(20\d{2})\s+([\d.]+)\s+([\d.]+)/g)][0];
   return row?{period:row[2]+"-"+row[1],annual:Number(row[3]),monthly:Number(row[4])}:null;
  }catch{return null;}
 }
