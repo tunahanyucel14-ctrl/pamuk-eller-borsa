@@ -11,6 +11,9 @@ export default function AssistantBubble() {
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  const [lines, setLines] = useState<ChatLine[]>([
+    { role: "assistant", text: "Merhaba! Ben Pamuk Eller finans asistanıyım. Bütçe, gelir-gider, tasarruf ve yatırım kavramlarında yardımcı olabilirim. Ne öğrenmek istersin?" }
+  ]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
@@ -21,9 +24,6 @@ export default function AssistantBubble() {
     setLines([{ role: "assistant", text: "Merhaba! Ben Pamuk Eller finans asistanıyım. Bütçe, gelir-gider, tasarruf ve yatırım kavramlarında yardımcı olabilirim. Ne öğrenmek istersin?" }]);
     setInput("");
   }
-  const [lines, setLines] = useState<ChatLine[]>([
-    { role: "assistant", text: "Merhaba! Ben Pamuk Eller finans asistanıyım. Bütçe, gelir-gider, tasarruf ve yatırım kavramlarında yardımcı olabilirim. Ne öğrenmek istersin?" }
-  ]);
 
   async function send(e: React.FormEvent) {
     e.preventDefault();
