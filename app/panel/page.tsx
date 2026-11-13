@@ -101,6 +101,31 @@ export default function GenelBakis() {
         supabase.from("fin_transactions").select("id,created_at,tx_date,kind,amount,account_id").eq("family_id", aileId).gte("tx_date", tarihISO(trendBaslangic)).lt("tx_date", tarihISO(trendBitis)).in("kind", ["gelir", "gider"]).order("tx_date", { ascending: true }).order("created_at", { ascending: true }).order("id", { ascending: true }).range(0, 999),
       ]);
       if (iptal) return;
+      let trendRows = trend.data ?? [];
+      let trendPaginationError = trend.error;
+      if (!trendPaginationError && trendRows.length === 1000) {
+        for (let offset = 1000; ; offset += 1000) {
+          const page = await supabase
+            .from("fin_transactions")
+            .select("id,created_at,tx_date,kind,amount,account_id")
+            .eq("family_id", aileId)
+            .gte("tx_date", tarihISO(trendBaslangic))
+            .lt("tx_date", tarihISO(trendBitis))
+            .in("kind", ["gelir", "gider"])
+            .order("tx_date", { ascending: true })
+            .order("created_at", { ascending: true })
+            .order("id", { ascending: true })
+            .range(offset, offset + 999);
+          if (iptal) return;
+          if (page.error) {
+            trendPaginationError = page.error;
+            break;
+          }
+          const rows = page.data ?? [];
+          trendRows = trendRows.concat(rows);
+          if (rows.length < 1000) break;
+        }
+      }
       const h = b.error || i.error || k.error;
       if (h) {
         setHata(h.message);
@@ -112,7 +137,7 @@ export default function GenelBakis() {
         setKategoriler((k.data ?? []) as Kategori[]);
         setButceLimitleri((budgets.data ?? []).map((x: any) => ({ category_id: x.category_id, limit_amount: Number(x.limit_amount) || 0 })));
         setButceHata(budgets.error ? "Kategori bütçeleri şu an yüklenemedi." : "");
-        setTrendHata(trend.error ? "Geçmiş karşılaştırma şu an yüklenemedi." : "");
+        setTrendHata(trendPaginationError ? "Geçmiş karşılaştırmanın tüm kayıtları yüklenemedi." : "");
         const grouped = new Map<string, { ay: string; gelir: number; gider: number }>();
         for (let offset = trendDonem - 1; offset >= 0; offset--) {
           const d = new Date(yil, ayNo - 1 - offset, 1);
