@@ -18,7 +18,6 @@ type CategorySpend = { id:string; name:string; amount:number; previous:number; c
 const money=(n:number)=>tl(Number.isFinite(n)?n:0);
 const monthKey=(d:Date)=>d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0");
 const labelMonth=(d:Date)=>d.toLocaleDateString("tr-TR",{month:"short"});
-const excludedFromVariable=(name:string)=>/(fatura|abonelik|kredi|borç|taksit|sigorta)/i.test(name);
 
 export default function FinansalZekaPage(){
  const {aileId}=useAile();
@@ -93,10 +92,10 @@ export default function FinansalZekaPage(){
   const lastIncome=sum(last,"income"),prevIncome=sum(previous,"income");
   const categorySpends:CategorySpend[]=Array.from(byCategory.entries()).map(([id,x])=>({id,name:x.name,amount:x.current,previous:x.previous,change:x.previous>0?(x.current-x.previous)/x.previous*100:x.current>0?100:0})).sort((a,b)=>b.amount-a.amount);
   const avgExpense=lastExpense/3,avgIncome=lastIncome/3;
-  const variableMonthly=tx.filter(x=>x.kind==="gider"&&!excludedFromVariable(categoryMap.get(x.category_id||"")||"")).filter(x=>String(x.tx_date)>=months[3]?.key+"-01").reduce((s,x)=>s+x.amount,0)/3;
   const plannedIncome=incomes.filter(x=>x.active).reduce((s,x)=>s+Number(x.expected_amount||0),0);
   const fixedBills=bills.reduce((s,x)=>s+Number(x.amount||0),0);
   const debtPayments=debts.filter(x=>Number(x.remaining_amount)>0).reduce((s,x)=>s+Number(x.monthly_payment||0),0);
+  const variableMonthly=Math.max(0,avgExpense-fixedBills-debtPayments);
   const monthlyIncome=plannedIncome>0?plannedIncome:avgIncome;
   const incomeSource=plannedIncome>0?"Aktif gelir planı":"Son üç tamamlanmış ayın gelir ortalaması";
   const estimatedFree=monthlyIncome-variableMonthly-fixedBills-debtPayments;
