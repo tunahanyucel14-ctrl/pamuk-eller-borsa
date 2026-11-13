@@ -126,6 +126,7 @@ export default function AktarimPage(){
  const [result,setResult]=useState<{inserted:number;duplicates:number;checked:number}|null>(null);
  const [statementMeta,setStatementMeta]=useState<StatementMeta|null>(null);
  const [showAllPreview,setShowAllPreview]=useState(false);
+ const [acknowledgeReconciliation,setAcknowledgeReconciliation]=useState(false);
 
  const load=useCallback(async()=>{
   const [a,c]=await Promise.all([
@@ -138,7 +139,7 @@ export default function AktarimPage(){
  useEffect(()=>{void load();},[load]);
 
  async function statementFilesSelected(files?:FileList|null){
-  setError("");setMessage("");setResult(null);setStatementMeta(null);setShowAllPreview(false);
+  setError("");setMessage("");setResult(null);setStatementMeta(null);setShowAllPreview(false);setAcknowledgeReconciliation(false);
   const selected=Array.from(files||[]);
   if(!selected.length)return;
   if(ocrBusy)return;
@@ -212,8 +213,10 @@ export default function AktarimPage(){
  const invalidCount=rows.length-ready.length;
  const preview=showAllPreview?finalRows:finalRows.slice(0,40);
  const selectedAccount=accounts.find(a=>a.account_id===accountId);
- const currencyMismatch=Boolean(statementMeta?.currency&&selectedAccount?.currency&&statementMeta.currency!==selectedAccount.currency);
- const canImport=ready.length>0&&ready.length<=1000&&Boolean(accountId)&&!currencyMismatch&&yazabilir&&!busy;
+ const normalizeCurrency=(value:string)=>{const code=value.trim().toUpperCase();return code==="TL"||code==="₺"?"TRY":code;};
+ const currencyMismatch=Boolean(statementMeta?.currency&&selectedAccount?.currency&&normalizeCurrency(statementMeta.currency)!==normalizeCurrency(selectedAccount.currency));
+ const totalsMismatch=Boolean(statementMeta&&((statementMeta.statementIncome!==null&&Math.abs(statementMeta.statementIncome-statementMeta.extractedIncome)>0.02)||(statementMeta.statementExpense!==null&&Math.abs(statementMeta.statementExpense-statementMeta.extractedExpense)>0.02)));
+ const canImport=ready.length>0&&ready.length<=1000&&Boolean(accountId)&&!currencyMismatch&&(!totalsMismatch||acknowledgeReconciliation)&&yazabilir&&!busy;
 
  async function importRows(){
   if(busy)return;
@@ -269,7 +272,7 @@ export default function AktarimPage(){
     <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-xs font-bold uppercase tracking-wide text-muted">Ekstre tanıma özeti</p><h3 className="mt-1 text-base font-bold">{statementMeta.bankName||"Banka otomatik tanımlanamadı"}</h3><p className="text-xs text-muted">{statementMeta.periodStart||statementMeta.periodEnd?[statementMeta.periodStart,statementMeta.periodEnd].filter(Boolean).join(" – "):"Ekstre dönemi belirlenemedi"}{statementMeta.currency?" · "+statementMeta.currency:""}</p></div><span className="rounded-full bg-up/10 px-3 py-1 text-xs font-semibold text-up">{ready.length} doğrulanabilir işlem</span></div>
     <div className="mt-3 grid gap-3 sm:grid-cols-2"><div className="rounded-lg bg-card p-3"><p className="text-xs text-muted">Okunan gelir / gider toplamı</p><p className="mt-1 text-sm font-bold text-up">{para(statementMeta.extractedIncome,statementMeta.currency||selectedAccount?.currency||"TRY")}</p><p className="text-sm font-bold text-down">{para(statementMeta.extractedExpense,statementMeta.currency||selectedAccount?.currency||"TRY")}</p></div><div className="rounded-lg bg-card p-3"><p className="text-xs text-muted">Ekstrede yazan toplam</p><p className="mt-1 text-sm font-bold text-up">{statementMeta.statementIncome===null?"Belirlenemedi":para(statementMeta.statementIncome,statementMeta.currency||"TRY")}</p><p className="text-sm font-bold text-down">{statementMeta.statementExpense===null?"Belirlenemedi":para(statementMeta.statementExpense,statementMeta.currency||"TRY")}</p></div></div>
     {statementMeta.skippedRows>0&&<p className="mt-3 text-xs text-amber-600"><AlertTriangle size={14} className="mr-1 inline"/> {statementMeta.skippedRows} satır doğrulamadan geçmedi ve aktarılmayacak.</p>}
-    {((statementMeta.statementIncome!==null&&Math.abs(statementMeta.statementIncome-statementMeta.extractedIncome)>0.02)||(statementMeta.statementExpense!==null&&Math.abs(statementMeta.statementExpense-statementMeta.extractedExpense)>0.02))&&<p role="alert" className="mt-3 rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 text-xs text-amber-700">Ekstre toplamları ile okunan işlem satırları arasında fark var. Farkı kontrol etmeden aktarım yapma.</p>}
+    {totalsMismatch&&<div role="alert" className="mt-3 rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 text-xs text-amber-700"><p className="font-semibold">Ekstre toplamları ile okunan işlem satırları arasında fark var.</p><p className="mt-1">Eksik sayfa, okunamayan satır veya ekstre dışı ücretler olabilir. Satırları kontrol etmeden aktarım yapma.</p><label className="mt-3 flex cursor-pointer items-start gap-2 text-fg"><input type="checkbox" checked={acknowledgeReconciliation} onChange={e=>setAcknowledgeReconciliation(e.target.checked)} className="mt-0.5"/> Farkı kontrol ettim; bu haliyle aktarımı onaylıyorum.</label></div>}
    </div>}
    {currencyMismatch&&<p role="alert" className="rounded-lg border border-down/30 bg-down/5 p-3 text-xs text-down">Ekstre para birimi ({statementMeta?.currency}) seçili hesabın para birimiyle ({selectedAccount?.currency}) uyuşmuyor. Doğru para birimindeki hesabı seçmeden aktarım yapılamaz.</p>}
    {preview.length>0&&<div className="overflow-x-auto rounded-xl border border-line"><table className="w-full min-w-[650px] text-left text-xs"><thead className="bg-inner text-muted"><tr><th className="p-3">Tarih</th><th className="p-3">Açıklama</th><th className="p-3">Tür</th><th className="p-3 text-right">Tutar</th><th className="p-3">Kategori önerisi</th></tr></thead><tbody>{preview.map((r,i)=><tr key={r.line} className="border-t border-line"><td className="p-3 whitespace-nowrap">{r.tx_date}</td><td className="max-w-[240px] truncate p-3">{r.description}</td><td className={"p-3 font-semibold "+(r.kind==="gelir"?"text-up":"text-down")}>{r.kind==="gelir"?"Gelir":"Gider"}</td><td className="p-3 text-right font-semibold">{para(r.amount,accounts.find(a=>a.account_id===accountId)?.currency||"TRY")}</td><td className="p-2"><select aria-label={r.description+" kategori"} className="max-w-[170px] rounded-lg border border-line bg-inner px-2 py-1.5" value={r.category_id||""} onChange={e=>setCategoryOverrides(old=>({...old,[r.line]:e.target.value}))}><option value="">Kategorisiz</option>{categories.filter(c=>c.kind===r.kind).map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></td></tr>)}</tbody></table></div>}{ready.length>40&&<button type="button" onClick={()=>setShowAllPreview(x=>!x)} className="rounded-lg border border-line px-3 py-2 text-xs font-semibold">{showAllPreview?"İlk 40 satırı göster":"Tüm "+ready.length+" işlemi incele"}</button>}
