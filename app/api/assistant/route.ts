@@ -34,7 +34,10 @@ export async function POST(request: Request) {
   const key = process.env.AI_GATEWAY_API_KEY;
   if (!key) return NextResponse.json({ error: "Yapay zekâ bağlantısı henüz etkinleştirilmedi. Vercel projesine AI_GATEWAY_API_KEY eklenmesi gerekiyor." }, { status: 503 });
 
-  const body = await request.json();
+  const body = await request.json().catch(() => null);
+  if (!body || typeof body !== "object") {
+    return NextResponse.json({ error: "İstek gövdesi geçersiz." }, { status: 400 });
+  }
   const message = typeof body.message === "string" ? body.message.slice(0, 4000) : "";
   if (!message.trim()) return NextResponse.json({ error: "Mesaj boş olamaz." }, { status: 400 });
   const history = Array.isArray(body.history) ? body.history.slice(-8).map((m: {role?: string; text?: string}) => ({ role: m.role === "user" ? "user" : "assistant", content: String(m.text || "").slice(0, 2000) })) : [];
