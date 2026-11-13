@@ -35,8 +35,34 @@ export default function BorclarPage(){
  const {aileId,kullaniciId,yazabilir}=useAile(); const [rows,setRows]=useState<Debt[]>([]); const [name,setName]=useState(""); const [creditor,setCreditor]=useState(""); const [type,setType]=useState("kredi"); const [original,setOriginal]=useState(""); const [remaining,setRemaining]=useState(""); const [monthly,setMonthly]=useState(""); const [rate,setRate]=useState("0"); const [extra,setExtra]=useState("0"); const [day,setDay]=useState("1"); const [error,setError]=useState(""); const [busy,setBusy]=useState(false);
  async function load(){const {data,error}=await supabase.from("family_debts").select("*").eq("family_id",aileId).order("created_at",{ascending:false});if(error)setError(error.message);else setRows((data||[]) as Debt[]);}
  useEffect(()=>{load();},[aileId]);
- async function updateRemaining(x:Debt){const raw=window.prompt("Banka uygulamasındaki güncel kalan borcu (TL) gir:",String(x.remaining_amount));if(raw===null)return;const value=parseLocalNumber(raw);if(!Number.isFinite(value)||value<0){setError("Geçerli ve sıfırdan küçük olmayan bir tutar gir.");return;}setBusy(true);setError("");const {error}=await supabase.from("family_debts").update({remaining_amount:value}).eq("id",x.id).eq("family_id",aileId);if(error)setError(error.message);else await load();setBusy(false);}
- async function updateRate(x:Debt){const raw=window.prompt("Yıllık faiz oranı (%) gir. Banka sözleşmendeki oranı kullan:",String(x.annual_interest_rate||0));if(raw===null)return;const value=parseLocalNumber(raw);if(!Number.isFinite(value)||value<0||value>200){setError("Faiz oranı 0–200 arasında olmalı.");return;}setBusy(true);const {error}=await supabase.from("family_debts").update({annual_interest_rate:value}).eq("id",x.id).eq("family_id",aileId);if(error)setError(error.message);else await load();setBusy(false);}
+ async function updateRemaining(x:Debt){
+  if(busy)return;
+  const raw=window.prompt("Banka uygulamasındaki güncel kalan borcu (TL) gir:",String(x.remaining_amount));
+  if(raw===null)return;
+  const value=parseLocalNumber(raw);
+  if(!Number.isFinite(value)||value<0||value>Number(x.original_amount)){setError("Kalan borç sıfır ile ilk borç tutarı arasında olmalı.");return;}
+  setBusy(true);setError("");
+  try{
+   const {error}=await supabase.from("family_debts").update({remaining_amount:Math.round(value*100)/100}).eq("id",x.id).eq("family_id",aileId);
+   if(error)throw error;
+   await load();
+  }catch(error){setError(error instanceof Error?error.message:"Kalan borç güncellenemedi. Bağlantını kontrol edip tekrar dene.");}
+  finally{setBusy(false);}
+ }
+ async function updateRate(x:Debt){
+  if(busy)return;
+  const raw=window.prompt("Yıllık faiz oranı (%) gir. Banka sözleşmendeki oranı kullan:",String(x.annual_interest_rate||0));
+  if(raw===null)return;
+  const value=parseLocalNumber(raw);
+  if(!Number.isFinite(value)||value<0||value>200){setError("Faiz oranı 0–200 arasında olmalı.");return;}
+  setBusy(true);setError("");
+  try{
+   const {error}=await supabase.from("family_debts").update({annual_interest_rate:value}).eq("id",x.id).eq("family_id",aileId);
+   if(error)throw error;
+   await load();
+  }catch(error){setError(error instanceof Error?error.message:"Faiz oranı güncellenemedi. Bağlantını kontrol edip tekrar dene.");}
+  finally{setBusy(false);}
+ }
  async function add(e:React.FormEvent){e.preventDefault();setError("");const originalValue=parseLocalNumber(original),remainingValue=parseLocalNumber(remaining),monthlyValue=monthly.trim()===""?0:parseLocalNumber(monthly),rateValue=rate.trim()===""?0:parseLocalNumber(rate),dayValue=Number(day);if(!name.trim()||!Number.isFinite(originalValue)||originalValue<=0||!Number.isFinite(remainingValue)||remainingValue<0||!Number.isFinite(monthlyValue)||monthlyValue<0||!Number.isFinite(rateValue)||rateValue<0||rateValue>200||!Number.isInteger(dayValue)||dayValue<1||dayValue>31){setError("Borç adı, pozitif ilk borç, geçerli kalan tutar, aylık ödeme, %0–200 faiz ve 1–31 arasında ödeme günü gir.");return;}if(busy)return;if(remainingValue>originalValue){setError("Kalan borç, ilk borç tutarından büyük olamaz.");return;}setBusy(true);try{const {error}=await supabase.from("family_debts").insert({family_id:aileId,created_by:kullaniciId,name:name.trim(),creditor:creditor.trim(),debt_type:type,original_amount:originalValue,remaining_amount:remainingValue,monthly_payment:monthlyValue,annual_interest_rate:rateValue,due_day:dayValue});if(error)throw error;nameReset();await load();}catch(error){setError(error instanceof Error?error.message:"Borç kaydedilemedi. Bağlantını kontrol edip tekrar dene.");}finally{setBusy(false);}}
  function nameReset(){setName("");setCreditor("");setOriginal("");setRemaining("");setMonthly("");setRate("0");}
  const total=rows.reduce((s,x)=>s+Math.max(0,Number(x.remaining_amount)||0),0), monthlyTotal=rows.filter(x=>Number(x.remaining_amount)>0).reduce((s,x)=>s+Math.max(0,Number(x.monthly_payment)||0),0);
