@@ -63,3 +63,8 @@ create policy category_budgets_update on public.family_category_budgets for upda
 ));
 drop policy if exists category_budgets_delete on public.family_category_budgets;
 create policy category_budgets_delete on public.family_category_budgets for delete to authenticated using(private.family_can_write(family_id));
+
+-- Foreign key performance indexes
+create index if not exists idx_category_budgets_category_id on public.family_category_budgets(category_id);
+create index if not exists idx_category_budgets_created_by on public.family_category_budgets(created_by);
+create index if not exists idx_goal_contributions_goal_id on public.family_goal_contributions(goal_id);
