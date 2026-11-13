@@ -3,13 +3,27 @@ import "./globals.css";
 import AppShell from "./components/app-shell";
 
 export const metadata: Metadata = {
-  title: "Pamuk Eller Borsa Arenası",
-  description: "30 günlük sanal borsa yarışması",
+  title: {
+    default: "Pamuk Eller | Akıllı Finans",
+    template: "%s | Pamuk Eller",
+  },
+  applicationName: "Pamuk Eller",
+  description: "Gelir, gider, bütçe, borç ve finansal hedeflerini tek merkezden yönet.",
+  appleWebApp: {
+    capable: true,
+    title: "Pamuk Eller",
+    statusBarStyle: "default",
+  },
+  formatDetection: {
+    telephone: false,
+  },
 };
 
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
+  viewportFit: "cover",
+  themeColor: "#d95743",
 };
 
 // Sayfa açılırken kayıtlı temayı hemen uygular (renk titremesi olmasın diye)
