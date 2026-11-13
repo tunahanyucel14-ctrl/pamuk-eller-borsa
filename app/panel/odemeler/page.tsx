@@ -8,6 +8,7 @@ import { tl } from "../../../lib/finans";
 import { kart, girdi, dugme, baslik, etiket } from "../../../lib/ui";
 
 type Bill = { id: string; name: string; amount: number; due_day: number; category: string; active: boolean };
+type Debt = { id: string; name: string; monthly_payment: number; due_day: number | null; remaining_amount: number };
 type ReminderSettings = { salaryDay: string; leadDays: number };
 const SETTINGS_KEY = "pamuk-reminder-settings-v1";
 const SENT_KEY = "pamuk-reminder-sent-v1";
@@ -27,6 +28,7 @@ function dateLabel(date: Date) { return date.toLocaleDateString("tr-TR", { day: 
 export default function OdemelerPage() {
   const { aileId, kullaniciId, yazabilir } = useAile();
   const [rows, setRows] = useState<Bill[]>([]);
+  const [debts, setDebts] = useState<Debt[]>([]);
   const [name, setName] = useState("");
   const [amount, setAmount] = useState("");
   const [day, setDay] = useState("1");
@@ -35,11 +37,15 @@ export default function OdemelerPage() {
   const [settings, setSettings] = useState<ReminderSettings>({ salaryDay: "", leadDays: 3 });
   const [permission, setPermission] = useState<NotificationPermission | "unsupported">("default");
   const [saved, setSaved] = useState(false);
-  const [upcoming, setUpcoming] = useState<{ title: string; detail: string; date: Date; kind: "salary" | "bill" }[]>([]);
+  const [upcoming, setUpcoming] = useState<{ title: string; detail: string; date: Date; kind: "salary" | "bill" | "debt" }[]>([]);
 
   const load = useCallback(async () => {
-    const { data, error } = await supabase.from("family_bills").select("*").eq("family_id", aileId).eq("active", true).order("due_day");
-    if (error) setError(error.message); else setRows((data || []) as Bill[]);
+    const [billsResult, debtsResult] = await Promise.all([
+      supabase.from("family_bills").select("*").eq("family_id", aileId).eq("active", true).order("due_day"),
+      supabase.from("family_debts").select("id,name,monthly_payment,due_day,remaining_amount").eq("family_id", aileId),
+    ]);
+    if (billsResult.error || debtsResult.error) setError((billsResult.error || debtsResult.error)?.message || "Kayıtlar yüklenemedi.");
+    else { setRows((billsResult.data || []) as Bill[]); setDebts((debtsResult.data || []) as Debt[]); }
   }, [aileId]);
 
   useEffect(() => { void load(); }, [load]);
@@ -55,15 +61,18 @@ export default function OdemelerPage() {
     setPermission("Notification" in window ? Notification.permission : "unsupported");
   }, []);
 
-  const total = rows.reduce((sum, row) => sum + Number(row.amount), 0);
+  const total = rows.reduce((sum, row) => sum + Number(row.amount), 0) + debts.reduce((sum, row) => sum + Number(row.monthly_payment), 0);
   const billEvents = rows.map(row => ({ title: row.name, detail: tl(Number(row.amount)), date: dateForDay(row.due_day), kind: "bill" as const }));
+  const debtEvents = debts.filter(row => Number(row.monthly_payment) > 0 && Number(row.remaining_amount) > 0 && row.due_day).map(row => ({
+    title: row.name + " taksiti", detail: tl(Number(row.monthly_payment)), date: dateForDay(Number(row.due_day)), kind: "debt" as const,
+  }));
   const salaryEvents = settings.salaryDay ? [{
     title: "Maaş günü",
     detail: "Maaşını kontrol etmeyi unutma.",
     date: dateForDay(Number(settings.salaryDay)),
     kind: "salary" as const,
   }] : [];
-  const events = [...billEvents, ...salaryEvents].sort((a, b) => a.date.getTime() - b.date.getTime());
+  const events = [...billEvents, ...debtEvents, ...salaryEvents].sort((a, b) => a.date.getTime() - b.date.getTime());
 
   useEffect(() => {
     const next = events.map(event => ({ ...event, days: daysUntil(event.date) })).filter(event => event.days >= 0 && event.days <= settings.leadDays);
@@ -77,7 +86,7 @@ export default function OdemelerPage() {
       if (sent.includes(eventKey)) continue;
       const timing = event.days === 0 ? "Bugün" : event.days + " gün sonra";
       try {
-        new Notification("Pamuk Eller · " + (event.kind === "salary" ? "Maaş hatırlatması" : "Ödeme hatırlatması"), {
+        new Notification("Pamuk Eller · " + (event.kind === "salary" ? "Maaş hatırlatması" : event.kind === "debt" ? "Borç taksiti hatırlatması" : "Ödeme hatırlatması"), {
           body: event.title + " · " + timing + " (" + dateLabel(event.date) + ") · " + event.detail,
           icon: "/icon.svg",
           tag: eventKey,
@@ -88,7 +97,7 @@ export default function OdemelerPage() {
     if (changed) localStorage.setItem(SENT_KEY, JSON.stringify(sent.slice(-100)));
   // The list is intentionally rechecked when payment rows or reminder preferences change.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rows, settings, permission]);
+  }, [rows, debts, settings, permission]);
 
   function saveSettings() {
     localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
