@@ -1,0 +1,24 @@
+name: Pamuk Eller kalite kontrolü
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  typecheck:
+    name: TypeScript ve proje kontrolü
+    runs-on: ubuntu-latest
+    steps:
+      - name: Depoyu indir
+        uses: actions/checkout@v4
+      - name: Node.js kur
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Bağımlılıkları kur
+        run: npm install
+      - name: TypeScript kontrolü
+        run: npx tsc --noEmit
