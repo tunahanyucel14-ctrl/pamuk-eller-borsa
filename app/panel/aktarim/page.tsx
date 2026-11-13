@@ -12,6 +12,7 @@ import { kart, girdi, dugme, etiket, baslik } from "../../../lib/ui";
 type MapKey="date"|"description"|"amount"|"kind";
 type ParsedRow={cells:string[];line:number};
 type ReadyRow={fingerprint:string;account_id:string;category_id:string|null;kind:"gelir"|"gider";amount:number;tx_date:string;description:string;line:number};
+type StatementMeta={bankName:string|null;currency:string|null;periodStart:string|null;periodEnd:string|null;statementIncome:number|null;statementExpense:number|null;skippedRows:number;extractedIncome:number;extractedExpense:number};
 const normalize=(s:string)=>s.toLocaleLowerCase("tr-TR").normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/ı/g,"i").replace(/[^a-z0-9]+/g," ").trim();
 function parseCsv(text:string):string[][]{
  const first=text.split(/\r?\n/,1)[0]||"";
@@ -123,6 +124,8 @@ export default function AktarimPage(){
  const [busy,setBusy]=useState(false);
  const [ocrBusy,setOcrBusy]=useState(false);
  const [result,setResult]=useState<{inserted:number;duplicates:number;checked:number}|null>(null);
+ const [statementMeta,setStatementMeta]=useState<StatementMeta|null>(null);
+ const [showAllPreview,setShowAllPreview]=useState(false);
 
  const load=useCallback(async()=>{
   const [a,c]=await Promise.all([
@@ -135,7 +138,7 @@ export default function AktarimPage(){
  useEffect(()=>{void load();},[load]);
 
  async function statementFilesSelected(files?:FileList|null){
-  setError("");setMessage("");setResult(null);
+  setError("");setMessage("");setResult(null);setStatementMeta(null);setShowAllPreview(false);
   const selected=Array.from(files||[]);
   if(!selected.length)return;
   if(ocrBusy)return;
@@ -160,6 +163,7 @@ export default function AktarimPage(){
    const data=await response.json().catch(()=>({}));
    if(!response.ok)throw new Error(data.error||"Dosyadan ekstre okunamadı.");
    const extracted=Array.isArray(data.rows)?data.rows as {date:string;description:string;amount:number;type:"gelir"|"gider"}[]:[];
+   if(data.metadata&&typeof data.metadata==="object")setStatementMeta(data.metadata as StatementMeta);
    if(!extracted.length)throw new Error("Dosyada aktarılabilir işlem bulunamadı.");
    setFileName(selected.length===1?selected[0].name:selected.length+" görselden okunan banka ekstresi");
    setHeaders(["İşlem tarihi","Açıklama","Tutar","İşlem türü"]);
@@ -175,7 +179,7 @@ export default function AktarimPage(){
  }
 
  async function fileSelected(file?:File){
-  setError("");setMessage("");setResult(null);setHeaders([]);setRows([]);setCategoryOverrides({});
+  setError("");setMessage("");setResult(null);setStatementMeta(null);setShowAllPreview(false);setHeaders([]);setRows([]);setCategoryOverrides({});
   if(!file)return;
   if(file.size>8*1024*1024){setError("Dosya en fazla 8 MB olabilir.");return;}
   const isExcel=/\.xlsx$/i.test(file.name);
@@ -206,8 +210,10 @@ export default function AktarimPage(){
  },[rows,mapping,defaultKind,accountId,categories]);
  const finalRows=useMemo(()=>ready.map(row=>({...row,category_id:categoryOverrides[row.line]??row.category_id})),[ready,categoryOverrides]);
  const invalidCount=rows.length-ready.length;
- const preview=finalRows.slice(0,40);
- const canImport=ready.length>0&&ready.length<=1000&&Boolean(accountId)&&yazabilir&&!busy;
+ const preview=showAllPreview?finalRows:finalRows.slice(0,40);
+ const selectedAccount=accounts.find(a=>a.account_id===accountId);
+ const currencyMismatch=Boolean(statementMeta?.currency&&selectedAccount?.currency&&statementMeta.currency!==selectedAccount.currency);
+ const canImport=ready.length>0&&ready.length<=1000&&Boolean(accountId)&&!currencyMismatch&&yazabilir&&!busy;
 
  async function importRows(){
   if(busy)return;
@@ -234,7 +240,7 @@ export default function AktarimPage(){
   finally{setBusy(false);}
  }
 
- function reset(){setFileName("");setHeaders([]);setRows([]);setCategoryOverrides({});setResult(null);setError("");setMessage("");}
+ function reset(){setFileName("");setHeaders([]);setRows([]);setCategoryOverrides({});setResult(null);setStatementMeta(null);setShowAllPreview(false);setError("");setMessage("");}
  const setMap=(key:MapKey,value:string)=>setMapping(old=>({...old,[key]:value}));
  return <div className="mx-auto flex max-w-6xl flex-col gap-5">
   <header><p className="text-xs font-black uppercase tracking-[.2em] text-accent">Pamuk Eller · Veri aktarımı</p><h1 className={baslik}>Banka Ekstresi İçe Aktar</h1><p className="mt-2 max-w-3xl text-sm text-muted">Bankandan indirdiğin CSV ekstresini yükle. Sütunları kontrol et, işlemleri ön izle ve tek seferde hesabına aktar. Banka şifresi veya kart bilgisi istemiyoruz.</p></header>
@@ -259,12 +265,19 @@ export default function AktarimPage(){
    {mapping.kind===noColumn&&<div className="flex flex-wrap items-center gap-3 rounded-xl bg-inner p-3"><span className="text-xs text-muted">İşaretsiz tutarlar hangi tür sayılsın?</span><select className={girdi+" !w-auto"} value={defaultKind} onChange={e=>setDefaultKind(e.target.value as "gelir"|"gider")}><option value="gider">Gider</option><option value="gelir">Gelir</option></select><span className="text-[11px] text-muted">Eksi tutar gider, artı tutar gelir kabul edilir.</span></div>}
    <div className="grid gap-3 sm:grid-cols-2"><div><label className={etiket}>İşlemlerin ekleneceği hesap</label><select className={girdi} value={accountId} onChange={e=>setAccountId(e.target.value)}><option value="">Hesap seç</option>{accounts.map(a=><option key={a.account_id} value={a.account_id}>{a.name} · {a.currency}</option>)}</select></div><div className="flex items-end text-xs text-muted">Kategori, Türkçe banka/işyeri anahtar kelimeleriyle önerilir. Her satırın kategorisini aktarım öncesinde değiştirebilirsin.</div></div>
    <div className="flex flex-wrap gap-2 text-xs"><span className="rounded-full bg-up/10 px-3 py-1 font-semibold text-up">{ready.length} aktarılabilir</span><span className="rounded-full bg-amber-500/10 px-3 py-1 font-semibold text-amber-600">{invalidCount} geçersiz / atlanacak</span><span className="rounded-full bg-inner px-3 py-1 text-muted">Önizleme: {Math.min(ready.length,40)} satır</span></div>
-   {preview.length>0&&<div className="overflow-x-auto rounded-xl border border-line"><table className="w-full min-w-[650px] text-left text-xs"><thead className="bg-inner text-muted"><tr><th className="p-3">Tarih</th><th className="p-3">Açıklama</th><th className="p-3">Tür</th><th className="p-3 text-right">Tutar</th><th className="p-3">Kategori önerisi</th></tr></thead><tbody>{preview.map((r,i)=><tr key={r.line} className="border-t border-line"><td className="p-3 whitespace-nowrap">{r.tx_date}</td><td className="max-w-[240px] truncate p-3">{r.description}</td><td className={"p-3 font-semibold "+(r.kind==="gelir"?"text-up":"text-down")}>{r.kind==="gelir"?"Gelir":"Gider"}</td><td className="p-3 text-right font-semibold">{para(r.amount,accounts.find(a=>a.account_id===accountId)?.currency||"TRY")}</td><td className="p-2"><select aria-label={r.description+" kategori"} className="max-w-[170px] rounded-lg border border-line bg-inner px-2 py-1.5" value={r.category_id||""} onChange={e=>setCategoryOverrides(old=>({...old,[r.line]:e.target.value}))}><option value="">Kategorisiz</option>{categories.filter(c=>c.kind===r.kind).map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></td></tr>)}</tbody></table></div>}
+   {statementMeta&&<div className="rounded-xl border border-line bg-inner/60 p-4">
+    <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-xs font-bold uppercase tracking-wide text-muted">Ekstre tanıma özeti</p><h3 className="mt-1 text-base font-bold">{statementMeta.bankName||"Banka otomatik tanımlanamadı"}</h3><p className="text-xs text-muted">{statementMeta.periodStart||statementMeta.periodEnd?[statementMeta.periodStart,statementMeta.periodEnd].filter(Boolean).join(" – "):"Ekstre dönemi belirlenemedi"}{statementMeta.currency?" · "+statementMeta.currency:""}</p></div><span className="rounded-full bg-up/10 px-3 py-1 text-xs font-semibold text-up">{ready.length} doğrulanabilir işlem</span></div>
+    <div className="mt-3 grid gap-3 sm:grid-cols-2"><div className="rounded-lg bg-card p-3"><p className="text-xs text-muted">Okunan gelir / gider toplamı</p><p className="mt-1 text-sm font-bold text-up">{para(statementMeta.extractedIncome,statementMeta.currency||selectedAccount?.currency||"TRY")}</p><p className="text-sm font-bold text-down">{para(statementMeta.extractedExpense,statementMeta.currency||selectedAccount?.currency||"TRY")}</p></div><div className="rounded-lg bg-card p-3"><p className="text-xs text-muted">Ekstrede yazan toplam</p><p className="mt-1 text-sm font-bold text-up">{statementMeta.statementIncome===null?"Belirlenemedi":para(statementMeta.statementIncome,statementMeta.currency||"TRY")}</p><p className="text-sm font-bold text-down">{statementMeta.statementExpense===null?"Belirlenemedi":para(statementMeta.statementExpense,statementMeta.currency||"TRY")}</p></div></div>
+    {statementMeta.skippedRows>0&&<p className="mt-3 text-xs text-amber-600"><AlertTriangle size={14} className="mr-1 inline"/> {statementMeta.skippedRows} satır doğrulamadan geçmedi ve aktarılmayacak.</p>}
+    {((statementMeta.statementIncome!==null&&Math.abs(statementMeta.statementIncome-statementMeta.extractedIncome)>0.02)||(statementMeta.statementExpense!==null&&Math.abs(statementMeta.statementExpense-statementMeta.extractedExpense)>0.02))&&<p role="alert" className="mt-3 rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 text-xs text-amber-700">Ekstre toplamları ile okunan işlem satırları arasında fark var. Farkı kontrol etmeden aktarım yapma.</p>}
+   </div>}
+   {currencyMismatch&&<p role="alert" className="rounded-lg border border-down/30 bg-down/5 p-3 text-xs text-down">Ekstre para birimi ({statementMeta?.currency}) seçili hesabın para birimiyle ({selectedAccount?.currency}) uyuşmuyor. Doğru para birimindeki hesabı seçmeden aktarım yapılamaz.</p>}
+   {preview.length>0&&<div className="overflow-x-auto rounded-xl border border-line"><table className="w-full min-w-[650px] text-left text-xs"><thead className="bg-inner text-muted"><tr><th className="p-3">Tarih</th><th className="p-3">Açıklama</th><th className="p-3">Tür</th><th className="p-3 text-right">Tutar</th><th className="p-3">Kategori önerisi</th></tr></thead><tbody>{preview.map((r,i)=><tr key={r.line} className="border-t border-line"><td className="p-3 whitespace-nowrap">{r.tx_date}</td><td className="max-w-[240px] truncate p-3">{r.description}</td><td className={"p-3 font-semibold "+(r.kind==="gelir"?"text-up":"text-down")}>{r.kind==="gelir"?"Gelir":"Gider"}</td><td className="p-3 text-right font-semibold">{para(r.amount,accounts.find(a=>a.account_id===accountId)?.currency||"TRY")}</td><td className="p-2"><select aria-label={r.description+" kategori"} className="max-w-[170px] rounded-lg border border-line bg-inner px-2 py-1.5" value={r.category_id||""} onChange={e=>setCategoryOverrides(old=>({...old,[r.line]:e.target.value}))}><option value="">Kategorisiz</option>{categories.filter(c=>c.kind===r.kind).map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></td></tr>)}</tbody></table></div>}{ready.length>40&&<button type="button" onClick={()=>setShowAllPreview(x=>!x)} className="rounded-lg border border-line px-3 py-2 text-xs font-semibold">{showAllPreview?"İlk 40 satırı göster":"Tüm "+ready.length+" işlemi incele"}</button>}
    {ready.length>40&&<p className="text-xs text-muted">Ekranda ilk 40 satır gösteriliyor; geçerli tüm {ready.length} satır aktarılacak.</p>}
    {ready.length>1000&&<p className="text-sm text-down">Tek seferde en fazla 1000 işlem aktarılabilir. Dosyanı daha küçük parçalara böl.</p>}{ready.length===0&&<p className="text-sm text-amber-600"><AlertTriangle size={15} className="mr-1 inline"/> Tarih ve tutar sütunlarını seçerek ön izlemeyi oluştur.</p>}
    <button type="button" disabled={!canImport||busy||Boolean(result)} onClick={()=>void importRows()} className={dugme+" w-full"}>{busy?"İşlemler güvenli şekilde aktarılıyor…":result?"Aktarım tamamlandı":"Onayla ve "+ready.length+" işlemi aktar"} <ArrowRight size={16} className="ml-1 inline"/></button>
    {result&&<div className="rounded-xl border border-up/20 bg-up/5 p-4"><CheckCircle2 size={18} className="mr-2 inline text-up"/><b>Aktarım özeti</b><div className="mt-2 grid grid-cols-3 gap-2 text-center text-xs"><div><b className="block text-lg">{result.inserted}</b>Yeni kayıt</div><div><b className="block text-lg">{result.duplicates}</b>Mükerrer</div><div><b className="block text-lg">{result.checked}</b>Kontrol edilen</div></div><p className="mt-3 text-xs text-muted">Aynı dosyayı tekrar aktardığında aynı satırlar ikinci kez eklenmez. İşlemler sayfasında kayıtları kontrol edebilirsin.</p></div>}
   </section>}
-  <section className="rounded-2xl border border-line bg-inner/60 p-4"><h3 className="text-sm font-bold">Güvenli aktarım notları</h3><ul className="mt-2 list-disc space-y-1 pl-5 text-xs leading-5 text-muted"><li>CSV ve XLSX dosyaları, PDF banka ekstreleri ve JPG, PNG, WEBP görselleri desteklenir. PDF tek başına yüklenir; birden fazla görsel birlikte seçilebilir. Excel dosyalarında ilk çalışma sayfası okunur; eski XLS biçimi desteklenmez.</li><li>Dosyadaki sütun eşleştirmesini aktarım öncesi kontrol et. Hatalı eşleştirme gelir ve giderleri ters kaydedebilir.</li><li>Yalnızca gelir ve gider aktarılır; transfer kayıtları otomatik aktarılmaz.</li><li>Mevcut işlemlerin silinmez veya değiştirilmez. Mükerrer kontrolü aynı hesap, tarih, tutar, açıklama ve satır sırasına dayanır.</li><li>Bu özellik banka bağlantısı değildir; hesap hareketlerini senin indirdiğin dosyadan içe aktarır.</li></ul></section>
+  <section className="rounded-2xl border border-line bg-inner/60 p-4"><h3 className="text-sm font-bold">Güvenli aktarım notları</h3><ul className="mt-2 list-disc space-y-1 pl-5 text-xs leading-5 text-muted"><li>CSV ve XLSX dosyaları, PDF banka ekstreleri ve JPG, PNG, WEBP görselleri desteklenir. PDF tek başına yüklenir; birden fazla görsel birlikte seçilebilir. Excel dosyalarında ilk çalışma sayfası okunur; eski XLS biçimi desteklenmez.</li><li>Dosyadaki sütun eşleştirmesini ve tüm işlem satırlarını aktarım öncesi kontrol et. Hatalı eşleştirme gelir ve giderleri ters kaydedebilir. Ekstre toplamları uyuşmuyorsa aktarımı durdur.</li><li>Yalnızca gelir ve gider aktarılır; transfer kayıtları otomatik aktarılmaz.</li><li>Mevcut işlemlerin silinmez veya değiştirilmez. Mükerrer kontrolü aynı hesap, tarih, tutar, açıklama ve satır sırasına dayanır.</li><li>Bu özellik banka bağlantısı değildir; hesap hareketlerini senin indirdiğin dosyadan içe aktarır.</li></ul></section>
  </div>;
 }
