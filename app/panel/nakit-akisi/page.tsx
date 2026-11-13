@@ -74,13 +74,13 @@ export default function NakitAkisiPage() {
         if(date>=today) events.push({date,name:row.name,amount:Number(row.amount)||0,kind:"gider",source:row.category||"Düzenli ödeme"});
       }
       for(const debt of projectedDebts) {
-        if(debt.payment<=0 || !debt.dueDay || debt.balance<=0) continue;
-        const date=dateAtDay(year,month,debt.dueDay);
+        if(debt.payment<=0 || debt.balance<=0) continue;
+        const date=dateAtDay(year,month,debt.dueDay||1);
         if(date<today) continue;
         debt.balance+=debt.balance*debt.rate/1200;
         const payment=Math.min(debt.balance,debt.payment);
         debt.balance-=payment;
-        if(payment>0)events.push({date,name:debt.name+" taksiti",amount:payment,kind:"gider",source:"Borç taksiti"});
+        if(payment>0)events.push({date,name:debt.name+" taksiti",amount:payment,kind:"gider",source:debt.dueDay?"Borç taksiti":"Borç taksiti · gün belirtilmedi, ayın 1’i varsayıldı"});
       }
       events.sort((a,b)=>a.date.getTime()-b.date.getTime());
       const income=events.filter(x=>x.kind==="gelir").reduce((s,x)=>s+x.amount,0);
@@ -95,11 +95,13 @@ export default function NakitAkisiPage() {
   const next = months[0];
   const totalIncome = incomeRows.reduce((s,x)=>s+Number(x.expected_amount),0);
   const totalBills = billRows.reduce((s,x)=>s+Number(x.amount),0);
-  const totalDebt = next?.events.filter(x=>x.source==="Borç taksiti").reduce((s,x)=>s+x.amount,0)||0;
+  const totalDebt = next?.events.filter(x=>x.source.startsWith("Borç taksiti")).reduce((s,x)=>s+x.amount,0)||0;
+  const debtsWithoutDueDate=debtRows.filter(x=>Number(x.remaining_amount)>0&&Number(x.monthly_payment)>0&&!x.due_day).length;
 
   return <div className="space-y-5">
     <header><p className="text-xs font-bold uppercase tracking-widest text-accent">6 aylık tahmin</p><h1 className={baslik}>Akıllı Nakit Akışı</h1><p className="text-sm text-muted">Kayıtlı hesap bakiyelerin, düzenli gelirlerin, faturaların ve borç taksitlerinle önümüzdeki altı ayı planla.</p></header>
     {error&&<p role="alert" className="rounded-xl bg-down/10 p-3 text-sm text-down">{error}</p>}
+    {debtsWithoutDueDate>0&&<p role="status" className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-muted">{debtsWithoutDueDate} açık borçta ödeme günü girilmemiş. Tahminde bu taksitler geçici olarak ayın 1’ine yerleştirildi; Borçlar bölümünden gerçek ödeme gününü ekle.</p>}
     {Object.keys(foreignBalances).length>0&&<div role="status" className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-sm"><b>Yabancı para hesapları nakit akışı tahminine katılmadı.</b><p className="mt-1 text-xs text-muted">Kur dönüşümü yapılmadığından yalnızca TL hesap bakiyesiyle tahmin yapılıyor.</p><div className="mt-2 flex flex-wrap gap-3 text-xs">{Object.entries(foreignBalances).map(([cur,value])=><span key={cur}>{value.toLocaleString("tr-TR",{maximumFractionDigits:2})} {cur}</span>)}</div></div>}
     <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
       <div className={kart}><p className="text-xs text-muted">Bugünkü hesap bakiyesi</p><b className="mt-2 block text-xl">{tl(openingBalance)}</b><p className="mt-1 text-xs text-muted">Kayıtlı hesapların toplamı</p></div>
