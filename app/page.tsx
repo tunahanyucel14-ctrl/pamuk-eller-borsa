@@ -28,6 +28,7 @@ import {
   X,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import { usePersistentState } from "../lib/use-persistent-state";
 
 /* ---------- TİPLER ---------- */
 
@@ -244,10 +245,10 @@ function StockTable({
 /* ---------- ANA SAYFA ---------- */
 
 export default function Home() {
-  const [balance, setBalance] = useState(START_BALANCE);
+  const [balance, setBalance] = usePersistentState("pamuk-borsa-balance-v1", START_BALANCE);
   const [stocks, setStocks] = useState<Stock[]>(initialStocks);
-  const [portfolio, setPortfolio] = useState<Record<string, Holding>>({});
-  const [tradeCount, setTradeCount] = useState(0);
+  const [portfolio, setPortfolio] = usePersistentState<Record<string, Holding>>("pamuk-borsa-portfolio-v1", {});
+  const [tradeCount, setTradeCount] = usePersistentState("pamuk-borsa-trade-count-v1", 0);
   const [history, setHistory] = useState<number[]>([START_BALANCE]);
 
   const [activeTab, setActiveTab] = useState<Tab>("Genel Bakış");
