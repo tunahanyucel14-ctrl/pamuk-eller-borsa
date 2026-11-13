@@ -57,6 +57,7 @@ export default function FinansalZekaPage(){
     supabase.from("family_bills").select("id,name,amount,active,category").eq("family_id",aileId).eq("active",true),
     supabase.from("family_debts").select("id,name,remaining_amount,monthly_payment,annual_interest_rate").eq("family_id",aileId),
     supabase.from("account_balances").select("account_id,balance,currency").eq("family_id",aileId),
+    supabase.from("family_goals").select("id,name,target_amount,current_amount,target_date").eq("family_id",aileId),
    ]);
    if(cancelled)return;
    const failure=transactions.error||cats.error||incomeRows.error||billRows.error||debtRows.error||balances.error||goalRows.error;
