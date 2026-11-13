@@ -251,3 +251,15 @@ table {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Premium tema seçenekleri */
+[data-theme="gece"] { --bg:#080b12; --side:#0d121d; --card:#141c2a; --inner:#0c1420; --line:rgba(255,255,255,.09); --fg:#f4f7fb; --muted:#8c9aaf; --accent:#8bd3c7; --accent-fg:#071512; --up:#54c7a5; --down:#ff7777; }
+[data-theme="lavanta"] { --bg:#f3effb; --side:#e9e1f5; --card:#fffaff; --inner:#eee7f6; --line:rgba(70,48,100,.14); --fg:#30243f; --muted:#7e718d; --accent:#8061b5; --accent-fg:#fff; --up:#25856b; --down:#cb536b; }
+[data-theme="grafit"] { --bg:#17191d; --side:#202329; --card:#282d34; --inner:#1e2228; --line:rgba(255,255,255,.1); --fg:#f2f3f5; --muted:#a1a8b2; --accent:#d4a96a; --accent-fg:#21180b; --up:#72c6a1; --down:#ef7b7b; }
+[data-theme="mint"] { --bg:#eaf4ef; --side:#dcece4; --card:#f8fffb; --inner:#e4f1e9; --line:rgba(34,87,62,.14); --fg:#1d392c; --muted:#6d8878; --accent:#27845f; --accent-fg:#fff; --up:#23865d; --down:#c65353; }
+[data-theme="rose"] { --bg:#fbf0ef; --side:#f3e2e1; --card:#fffafa; --inner:#f5e9e7; --line:rgba(100,50,55,.14); --fg:#402a30; --muted:#8c7478; --accent:#c66b78; --accent-fg:#fff; --up:#39856c; --down:#bd4d59; }
+html[data-font="modern"] body { font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; }
+html[data-font="classic"] body { font-family: Georgia, "Times New Roman", serif; }
+html[data-font="rounded"] body { font-family: "Trebuchet MS", "Segoe UI", sans-serif; }
+html[data-font="mono"] body { font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace; }
+html[data-font="system"] body { font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; }
