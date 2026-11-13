@@ -81,7 +81,7 @@ export default function ServetPage(){
   const plannedIncome=incomes.filter(x=>x.active).reduce((s,x)=>s+x.expected_amount,0);
   const monthlyIncome=plannedIncome>0?plannedIncome:avgIncome;
   const fixedBills=bills.reduce((s,x)=>s+x.amount,0);
-  const monthlyDebt=debts.reduce((s,x)=>s+x.monthly_payment,0);
+  const monthlyDebt=debts.filter(x=>x.remaining_amount>0).reduce((s,x)=>s+x.monthly_payment,0);
   const variableExpense=Math.max(0,avgExpense-fixedBills-monthlyDebt);
   const monthlyExpense=fixedBills+monthlyDebt+variableExpense;
   const portfolio=investments.reduce((s,x)=>s+x.quantity*x.current_price,0);
