@@ -39,37 +39,51 @@ export default function ServetPage(){
  const [error,setError]=useState("");
  const [refreshed,setRefreshed]=useState("");
 
- async function load(){
+ async function load(isActive:()=>boolean=()=>true){
   setLoading(true);setError("");
-  const now=new Date();const end=monthStart(now);const start=new Date(end.getFullYear(),end.getMonth()-3,1);
-  const [txR,catR,balR,invR,debtR,billR,incomeR]=await Promise.all([
-   supabase.from("fin_transactions").select("kind,amount,tx_date,category_id,account_id").eq("family_id",aileId).in("kind",["gelir","gider"]).gte("tx_date",iso(start)).lt("tx_date",iso(end)).order("tx_date").limit(3000),
-   supabase.from("categories").select("id,name").eq("family_id",aileId),
-   supabase.from("account_balances").select("account_id,balance,currency").eq("family_id",aileId),
-   supabase.from("family_investments").select("id,asset_name,quantity,current_price,currency").eq("family_id",aileId),
-   supabase.from("family_debts").select("id,name,remaining_amount,monthly_payment,annual_interest_rate").eq("family_id",aileId),
-   supabase.from("family_bills").select("id,name,amount").eq("family_id",aileId).eq("active",true),
-   supabase.from("family_income_rules").select("id,name,expected_amount,active").eq("family_id",aileId)
-  ]);
-  const failure=txR.error||catR.error||balR.error||invR.error||debtR.error||billR.error||incomeR.error;
-  if(failure)setError(failure.message);
-  const balanceRows=(balR.data||[]) as {account_id:string;balance:number;currency:string}[];
-  const currencyByAccount=new Map(balanceRows.map(x=>[x.account_id,String(x.currency||"TRY").toUpperCase()]));
-  setTx((txR.data||[]).filter((x:any)=>currencyByAccount.get(x.account_id)==="TRY").map((x:any)=>({...x,amount:Number(x.amount)||0})) as Tx[]);
-  setCategories((catR.data||[]) as Category[]);
-  setCash(balanceRows.filter(x=>String(x.currency||"TRY").toUpperCase()==="TRY").reduce((sum,x)=>sum+(Number(x.balance)||0),0));
-  setForeignCash(balanceRows.filter(x=>String(x.currency||"TRY").toUpperCase()!=="TRY").reduce<Record<string,number>>((acc,x)=>{const cur=String(x.currency||"TRY").toUpperCase();acc[cur]=(acc[cur]||0)+(Number(x.balance)||0);return acc;},{}));
-  const investmentRows=(invR.data||[]).map((x:any)=>({...x,quantity:Number(x.quantity)||0,current_price:Number(x.current_price)||0,currency:String(x.currency||"TRY").toUpperCase()})) as Investment[];
-  setInvestments(investmentRows.filter(x=>x.currency==="TRY"));
-  setForeignPortfolio(investmentRows.filter(x=>x.currency!=="TRY").reduce<Record<string,number>>((acc,x)=>{acc[x.currency]=(acc[x.currency]||0)+x.quantity*x.current_price;return acc;},{}));
-  setDebts((debtR.data||[]).map((x:any)=>({...x,remaining_amount:Number(x.remaining_amount)||0,monthly_payment:Number(x.monthly_payment)||0,annual_interest_rate:Number(x.annual_interest_rate)||0})) as Debt[]);
-  setBills((billR.data||[]).map((x:any)=>({...x,amount:Number(x.amount)||0})) as Bill[]);
-  setIncomes((incomeR.data||[]).map((x:any)=>({...x,expected_amount:Number(x.expected_amount)||0})) as Income[]);
-  setRefreshed(new Date().toLocaleTimeString("tr-TR",{hour:"2-digit",minute:"2-digit"}));
-  setLoading(false);
+  try{
+   const now=new Date();const end=monthStart(now);const start=new Date(end.getFullYear(),end.getMonth()-3,1);
+   const [catR,balR,invR,debtR,billR,incomeR]=await Promise.all([
+    supabase.from("categories").select("id,name").eq("family_id",aileId),
+    supabase.from("account_balances").select("account_id,balance,currency").eq("family_id",aileId),
+    supabase.from("family_investments").select("id,asset_name,quantity,current_price,currency").eq("family_id",aileId),
+    supabase.from("family_debts").select("id,name,remaining_amount,monthly_payment,annual_interest_rate").eq("family_id",aileId),
+    supabase.from("family_bills").select("id,name,amount").eq("family_id",aileId).eq("active",true),
+    supabase.from("family_income_rules").select("id,name,expected_amount,active").eq("family_id",aileId)
+   ]);
+   const failure=catR.error||balR.error||invR.error||debtR.error||billR.error||incomeR.error;
+   if(failure)throw failure;
+   const transactionRows:any[]=[];
+   for(let offset=0;;offset+=1000){
+    const page=await supabase.from("fin_transactions").select("kind,amount,tx_date,category_id,account_id")
+     .eq("family_id",aileId).in("kind",["gelir","gider"]).gte("tx_date",iso(start)).lt("tx_date",iso(end))
+     .order("tx_date").order("created_at").order("id").range(offset,offset+999);
+    if(page.error)throw page.error;
+    transactionRows.push(...(page.data||[]));
+    if(!page.data||page.data.length<1000)break;
+   }
+   if(!isActive())return;
+   const balanceRows=(balR.data||[]) as {account_id:string;balance:number;currency:string}[];
+   const currencyByAccount=new Map(balanceRows.map(x=>[x.account_id,String(x.currency||"TRY").toUpperCase()]));
+   setTx(transactionRows.filter(x=>currencyByAccount.get(x.account_id)==="TRY").map(x=>({...x,amount:Number(x.amount)||0})) as Tx[]);
+   setCategories((catR.data||[]) as Category[]);
+   setCash(balanceRows.filter(x=>String(x.currency||"TRY").toUpperCase()==="TRY").reduce((sum,x)=>sum+(Number(x.balance)||0),0));
+   setForeignCash(balanceRows.filter(x=>String(x.currency||"TRY").toUpperCase()!=="TRY").reduce<Record<string,number>>((acc,x)=>{const cur=String(x.currency||"TRY").toUpperCase();acc[cur]=(acc[cur]||0)+(Number(x.balance)||0);return acc;},{}));
+   const investmentRows=(invR.data||[]).map((x:any)=>({...x,quantity:Number(x.quantity)||0,current_price:Number(x.current_price)||0,currency:String(x.currency||"TRY").toUpperCase()})) as Investment[];
+   setInvestments(investmentRows.filter(x=>x.currency==="TRY"));
+   setForeignPortfolio(investmentRows.filter(x=>x.currency!=="TRY").reduce<Record<string,number>>((acc,x)=>{acc[x.currency]=(acc[x.currency]||0)+x.quantity*x.current_price;return acc;},{}));
+   setDebts((debtR.data||[]).map((x:any)=>({...x,remaining_amount:Number(x.remaining_amount)||0,monthly_payment:Number(x.monthly_payment)||0,annual_interest_rate:Number(x.annual_interest_rate)||0})) as Debt[]);
+   setBills((billR.data||[]).map((x:any)=>({...x,amount:Number(x.amount)||0})) as Bill[]);
+   setIncomes((incomeR.data||[]).map((x:any)=>({...x,expected_amount:Number(x.expected_amount)||0})) as Income[]);
+   setRefreshed(new Date().toLocaleTimeString("tr-TR",{hour:"2-digit",minute:"2-digit"}));
+  }catch(error){
+   if(isActive())setError(error instanceof Error?error.message:"Net servet verileri yüklenemedi. Bağlantını kontrol edip tekrar dene.");
+  }finally{
+   if(isActive())setLoading(false);
+  }
  }
 
- useEffect(()=>{let active=true;void load();return()=>{active=false};},[aileId]);
+ useEffect(()=>{let active=true;void load(()=>active);return()=>{active=false};},[aileId]);
 
  const analysis=useMemo(()=>{
   const now=new Date();const current=monthStart(now);
