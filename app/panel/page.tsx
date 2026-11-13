@@ -97,23 +97,17 @@ export default function GenelBakis() {
           .order("created_at", { ascending: false }),
         supabase.from("categories").select("*").eq("family_id", aileId),
         supabase.from("family_category_budgets").select("category_id,limit_amount").eq("family_id", aileId).eq("budget_month", bas),
-        supabase.from("fin_transactions").select("tx_date,kind,amount").eq("family_id", aileId).gte("tx_date", tarihISO(trendBaslangic)).lt("tx_date", tarihISO(trendBitis)).in("kind", ["gelir", "gider"]),
+        supabase.from("fin_transactions").select("tx_date,kind,amount,account_id").eq("family_id", aileId).gte("tx_date", tarihISO(trendBaslangic)).lt("tx_date", tarihISO(trendBitis)).in("kind", ["gelir", "gider"]),
       ]);
       if (iptal) return;
       const h = b.error || i.error || k.error;
       if (h) {
         setHata(h.message);
       } else {
-        setBakiyeler(
-          ((b.data ?? []) as Bakiye[]).map((x) => ({
-            ...x,
-            balance: Number(x.balance),
-            opening_balance: Number(x.opening_balance),
-          }))
-        );
-        setIslemler(
-          ((i.data ?? []) as Islem[]).map((x) => ({ ...x, amount: Number(x.amount) }))
-        );
+        const accountRows=((b.data ?? []) as Bakiye[]).map((x) => ({...x,balance:Number(x.balance),opening_balance:Number(x.opening_balance)}));
+        const currencyByAccount=new Map(accountRows.map(x=>[x.account_id,String(x.currency||"TRY").toUpperCase()]));
+        setBakiyeler(accountRows);
+        setIslemler(((i.data ?? []) as Islem[]).filter(x=>currencyByAccount.get(x.account_id)==="TRY").map(x=>({...x,amount:Number(x.amount)})));
         setKategoriler((k.data ?? []) as Kategori[]);
         setButceLimitleri((budgets.data ?? []).map((x: any) => ({ category_id: x.category_id, limit_amount: Number(x.limit_amount) || 0 })));
         setButceHata(budgets.error ? "Kategori bütçeleri şu an yüklenemedi." : "");
@@ -125,10 +119,12 @@ export default function GenelBakis() {
           grouped.set(key, { ay: new Intl.DateTimeFormat("tr-TR", { month: "short" }).format(d), gelir: 0, gider: 0 });
         }
         for (const row of trend.data ?? []) {
+          if(currencyByAccount.get(row.account_id)==="TRY"){
           const item = grouped.get(String(row.tx_date).slice(0, 7));
           if (!item) continue;
           if (row.kind === "gelir") item.gelir += Number(row.amount) || 0;
           if (row.kind === "gider") item.gider += Number(row.amount) || 0;
+          }
         }
         setAylikTrend(Array.from(grouped.values()));
       }
@@ -147,7 +143,8 @@ export default function GenelBakis() {
     .filter((x) => x.kind === "gider")
     .reduce((t, x) => t + x.amount, 0);
   const net = gelir - gider;
-  const toplamVarlik = bakiyeler.reduce((t, x) => t + x.balance, 0);
+  const toplamVarlik = bakiyeler.filter(x=>String(x.currency||"TRY").toUpperCase()==="TRY").reduce((t, x) => t + x.balance, 0);
+  const yabanciBakiyeler = bakiyeler.filter(x=>String(x.currency||"TRY").toUpperCase()!=="TRY");
   const tasarrufOrani = gelir > 0 ? (net / gelir) * 100 : 0;
 
   const kategoriAdi = (id: string | null) =>
@@ -401,7 +398,8 @@ export default function GenelBakis() {
             <div className="mt-4 flex flex-wrap gap-4 text-xs text-muted"><span className="flex items-center gap-2"><i className="h-2.5 w-2.5 rounded-sm bg-up"/> Gelir</span><span className="flex items-center gap-2"><i className="h-2.5 w-2.5 rounded-sm bg-down"/> Gider</span></div>
           </section>
 
-          <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          {yabanciBakiyeler.length>0&&<p role="status" className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-muted">Yabancı para hesapları TL toplamına katılmadı; kur dönüşümü yapılmıyor. {Object.entries(yabanciBakiyeler.reduce<Record<string,number>>((acc,x)=>{const cur=String(x.currency||"TRY").toUpperCase();acc[cur]=(acc[cur]||0)+x.balance;return acc;},{})).map(([cur,v])=>v.toLocaleString("tr-TR",{maximumFractionDigits:2})+" "+cur).join(" · ")}</p>}
+      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             {[["Borçlarım","/panel/borclar","Kredi ve kart borçlarını izle"],["Ödemeler","/panel/odemeler","Yaklaşan taksit ve faturalar"],["Hedefler","/panel/hedefler","Birikim hedeflerini takip et"],["Yatırımlar","/panel/yatirim","Varlık portföyünü yönet"],["Ekonomi","/panel/ekonomi","Piyasa göstergelerine bak"],["Gelecek Planı","/panel/gelecek","Gelir ve gider senaryoları"],["Finans Akademisi","/panel/akademi","Finansal okuryazarlık dersleri"],["Fiş Tara","/tarama","Fotoğraftan gider oluştur"]].map(([title,href,desc])=><a key={href} href={href} className={kart+" transition hover:-translate-y-0.5 hover:border-accent/50"}><p className="font-bold">{title} <span className="text-accent">↗</span></p><p className="mt-1 text-xs text-muted">{desc}</p></a>)}
           </section>
 
