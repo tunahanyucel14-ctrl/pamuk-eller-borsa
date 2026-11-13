@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { LayoutDashboard, ArrowLeftRight, Wallet, Tags, Users, Table2, CreditCard, Receipt, Target, TrendingUp, Activity, CalendarClock, GraduationCap, ScanLine, Settings, Trophy, UserRound, LogOut } from "lucide-react";
+import { LayoutDashboard, ArrowLeftRight, Wallet, Tags, Users, Table2, CreditCard, Receipt, Target, TrendingUp, Activity, CalendarClock, GraduationCap, ScanLine, Settings, Trophy, UserRound, LogOut, ShieldCheck } from "lucide-react";
 import { supabase } from "../../lib/supabase";
 import { AileSaglayici } from "../../lib/aile-baglami";
 import { ROL_ADI } from "../../lib/tipler";
@@ -14,6 +14,7 @@ type Durum = "yukleniyor" | "aileyok" | "hazir";
 type UyelikSatiri = { role: Rol; families: { id: string; name: string } | { id: string; name: string }[] | null };
 const MENU = [
   { href: "/panel", ad: "Genel Bakış", icon: LayoutDashboard },
+  { href: "/panel/saglik", ad: "Finansal Sağlık", icon: ShieldCheck },
   { href: "/panel/islemler", ad: "İşlemler", icon: ArrowLeftRight },
   { href: "/panel/hesaplar", ad: "Hesaplarım", icon: Wallet },
   { href: "/panel/kategoriler", ad: "Kategoriler", icon: Tags },
