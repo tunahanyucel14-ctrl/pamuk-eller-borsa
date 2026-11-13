@@ -59,8 +59,9 @@ export default function AileAnalizPage(){
   for(let i=5;i>=0;i--){const d=new Date(now.getFullYear(),now.getMonth()-i,1);months.push({key:keyOf(d),label:d.toLocaleDateString("tr-TR",{month:"short"}),income:0,expense:0});}
   const memberMap=new Map(members.map(m=>[m.user_id,m]));
   const categoryMap=new Map(categories.map(c=>[c.id,c.name]));
-  const rows=tx.filter(x=>selected==="all"||x.created_by===selected);
   const activeMonths=months.slice(6-period);
+  const activeKeys=new Set(activeMonths.map(m=>m.key));
+  const rows=tx.filter(x=>(selected==="all"||x.created_by===selected)&&activeKeys.has(String(x.tx_date).slice(0,7)));
   const ids=Array.from(new Set(rows.map(x=>x.created_by||"unknown")));
   const byMember=ids.map(id=>{
    const items=rows.filter(x=>(x.created_by||"unknown")===id);
