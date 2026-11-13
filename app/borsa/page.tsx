@@ -38,6 +38,7 @@ type Stock = {
   name: string;
   price: number;
   change: number;
+  history: number[];
 };
 
 type Holding = {
@@ -102,29 +103,20 @@ const pct = (value: number) =>
     maximumFractionDigits: 2,
   })}%`;
 
-/* ---------- KÜÇÜK GRAFİK BİLEŞENLERİ ---------- */
+/* ---------- KÜÇÜK 5 GÜN BİLEŞENLERİ ---------- */
 
-function Sparkline({ symbol, up }: { symbol: string; up: boolean }) {
-  const seed = symbol.split("").reduce((a, c) => a + c.charCodeAt(0), 0);
-  const points = Array.from({ length: 12 }, (_, i) => {
-    const wave = Math.sin((i + seed) * 1.3) * 6 + Math.cos((i * seed) % 7) * 4;
-    const trend = (up ? 1 : -1) * (11 - i) * 1.2;
-    const y = Math.min(36, Math.max(4, 20 + wave + trend));
-    return `${i === 0 ? "M" : "L"}${((i * 100) / 11).toFixed(1)},${y.toFixed(1)}`;
+function Sparkline({ data }: { data: number[] }) {
+  if(data.length<2)return <span className="text-xs text-muted">—</span>;
+  const min=Math.min(...data),max=Math.max(...data),span=max-min||1;
+  const points=data.map((value,index)=>{
+    const x=(index/Math.max(data.length-1,1))*100;
+    const y=36-((value-min)/span)*30;
+    return `${index===0?"M":"L"}${x.toFixed(1)},${y.toFixed(1)}`;
   }).join(" ");
-
-  return (
-    <svg viewBox="0 0 100 40" className="h-8 w-24" aria-hidden="true">
-      <path
-        d={points}
-        fill="none"
-        stroke={up ? "var(--up)" : "var(--down)"}
-        strokeWidth="2.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
+  const up=data[data.length-1]>=data[0];
+  return <svg viewBox="0 0 100 40" className="h-8 w-24" role="img" aria-label="Son beş işlem gününün gerçek kapanış fiyatı grafiği">
+    <path d={points} fill="none" stroke={up?"var(--up)":"var(--down)"} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+  </svg>;
 }
 
 function AreaChart({ data }: { data: number[] }) {
@@ -204,7 +196,7 @@ function StockTable({
             </td>
             <td className="font-semibold">{money(stock.price)}</td>
             <td className="hidden sm:table-cell">
-              <Sparkline symbol={stock.symbol} up={stock.change >= 0} />
+              <Sparkline data={stock.history||[]} />
             </td>
             <td>
               <span
