@@ -98,7 +98,7 @@ export default function GenelBakis() {
           .order("created_at", { ascending: false }),
         supabase.from("categories").select("*").eq("family_id", aileId),
         supabase.from("family_category_budgets").select("category_id,limit_amount").eq("family_id", aileId).eq("budget_month", bas),
-        supabase.from("fin_transactions").select("tx_date,kind,amount,account_id").eq("family_id", aileId).gte("tx_date", tarihISO(trendBaslangic)).lt("tx_date", tarihISO(trendBitis)).in("kind", ["gelir", "gider"]),
+        supabase.from("fin_transactions").select("id,created_at,tx_date,kind,amount,account_id").eq("family_id", aileId).gte("tx_date", tarihISO(trendBaslangic)).lt("tx_date", tarihISO(trendBitis)).in("kind", ["gelir", "gider"]).order("tx_date", { ascending: true }).order("created_at", { ascending: true }).order("id", { ascending: true }).range(0, 999),
       ]);
       if (iptal) return;
       const h = b.error || i.error || k.error;
@@ -119,7 +119,7 @@ export default function GenelBakis() {
           const key = tarihISO(d).slice(0, 7);
           grouped.set(key, { ay: new Intl.DateTimeFormat("tr-TR", { month: "short" }).format(d), gelir: 0, gider: 0 });
         }
-        for (const row of trend.data ?? []) {
+        for (const row of trendRows) {
           if(currencyByAccount.get(row.account_id)==="TRY"){
           const item = grouped.get(String(row.tx_date).slice(0, 7));
           if (!item) continue;
