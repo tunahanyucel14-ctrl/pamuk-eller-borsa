@@ -99,7 +99,9 @@ export default function Islemler() {
       }
     }
     if (bekle) return;
-    if (!tarih || !/^\\d{4}-\\d{2}-\\d{2}$/.test(tarih) || Number.isNaN(Date.parse(tarih + "T00:00:00"))) {
+    const [year, month, day] = tarih.split("-").map(Number);
+    const validDate = /^\d{4}-\d{2}-\d{2}$/.test(tarih) && Number.isInteger(year) && Number.isInteger(month) && Number.isInteger(day) && new Date(Date.UTC(year, month - 1, day)).toISOString().slice(0, 10) === tarih;
+    if (!validDate) {
       setHata("Geçerli bir işlem tarihi seç.");
       return;
     }
