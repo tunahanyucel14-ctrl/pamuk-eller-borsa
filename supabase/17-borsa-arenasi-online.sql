@@ -58,6 +58,8 @@ create table if not exists public.arena_leaderboard (
 );
 create index if not exists arena_leaderboard_season_value_idx on public.arena_leaderboard (season_id, total_value desc);
 create index if not exists arena_trades_account_created_idx on public.arena_trades (account_id, created_at desc);
+create index if not exists arena_trades_user_id_idx on public.arena_trades (user_id);
+create index if not exists arena_trades_season_id_idx on public.arena_trades (season_id);
 create index if not exists arena_positions_account_idx on public.arena_positions (account_id);
 
 alter table public.arena_seasons enable row level security;
@@ -70,6 +72,12 @@ drop policy if exists "arena_seasons_public_read" on public.arena_seasons;
 create policy "arena_seasons_public_read" on public.arena_seasons for select to anon, authenticated using (true);
 drop policy if exists "arena_leaderboard_public_read" on public.arena_leaderboard;
 create policy "arena_leaderboard_public_read" on public.arena_leaderboard for select to anon, authenticated using (true);
+drop policy if exists "arena_accounts_deny_client_access" on public.arena_accounts;
+create policy "arena_accounts_deny_client_access" on public.arena_accounts for all to anon, authenticated using (false) with check (false);
+drop policy if exists "arena_positions_deny_client_access" on public.arena_positions;
+create policy "arena_positions_deny_client_access" on public.arena_positions for all to anon, authenticated using (false) with check (false);
+drop policy if exists "arena_trades_deny_client_access" on public.arena_trades;
+create policy "arena_trades_deny_client_access" on public.arena_trades for all to anon, authenticated using (false) with check (false);
 
 revoke all on public.arena_seasons, public.arena_accounts, public.arena_positions, public.arena_trades, public.arena_leaderboard from anon, authenticated;
 grant select on public.arena_seasons, public.arena_leaderboard to anon, authenticated;
