@@ -15,7 +15,7 @@ type ReadyRow={fingerprint:string;account_id:string;category_id:string|null;kind
 const normalize=(s:string)=>s.toLocaleLowerCase("tr-TR").normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/ı/g,"i").replace(/[^a-z0-9]+/g," ").trim();
 function parseCsv(text:string):string[][]{
  const first=text.split(/\r?\n/,1)[0]||"";
- const counts=[",",";","\t"].map(d=>({d,n:(first.match(new RegExp(d==="\t"?"\\t":d===",",":";","g"))||[]).length}));
+ const counts=[",",";","\t"].map(d=>({d,n:first.split(d).length-1}));
  const delimiter=counts.sort((a,b)=>b.n-a.n)[0]?.d||",";
  const rows:string[][]=[];let row:string[]=[];let cell="";let quoted=false;
  for(let i=0;i<text.length;i++){const ch=text[i];
