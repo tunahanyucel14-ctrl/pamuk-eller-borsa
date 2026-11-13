@@ -38,9 +38,9 @@ function parseAmount(raw:string):{amount:number;kind:"gelir"|"gider";signed:bool
 }
 function parseDate(raw:string):string|null{
  const s=raw.trim();let iso:string|null=null;
- let m=s.match(/^(\\d{1,2})[./-](\\d{1,2})[./-](\\d{4})$/);
+ let m=s.match(/^(\d{1,2})[./-](\d{1,2})[./-](\d{4})$/);
  if(m){const d=m[1].padStart(2,"0"),mo=m[2].padStart(2,"0");iso=m[3]+"-"+mo+"-"+d;}
- m=s.match(/^(\\d{4})-(\\d{1,2})-(\\d{1,2})/);
+ m=s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
  if(!iso&&m)iso=m[1]+"-"+m[2].padStart(2,"0")+"-"+m[3].padStart(2,"0");
  if(!iso){const excel=Number(s);if(Number.isFinite(excel)&&excel>20000&&excel<80000){const d=new Date(Date.UTC(1899,11,30)+excel*86400000);iso=d.toISOString().slice(0,10);}}
  if(!iso)return null;
