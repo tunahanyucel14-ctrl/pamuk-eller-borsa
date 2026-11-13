@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import ExcelJS from "exceljs-hardened";
+import ExcelJS from "exceljs-hardened/dist/exceljs.min.js";
 import { FileUp, FileSpreadsheet, ShieldCheck, AlertTriangle, CheckCircle2, ArrowRight, RotateCcw } from "lucide-react";
 import { supabase } from "../../../lib/supabase";
 import { useAile } from "../../../lib/aile-baglami";
