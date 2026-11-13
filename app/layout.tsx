@@ -12,7 +12,7 @@ export const viewport: Viewport = {
 };
 
 // Sayfa açılırken kayıtlı temayı hemen uygular (renk titremesi olmasın diye)
-const themeScript = `try{var t=localStorage.getItem("pamuk-tema");if(t){document.documentElement.setAttribute("data-theme",t)}}catch(e){}`;
+const themeScript = `try{var t=localStorage.getItem("pamuk-tema");if(t==="zumrut"||!t){t="retro";localStorage.setItem("pamuk-tema","retro")}document.documentElement.setAttribute("data-theme",t)}catch(e){document.documentElement.setAttribute("data-theme","retro")}`;
 
 export default function RootLayout({
   children,
@@ -20,7 +20,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="tr" data-theme="zumrut" suppressHydrationWarning>
+    <html lang="tr" data-theme="retro" suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
