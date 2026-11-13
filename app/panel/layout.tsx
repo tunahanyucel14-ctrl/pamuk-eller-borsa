@@ -27,7 +27,6 @@ const MENU = [
   { href: "/panel/gelecek", ad: "Gelecek Planı", icon: CalendarClock },
   { href: "/panel/akademi", ad: "Finans Akademisi", icon: GraduationCap },
   { href: "/tarama", ad: "Fiş Tara", icon: ScanLine },
-  { href: "/panel/ayarlar", ad: "Görünüm & Ayarlar", icon: Settings },
 ];
 const ORDER_KEY = "pamuk-menu-order";
 
@@ -107,6 +106,14 @@ export default function PanelLayout({ children }: { children: React.ReactNode })
           <nav className="flex flex-1 flex-col gap-1">
             {menu.map((m) => { const aktif = m.href === "/panel" ? yol === "/panel" : yol.startsWith(m.href); const Icon = m.icon; return <Link key={m.href} href={m.href} className={"group flex items-center gap-3 rounded-xl px-3 py-2.5 text-[13px] font-semibold " + (aktif ? "bg-accent text-accent-fg shadow-md" : "text-muted hover:bg-inner hover:text-fg")}><Icon size={17}/><span>{m.ad}</span>{aktif && <span className="ml-auto h-1.5 w-1.5 rounded-full bg-current"/>}</Link>; })}
           </nav>
+          <div className="mt-3 border-t border-line pt-3">
+            <div className={"flex items-center gap-3 rounded-xl px-3 py-2.5 text-[13px] font-semibold " + (yol.startsWith("/panel/ayarlar") ? "bg-accent/10 text-accent" : "text-muted")}>
+              <Settings size={17}/><span>Ayarlar</span>
+            </div>
+            <div className="ml-5 mt-1 flex flex-col gap-1 border-l border-line pl-3">
+              {[["Genel", "/panel/ayarlar"], ["Görünüm", "/panel/ayarlar#gorunum"], ["Yazı tipi", "/panel/ayarlar#yazi-tipi"], ["Menü sıralaması", "/panel/ayarlar#menu-siralamasi"]].map(([ad, href]) => <Link key={href} href={href} className="rounded-lg px-3 py-2 text-xs font-medium text-muted hover:bg-inner hover:text-accent">{ad}</Link>)}
+            </div>
+          </div>
           <div className="mt-6 rounded-2xl border border-line bg-card p-3">
             <p className="text-xs font-bold">{aile.ad}</p><p className="mt-1 text-[11px] text-muted">{ROL_ADI[aile.rol]}</p>
             <div className="mt-3 flex gap-2"><Link href="/borsa" className="flex-1 rounded-lg bg-inner px-2 py-2 text-center text-[11px] font-semibold hover:text-accent"><Trophy className="mx-auto mb-1" size={15}/>Arena</Link><Link href="/hesabim" className="flex-1 rounded-lg bg-inner px-2 py-2 text-center text-[11px] font-semibold hover:text-accent"><UserRound className="mx-auto mb-1" size={15}/>Hesabım</Link><button onClick={cikis} className="flex-1 rounded-lg bg-inner px-2 py-2 text-[11px] font-semibold text-muted hover:text-down"><LogOut className="mx-auto mb-1" size={15}/>Çıkış</button></div>
@@ -119,7 +126,7 @@ export default function PanelLayout({ children }: { children: React.ReactNode })
               <div className="hidden lg:block"><p className="text-xs font-semibold text-muted">KİŞİSEL FİNANS KOKPİTİ</p><p className="text-sm font-bold">Merhaba, finansal kontrol sende.</p></div>
               <div className="flex items-center gap-2"><Link href="/borsa" className="rounded-xl border border-line px-3 py-2 text-xs font-semibold hover:border-accent hover:text-accent"><Trophy className="mr-1 inline" size={14}/> Borsa Arenası</Link><Link href="/panel/ayarlar" className="rounded-xl border border-line p-2.5 text-muted hover:text-accent" aria-label="Görünüm ve ayarlar"><Settings size={17}/></Link></div>
             </div>
-            <nav className="flex gap-1 overflow-x-auto px-3 pb-3 lg:hidden">{menu.map((m) => { const aktif = m.href === "/panel" ? yol === "/panel" : yol.startsWith(m.href); return <Link key={m.href} href={m.href} className={"whitespace-nowrap rounded-lg px-3 py-2 text-xs font-semibold " + (aktif ? "bg-accent text-accent-fg" : "text-muted hover:text-fg")}>{m.ad}</Link>; })}</nav>
+            <nav className="flex gap-1 overflow-x-auto px-3 pb-3 lg:hidden">{menu.map((m) => { const aktif = m.href === "/panel" ? yol === "/panel" : yol.startsWith(m.href); return <Link key={m.href} href={m.href} className={"whitespace-nowrap rounded-lg px-3 py-2 text-xs font-semibold " + (aktif ? "bg-accent text-accent-fg" : "text-muted hover:text-fg")}>{m.ad}</Link>; })}<Link href="/panel/ayarlar" className={"whitespace-nowrap rounded-lg px-3 py-2 text-xs font-semibold " + (yol.startsWith("/panel/ayarlar") ? "bg-accent text-accent-fg" : "text-muted hover:text-fg")}>⚙ Ayarlar</Link></nav>
           </header>
           <main className="mx-auto w-full max-w-[1380px] p-4 sm:p-6 xl:p-8">{children}</main>
         </div>
