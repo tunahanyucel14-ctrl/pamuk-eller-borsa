@@ -5,7 +5,7 @@ export const runtime = "nodejs";
 type ChatLine = { role: "user" | "assistant"; content: string };
 
 export async function POST(request: Request) {
-  const token = request.headers.get("authorization")?.replace(/^Bearer\\s+/i, "");
+  const token = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
   if (!token || token.length > 4096) {
     return NextResponse.json({ error: "Giriş yapman gerekiyor." }, { status: 401 });
   }
