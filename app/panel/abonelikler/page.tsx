@@ -7,10 +7,14 @@ import { tl } from "../../../lib/finans";
 import { ABONELIKLER } from "../../../lib/kataloglar";
 import { kart, girdi, dugme, etiket, baslik } from "../../../lib/ui";
 
-type Subscription = { id:string; name:string; amount:number; due_day:number; category:string; active:boolean };
+type Subscription = { id:string; name:string; amount:number; due_day:number; category:string; active:boolean; payment_source?:string|null };
+type AccountOption = { id:string; name:string; type:string };
 export default function AboneliklerPage(){
  const {aileId,kullaniciId,yazabilir}=useAile();
  const [rows,setRows]=useState<Subscription[]>([]);
+ const [accounts,setAccounts]=useState<AccountOption[]>([]);
+ const [paymentSource,setPaymentSource]=useState("");
+ const [customSource,setCustomSource]=useState("");
  const [provider,setProvider]=useState("Netflix");
  const [custom,setCustom]=useState("");
  const [amount,setAmount]=useState("");
@@ -29,8 +33,8 @@ export default function AboneliklerPage(){
   const parsed=Number(amount),due=Number(day),name=provider==="Diğer / listede yok"?custom.trim():provider;
   if(!name||!Number.isFinite(parsed)||parsed<=0||!Number.isInteger(due)||due<1||due>31){setError("Uygulama adı, aylık ücret ve 1–31 arasında ödeme günü gir.");return;}
   setBusy(true);
-  const {error}=await supabase.from("family_bills").insert({family_id:aileId,created_by:kullaniciId,name,amount:parsed,due_day:due,category:"Abonelik",active:true});
-  if(error)setError(error.message);else{setAmount("");setCustom("");await load();}
+  const source=paymentSource==="custom"?customSource.trim():paymentSource;\n  const {error}=await supabase.from("family_bills").insert({family_id:aileId,created_by:kullaniciId,name,amount:parsed,due_day:due,category:"Abonelik",active:true,payment_source:source||null});
+  if(error)setError(error.message);else{setAmount("");setCustom("");setCustomSource("");setPaymentSource("");await load();}
   setBusy(false);
  }
  async function remove(row:Subscription){
@@ -43,15 +47,15 @@ export default function AboneliklerPage(){
   <div className="grid gap-3 sm:grid-cols-3"><div className={kart}><p className="text-xs text-muted">Aktif abonelik</p><p className="mt-2 text-2xl font-black">{rows.length}</p></div><div className={kart}><p className="text-xs text-muted">Aylık toplam</p><p className="mt-2 text-2xl font-black">{tl(total)}</p></div><div className={kart}><p className="text-xs text-muted">Yıllık tahmini maliyet</p><p className="mt-2 text-2xl font-black">{tl(total*12)}</p></div></div>
   {error&&<p className="rounded-xl bg-down/10 p-3 text-sm text-down">{error}</p>}
   <section className={kart+" space-y-3"}><h2 className="flex items-center gap-2 font-bold"><Repeat size={18} className="text-accent"/> Kayıtlı abonelikler</h2>
-   {rows.length===0?<p className="text-sm text-muted">Henüz abonelik eklemedin.</p>:<div className="space-y-2">{rows.map(row=><div key={row.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-inner p-3"><div className="flex items-center gap-3"><span className="rounded-xl bg-accent/10 p-2 text-accent"><CalendarClock size={17}/></span><div><p className="font-semibold">{row.name}</p><p className="text-xs text-muted">Her ayın {row.due_day}. günü · Abonelik</p></div></div><div className="flex items-center gap-3"><b>{tl(Number(row.amount))}/ay</b>{yazabilir&&<button onClick={()=>void remove(row)} className="text-muted hover:text-down" aria-label="Aboneliği sil"><Trash2 size={16}/></button>}</div></div>)}</div>}
+   {rows.length===0?<p className="text-sm text-muted">Henüz abonelik eklemedin.</p>:<div className="space-y-2">{rows.map(row=><div key={row.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-inner p-3"><div className="flex items-center gap-3"><span className="rounded-xl bg-accent/10 p-2 text-accent"><CalendarClock size={17}/></span><div><p className="font-semibold">{row.name}</p><p className="text-xs text-muted">Her ayın {row.due_day}. günü · Abonelik · {row.payment_source||"Ödeme kaynağı belirtilmedi"}</p></div></div><div className="flex items-center gap-3"><b>{tl(Number(row.amount))}/ay</b>{yazabilir&&<button onClick={()=>void remove(row)} className="text-muted hover:text-down" aria-label="Aboneliği sil"><Trash2 size={16}/></button>}</div></div>)}</div>}
   </section>
   {yazabilir&&<form onSubmit={add} className={kart+" grid gap-3 md:grid-cols-2"}>
    <h2 className="font-bold md:col-span-2"><Plus size={17} className="mr-1 inline"/> Abonelik ekle</h2>
    <div><label className={etiket}>Uygulama / hizmet</label><select className={girdi} value={provider} onChange={e=>setProvider(e.target.value)}>{ABONELIKLER.map(group=><optgroup key={group.category} label={group.category}>{group.apps.map(app=><option key={app} value={app}>{app}</option>)}</optgroup>)}</select></div>
    {provider==="Diğer / listede yok"&&<div><label className={etiket}>Uygulama adı</label><input className={girdi} value={custom} onChange={e=>setCustom(e.target.value)} placeholder="Kendi aboneliğini yaz"/></div>}
    <div><label className={etiket}>Aylık ücret (TL)</label><input className={girdi} inputMode="decimal" value={amount} onChange={e=>setAmount(e.target.value)} placeholder="Örn. 149,99" required/></div>
-   <div><label className={etiket}>Ödeme günü (ayın kaçında?)</label><input className={girdi} type="number" min="1" max="31" value={day} onChange={e=>setDay(e.target.value)} required/></div>
-   <p className="text-xs leading-5 text-muted md:col-span-2">Listede bulunmayan hizmetleri “Diğer / listede yok” seçeneğiyle ekleyebilirsin. Ücret alanına aylık karşılığını yaz; yıllık paketlerde yıllık bedeli 12'ye bölerek gir. Bu kayıtlar Ödemeler bölümünde de “Abonelik” olarak sınıflandırılır.</p>
+   <div><label className={etiket}>Ödeme günü (ayın kaçında?)</label><input className={girdi} type="number" min="1" max="31" value={day} onChange={e=>setDay(e.target.value)} required/></div>\n   <div><label className={etiket}>Hangi banka / karttan çekiliyor?</label><select className={girdi} value={paymentSource} onChange={e=>setPaymentSource(e.target.value)}><option value="">Belirtilmedi</option>{accounts.map(a=><option key={a.id} value={a.name}>{a.name} ({a.type==="banka"?"Banka hesabı":a.type==="yatirim"?"Yatırım hesabı":"Nakit"})</option>)}<option value="custom">Diğer / kredi kartı adı yaz</option></select></div>\n   {paymentSource==="custom"&&<div><label className={etiket}>Kart adı (kart numarası yazma)</label><input className={girdi} value={customSource} onChange={e=>setCustomSource(e.target.value)} placeholder="Örn. Garanti Bonus kredi kartı"/></div>}
+   <p className="text-xs leading-5 text-muted md:col-span-2">Kart numarası, CVV veya şifre girme; yalnızca kartın görünen adını yaz. Hesaplarım bölümünde kayıtlı banka hesapları da seçilebilir. Listede bulunmayan hizmetleri “Diğer / listede yok” seçeneğiyle ekleyebilirsin. Ücret alanına aylık karşılığını yaz; yıllık paketlerde yıllık bedeli 12'ye bölerek gir. Bu kayıtlar Ödemeler bölümünde de “Abonelik” olarak sınıflandırılır.</p>
    <button disabled={busy} className={dugme+" md:col-span-2"}>{busy?"Kaydediliyor...":"Aboneliği kaydet"}</button>
   </form>}
   <section className={kart}><h2 className="mb-2 font-bold">Katalog kapsamı</h2><p className="text-xs leading-5 text-muted">{allApps.length} yaygın hizmet seçeneği; film/dizi, müzik, bulut, yazılım, yapay zekâ, alışveriş, oyun, eğitim, spor ve haber. Abonelik katalogları değişebildiği için özel hizmet ekleme seçeneği de açık.</p></section>
