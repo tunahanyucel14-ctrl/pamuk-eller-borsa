@@ -26,7 +26,7 @@ function daysUntil(date: Date) {
 function dateLabel(date: Date) { return date.toLocaleDateString("tr-TR", { day: "numeric", month: "long" }); }
 
 export default function OdemelerPage() {
-  const { aileId, kullaniciId, yazabilir } = useAile();
+  const { aileId, kullaniciId, yazabilir, yonetebilir } = useAile();
   const [rows, setRows] = useState<Bill[]>([]);
   const [debts, setDebts] = useState<Debt[]>([]);
   const [name, setName] = useState("");
@@ -207,7 +207,7 @@ export default function OdemelerPage() {
             const due = dateForDay(row.due_day); const left = daysUntil(due);
             return <div key={row.id} className="flex items-center justify-between gap-3 rounded-xl bg-inner p-3">
               <div className="flex min-w-0 items-center gap-3"><span className="rounded-xl bg-accent/10 p-2 text-accent"><CalendarClock size={18}/></span><div className="min-w-0"><b className="text-sm">{row.name}</b><p className="text-xs text-muted">Her ayın {row.due_day}. günü · {row.category}</p><p className={"mt-1 text-[11px] font-semibold " + (left === 0 ? "text-down" : "text-accent")}>{left === 0 ? "Bugün ödenmeli" : left + " gün sonra · " + dateLabel(due)}</p></div></div>
-              <div className="flex items-center gap-3"><b className="shrink-0 text-sm">{tl(Number(row.amount))}</b>{yazabilir && <button onClick={async () => { if (!window.confirm(row.name + " ödeme kaydı silinsin mi?")) return; const { error } = await supabase.from("family_bills").delete().eq("id", row.id).eq("family_id", aileId); if (error) setError(error.message); else await load(); }} aria-label="Ödemeyi sil" className="text-muted hover:text-down"><Trash2 size={15}/></button>}</div>
+              <div className="flex items-center gap-3"><b className="shrink-0 text-sm">{tl(Number(row.amount))}</b>{yonetebilir && <button onClick={async () => { if (!window.confirm(row.name + " ödeme kaydı silinsin mi?")) return; const { error } = await supabase.from("family_bills").delete().eq("id", row.id).eq("family_id", aileId); if (error) setError(error.message); else await load(); }} aria-label="Ödemeyi sil" className="text-muted hover:text-down"><Trash2 size={15}/></button>}</div>
             </div>;
           })}
         </div>}
