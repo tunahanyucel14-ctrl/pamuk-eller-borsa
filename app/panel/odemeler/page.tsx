@@ -102,9 +102,19 @@ export default function OdemelerPage() {
   }, [rows, debts, settings, permission]);
 
   function saveSettings() {
-    localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
-    setSaved(true);
-    window.setTimeout(() => setSaved(false), 2200);
+    setError("");
+    const salaryDay = settings.salaryDay.trim();
+    if (salaryDay && (!Number.isInteger(Number(salaryDay)) || Number(salaryDay) < 1 || Number(salaryDay) > 31)) {
+      setError("Maaş günü boş bırakılabilir veya 1–31 arasında olmalı.");
+      return;
+    }
+    try {
+      localStorage.setItem(SETTINGS_KEY, JSON.stringify({ ...settings, salaryDay }));
+      setSaved(true);
+      window.setTimeout(() => setSaved(false), 2200);
+    } catch {
+      setError("Hatırlatma ayarları bu tarayıcıya kaydedilemedi. Depolama alanını kontrol et.");
+    }
   }
 
   async function enableNotifications() {
