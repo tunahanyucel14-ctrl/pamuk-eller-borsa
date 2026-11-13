@@ -9,6 +9,7 @@ import { kart, girdi, dugme, etiket, baslik } from "../../../lib/ui";
 
 type IncomeRule = {
   id: string;
+  created_by?: string | null;
   name: string;
   income_type: "maas" | "ek_odeme" | "nobet" | "prim" | "kira" | "diger";
   expected_amount: number;
@@ -26,7 +27,7 @@ const TYPES = [
 ] as const;
 
 export default function GelirPlanlamaPage() {
-  const { aileId, kullaniciId, yazabilir } = useAile();
+  const { aileId, kullaniciId, yazabilir, yonetebilir } = useAile();
   const [rows, setRows] = useState<IncomeRule[]>([]);
   const [name, setName] = useState("Maaş");
   const [type, setType] = useState<IncomeRule["income_type"]>("maas");
@@ -102,7 +103,7 @@ export default function GelirPlanlamaPage() {
       {rows.length === 0 ? <p className="text-sm text-muted">Henüz düzenli gelir planı eklemedin.</p> : <div className="space-y-2">
         {rows.map((row) => <article key={row.id} className={"flex flex-wrap items-center justify-between gap-3 rounded-xl bg-inner p-3 " + (!row.active ? "opacity-60" : "")}>
           <div className="flex min-w-0 items-center gap-3"><span className="rounded-xl bg-up/10 p-2 text-up"><CalendarClock size={18}/></span><div className="min-w-0"><p className="font-semibold">{row.name}</p><p className="text-xs text-muted">{TYPES.find((x) => x.id === row.income_type)?.label} · Her ayın {row.pay_day}. günü {row.notes ? "· " + row.notes : ""}</p></div></div>
-          <div className="flex items-center gap-3"><div className="text-right"><b>{tl(Number(row.expected_amount))}</b><p className="text-xs text-muted">{row.active ? "Aktif" : "Pasif"}</p></div>{yazabilir && <><button onClick={() => void toggle(row)} className="rounded-lg border border-line px-3 py-2 text-xs">{row.active ? "Duraklat" : "Etkinleştir"}</button><button onClick={() => void remove(row)} aria-label="Gelir planını sil" className="text-muted hover:text-down"><Trash2 size={16}/></button></>}</div>
+          <div className="flex items-center gap-3"><div className="text-right"><b>{tl(Number(row.expected_amount))}</b><p className="text-xs text-muted">{row.active ? "Aktif" : "Pasif"}</p></div>{yazabilir && (yonetebilir || row.created_by === kullaniciId) && <button onClick={() => void toggle(row)} className="rounded-lg border border-line px-3 py-2 text-xs">{row.active ? "Duraklat" : "Etkinleştir"}</button>}{yonetebilir && <button onClick={() => void remove(row)} aria-label="Gelir planını sil" className="text-muted hover:text-down"><Trash2 size={16}/></button>}</div>
         </article>)}
       </div>}
     </section>
