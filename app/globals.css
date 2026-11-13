@@ -126,3 +126,64 @@ input[type="number"]::-webkit-outer-spin-button {
 input[type="number"] {
   -moz-appearance: textfield;
 }
+
+
+/* Küçük kalite dokunuşları: mevcut tema ve renk sistemi korunur. */
+html {
+  scroll-behavior: smooth;
+  scrollbar-gutter: stable;
+}
+
+::selection {
+  color: var(--accent-fg);
+  background: var(--accent);
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+button,
+a,
+input,
+select {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button,
+a {
+  transition-property: color, background-color, border-color, opacity, box-shadow, transform;
+  transition-duration: 160ms;
+  transition-timing-function: ease;
+}
+
+button:not(:disabled):active {
+  transform: translateY(1px);
+}
+
+table {
+  border-collapse: collapse;
+}
+
+@media (max-width: 640px) {
+  table {
+    font-size: 0.8125rem;
+  }
+
+  th,
+  td {
+    padding-right: 0.5rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
