@@ -65,9 +65,7 @@ export default function ButcePage() {
     setDeleting(true);
     const year=new Date().getFullYear();
     const dateOnly=(d:Date)=>d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
-    const start=dateOnly(new Date(year,month,1));
-    const end=dateOnly(new Date(year,month+1,1));
-    const {error}=await supabase.from("fin_transactions").delete().eq("family_id",aileId).gte("tx_date",start).lt("tx_date",end);
+    const {error}=await supabase.rpc("clear_family_month_transactions",{p_family_id:aileId,p_month:dateOnly(new Date(year,month,1))});
     if(error){setSaveStatus("Aylık işlem kayıtları silinemedi: "+error.message);setDeleting(false);return;}
     setRows(old=>old.map(r=>({...r,values:r.values.map((v,i)=>i===month?null:v)})));
     setSaveStatus(label+" ayının verileri temizlendi");
