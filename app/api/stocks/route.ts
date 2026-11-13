@@ -10,7 +10,7 @@ const universe=[
 export async function GET(){
  const stocks=await Promise.all(universe.map(async item=>{
   try{
-   const r=await fetch("https://query1.finance.yahoo.com/v8/finance/chart/"+item.symbol+".IS?range=1d&interval=5m",{headers:{"User-Agent":"Mozilla/5.0 PamukEller/1.0"},next:{revalidate:60}});
+   const r=await fetch("https://query1.finance.yahoo.com/v8/finance/chart/"+item.symbol+".IS?range=1d&interval=5m",{headers:{"User-Agent":"Mozilla/5.0 PamukEller/1.0"},next:{revalidate:60},signal:AbortSignal.timeout(8000)});
    if(!r.ok)return null;const j=await r.json();const x=j.chart?.result?.[0];if(!x)return null;
    const price=Number(x.meta?.regularMarketPrice),previous=Number(x.meta?.chartPreviousClose||x.meta?.previousClose);
    if(!(price>0))return null;
