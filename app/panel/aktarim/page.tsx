@@ -139,7 +139,7 @@ export default function AktarimPage(){
  useEffect(()=>{void load();},[load]);
 
  async function statementFilesSelected(files?:FileList|null){
-  setError("");setMessage("");setResult(null);setStatementMeta(null);setShowAllPreview(false);setAcknowledgeReconciliation(false);
+  setError("");setMessage("");setResult(null);setStatementMeta(null);setShowAllPreview(false);setAcknowledgeReconciliation(false);setFileName("");setHeaders([]);setRows([]);setCategoryOverrides({});
   const selected=Array.from(files||[]);
   if(!selected.length)return;
   if(ocrBusy)return;
