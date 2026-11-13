@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ArrowDown, ArrowUp, Check, GripVertical, Palette, RotateCcw, Type } from "lucide-react";
+import { ArrowDown, ArrowUp, Check, GripVertical, Palette, RotateCcw, Type, Image as ImageIcon, Sparkles, SlidersHorizontal } from "lucide-react";
 
 const THEMES = [
   { id: "retro", name: "Kaset Kulübü", desc: "Analog sıcaklık, kâğıt dokusu ve canlı kiremit", colors: ["#f4ecd9", "#fff9ed", "#d95743"], tag: "İmza tema" },
@@ -22,6 +22,10 @@ const THEMES = [
   { id: "cobalt", name: "Kobalt", desc: "Gece mavisi ve elektrikli mavi", colors: ["#080f27", "#142454", "#80a7ff"], tag: "04 · Dinamik" },
   { id: "sakura", name: "Sakura", desc: "Pudra, gül ve yumuşak kontrast", colors: ["#f8edf1", "#fff9fb", "#c66b91"], tag: "05 · Zarif" },
   { id: "paper", name: "Editorial", desc: "Mat kâğıt, orman yeşili ve editoryal sadelik", colors: ["#f2f0e9", "#fffef9", "#456b55"], tag: "06 · Editoryal" },
+  { id: "midnight", name: "Midnight", desc: "Gece moru, buz mavisi ve sinematik kontrast", colors: ["#100d20", "#211b38", "#9d8cff"], tag: "07 · Gece" },
+  { id: "oceanic", name: "Deep Ocean", desc: "Okyanus laciverti ve mercan vurguları", colors: ["#061b2a", "#0c3044", "#4bd4d0"], tag: "08 · Derin" },
+  { id: "sand", name: "Sahil", desc: "Kum, taş ve Akdeniz mavisi", colors: ["#eee5d5", "#fffaf0", "#287d91"], tag: "09 · Doğal" },
+  { id: "berry", name: "Berry", desc: "Böğürtlen, mürdüm ve canlı pembe", colors: ["#1b1020", "#30203a", "#e58ac8"], tag: "10 · Cesur" },
 ];
 const FONTS = [
   { id: "modern", name: "Modern", desc: "Çağdaş ve dengeli · Önerilen" },
@@ -43,12 +47,12 @@ export default function AyarlarSayfasi() {
   const [theme, setTheme] = useState("retro");
   const [font, setFont] = useState("modern");
   const [order, setOrder] = useState<string[]>(MENU_ITEMS.map((x) => x[1]));
-  const [saved, setSaved] = useState(false);
+  const [saved, setSaved] = useState(false);\n  const [photo, setPhoto] = useState("none");\n  const [motion, setMotion] = useState("full");\n  const [density, setDensity] = useState("comfortable");
   const [dragged, setDragged] = useState<string | null>(null);
 
   useEffect(() => {
     setTheme(localStorage.getItem("pamuk-tema") || "retro");
-    setFont(localStorage.getItem("pamuk-font") || "modern");
+    setFont(localStorage.getItem("pamuk-font") || "modern");\n    const storedPhoto = localStorage.getItem("pamuk-photo") || "none"; setPhoto(storedPhoto); document.documentElement.setAttribute("data-photo", storedPhoto);\n    const storedMotion = localStorage.getItem("pamuk-motion") || "full"; setMotion(storedMotion); document.documentElement.setAttribute("data-motion", storedMotion);\n    const storedDensity = localStorage.getItem("pamuk-density") || "comfortable"; setDensity(storedDensity); document.documentElement.setAttribute("data-density", storedDensity);
     try {
       const stored = JSON.parse(localStorage.getItem(ORDER_KEY) || "[]") as string[];
       const valid = stored.filter((href) => MENU_ITEMS.some((x) => x[1] === href));
@@ -122,6 +126,36 @@ export default function AyarlarSayfasi() {
           <div className="mt-3 flex items-center justify-between gap-2"><span className="font-bold">{t.name}</span>{theme === t.id ? <span className="flex items-center gap-1 rounded-full bg-accent/10 px-2 py-1 text-[10px] font-bold text-accent"><Check size={12}/> Seçili</span> : null}</div>
           <p className="mt-1 text-xs text-muted">{t.desc}</p>{t.tag && <span className="mt-2 inline-block text-[10px] font-bold uppercase tracking-wider text-accent">{t.tag}</span>}
         </button>)}
+      </div>
+    </section>
+
+    <section id="fotograf-atmosferi" className="scroll-mt-28 rounded-3xl border border-line bg-card p-5 shadow-sm sm:p-7">
+      <div className="mb-5 flex items-center gap-3"><span className="rounded-2xl bg-accent/10 p-3 text-accent"><ImageIcon size={21}/></span><div><h2 className="text-lg font-bold">Fotoğraf atmosferi</h2><p className="text-xs text-muted">Finansal kartların okunabilirliğini koruyan, hafif fotoğraf dokuları seç.</p></div></div>
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        {[
+          {id:"none",name:"Temiz",desc:"Fotoğrafsız, sade görünüm",url:""},
+          {id:"mountain",name:"Dağ & göl",desc:"Sakin doğa manzarası",url:"https://images.unsplash.com/photo-1470770841072-f978cf4d019e?auto=format&fit=crop&w=900&q=80"},
+          {id:"ocean",name:"Okyanus",desc:"Derin mavi kıyı",url:"https://images.unsplash.com/photo-1518837695005-2083093ee35b?auto=format&fit=crop&w=900&q=80"},
+          {id:"sunrise",name:"Gün doğumu",desc:"Yumuşak sıcak ışık",url:"https://images.unsplash.com/photo-1470252649378-9c29740c9fa8?auto=format&fit=crop&w=900&q=80"}
+        ].map(x=><button key={x.id} onClick={()=>{setPhoto(x.id);localStorage.setItem("pamuk-photo",x.id);document.documentElement.setAttribute("data-photo",x.id);setSaved(true);window.setTimeout(()=>setSaved(false),1800);}} className={"overflow-hidden rounded-2xl border text-left transition hover:-translate-y-1 "+(photo===x.id?"border-accent ring-2 ring-accent/20":"border-line")}>
+          <div className="relative h-24" style={{background:x.url?("linear-gradient(90deg,rgba(7,13,24,.25),rgba(7,13,24,.05)),url('"+x.url+"') center/cover"):"linear-gradient(135deg,var(--inner),var(--card))"}}><span className="absolute right-2 top-2 rounded-full bg-black/40 px-2 py-1 text-[9px] font-bold text-white">{photo===x.id?"SEÇİLİ":"ÖNİZLEME"}</span></div>
+          <div className="p-3"><p className="text-sm font-bold">{x.name}</p><p className="mt-1 text-xs text-muted">{x.desc}</p></div>
+        </button>)}
+      </div>
+      <p className="mt-3 text-[11px] text-muted">Fotoğraflar yalnızca arka plan atmosferinde kullanılır; metin ve finansal verilerin arkasında koyu/açık okunabilirlik katmanı bulunur.</p>
+    </section>
+
+    <section id="animasyon" className="scroll-mt-28 rounded-3xl border border-line bg-card p-5 shadow-sm sm:p-7">
+      <div className="mb-5 flex items-center gap-3"><span className="rounded-2xl bg-accent/10 p-3 text-accent"><Sparkles size={21}/></span><div><h2 className="text-lg font-bold">Geçiş ve hareket</h2><p className="text-xs text-muted">Sayfa geçişleri ve grafik animasyonlarının yoğunluğunu belirle.</p></div></div>
+      <div className="grid gap-3 sm:grid-cols-3">
+        {[["full","Akıcı","Yumuşak geçişler ve grafik animasyonları"],["subtle","Sakin","Daha kısa, hafif hareketler"],["off","Hareketsiz","Animasyonları kapat"]].map(([id,name,desc])=><button key={id} onClick={()=>{setMotion(id);localStorage.setItem("pamuk-motion",id);document.documentElement.setAttribute("data-motion",id);setSaved(true);window.setTimeout(()=>setSaved(false),1800);}} className={"rounded-2xl border p-4 text-left "+(motion===id?"border-accent bg-accent/5 ring-2 ring-accent/15":"border-line hover:border-accent/50")}><p className="font-bold">{name}</p><p className="mt-1 text-xs text-muted">{desc}</p>{motion===id&&<span className="mt-2 inline-flex items-center gap-1 text-xs font-bold text-accent"><Check size={13}/> Seçili</span>}</button>)}
+      </div>
+    </section>
+
+    <section id="ekran-yogunlugu" className="scroll-mt-28 rounded-3xl border border-line bg-card p-5 shadow-sm sm:p-7">
+      <div className="mb-5 flex items-center gap-3"><span className="rounded-2xl bg-accent/10 p-3 text-accent"><SlidersHorizontal size={21}/></span><div><h2 className="text-lg font-bold">Ekran yoğunluğu</h2><p className="text-xs text-muted">Kartların ve listelerin ekranda kapladığı alanı ayarla.</p></div></div>
+      <div className="grid gap-3 sm:grid-cols-2">
+        {[["comfortable","Rahat görünüm","Daha geniş aralıklar ve büyük dokunma alanları"],["compact","Kompakt görünüm","Daha fazla işlem ve bilgi aynı ekranda"]].map(([id,name,desc])=><button key={id} onClick={()=>{setDensity(id);localStorage.setItem("pamuk-density",id);document.documentElement.setAttribute("data-density",id);setSaved(true);window.setTimeout(()=>setSaved(false),1800);}} className={"rounded-2xl border p-4 text-left "+(density===id?"border-accent bg-accent/5 ring-2 ring-accent/15":"border-line hover:border-accent/50")}><p className="font-bold">{name}</p><p className="mt-1 text-xs text-muted">{desc}</p>{density===id&&<span className="mt-2 inline-flex items-center gap-1 text-xs font-bold text-accent"><Check size={13}/> Seçili</span>}</button>)}
       </div>
     </section>
 
