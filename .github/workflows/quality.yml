@@ -27,7 +27,7 @@ jobs:
       - name: Bağımlılık güvenlik raporu
         run: |
           npm audit --json > npm-audit.json || true
-          node -e 'const r=JSON.parse(require("fs").readFileSync("npm-audit.json","utf8")); console.log("AUDIT_TOTALS",JSON.stringify(r.metadata?.vulnerabilities||{})); for(const [name,v] of Object.entries(r.vulnerabilities||{})) console.log("AUDIT_PACKAGE",name,"severity="+v.severity,"direct="+v.isDirect,"range="+v.range,"fix="+JSON.stringify(v.fixAvailable));'
+          node -e 'const r=JSON.parse(require("fs").readFileSync("npm-audit.json","utf8")); console.log("AUDIT_TOTALS",JSON.stringify(r.metadata?.vulnerabilities||{})); for(const [name,v] of Object.entries(r.vulnerabilities||{})) console.log("AUDIT_PACKAGE",name,"severity="+v.severity,"direct="+v.isDirect,"range="+v.range,"via="+JSON.stringify(v.via),"nodes="+JSON.stringify(v.nodes),"fix="+JSON.stringify(v.fixAvailable));'
       - name: TypeScript kontrolü
         run: npm run typecheck
       - name: Üretim derlemesi
