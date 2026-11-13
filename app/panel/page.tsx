@@ -407,8 +407,8 @@ export default function GenelBakis() {
                         {[36, 88, 141, 194].map((y) => <line key={y} x1="18" x2="702" y1={y} y2={y} className="dashboard-chart-grid" stroke="var(--line)" strokeDasharray="4 7" />)}
                         <path d={incomeArea} fill="url(#incomeFill)"/>
                         <path d={expenseArea} fill="url(#expenseFill)"/>
-                        <polyline points={incomePoints} fill="none" stroke="var(--up)" className="dashboard-income-line" className="dashboard-expense-line" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"/>
-                        <polyline points={expensePoints} fill="none" stroke="var(--down)" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"/>
+                        <polyline points={incomePoints} fill="none" stroke="var(--up)" className="dashboard-income-line" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"/>
+                        <polyline points={expensePoints} fill="none" stroke="var(--down)" className="dashboard-expense-line" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"/>
                         {aylikTrend.map((item, i) => <g key={i}>
                           <circle className="dashboard-chart-dot dashboard-chart-income-dot" cx={xAt(i)} cy={yAt(item.gelir)} r="6" fill="var(--up)" stroke="var(--card)" strokeWidth="3"><title>{item.ay} gelir: {tl(item.gelir)}</title></circle>
                           <circle className="dashboard-chart-dot dashboard-chart-expense-dot" cx={xAt(i)} cy={yAt(item.gider)} r="6" fill="var(--down)" stroke="var(--card)" strokeWidth="3"><title>{item.ay} gider: {tl(item.gider)}</title></circle>
