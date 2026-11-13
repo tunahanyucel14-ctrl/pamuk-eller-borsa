@@ -10,7 +10,7 @@ import { kart, girdi, dugme, etiket, baslik } from "../../../lib/ui";
 type Subscription = { id:string; name:string; amount:number; due_day:number; category:string; active:boolean; payment_source?:string|null };
 type AccountOption = { id:string; name:string; type:string };
 export default function AboneliklerPage(){
- const {aileId,kullaniciId,yazabilir}=useAile();
+ const {aileId,kullaniciId,yazabilir,yonetebilir}=useAile();
  const [rows,setRows]=useState<Subscription[]>([]);
  const [accounts,setAccounts]=useState<AccountOption[]>([]);
  const [paymentSource,setPaymentSource]=useState("");
@@ -57,7 +57,7 @@ export default function AboneliklerPage(){
   {error&&<p className="rounded-xl bg-down/10 p-3 text-sm text-down">{error}</p>}
   <section className={kart+" space-y-3"}><h2 className="flex items-center gap-2 font-bold"><Repeat size={18} className="text-accent"/> Kart / banka bazında aylık yük</h2><div className="grid gap-2 sm:grid-cols-2">{Object.entries(bySource).sort((a,b)=>b[1]-a[1]).map(([source,value])=><div key={source} className="flex items-center justify-between rounded-xl bg-inner p-3"><span className="text-sm font-medium">{source}</span><b>{tl(value)}/ay</b></div>)}{Object.keys(bySource).length===0&&<p className="text-sm text-muted">Ödeme kaynağı bilgisi olan abonelik eklenince burada görünecek.</p>}</div></section>
   <section className={kart+" space-y-3"}><h2 className="flex items-center gap-2 font-bold"><Repeat size={18} className="text-accent"/> Kayıtlı abonelikler</h2>
-   {rows.length===0?<p className="text-sm text-muted">Henüz abonelik eklemedin.</p>:<div className="space-y-2">{rows.map(row=><div key={row.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-inner p-3"><div className="flex items-center gap-3"><span className="rounded-xl bg-accent/10 p-2 text-accent"><CalendarClock size={17}/></span><div><p className="font-semibold">{row.name}</p><p className="text-xs text-muted">Her ayın {row.due_day}. günü · Abonelik · {row.payment_source||"Ödeme kaynağı belirtilmedi"}</p></div></div><div className="flex items-center gap-3"><b>{tl(Number(row.amount))}/ay</b>{yazabilir&&<button onClick={()=>void remove(row)} className="text-muted hover:text-down" aria-label="Aboneliği sil"><Trash2 size={16}/></button>}</div></div>)}</div>}
+   {rows.length===0?<p className="text-sm text-muted">Henüz abonelik eklemedin.</p>:<div className="space-y-2">{rows.map(row=><div key={row.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-inner p-3"><div className="flex items-center gap-3"><span className="rounded-xl bg-accent/10 p-2 text-accent"><CalendarClock size={17}/></span><div><p className="font-semibold">{row.name}</p><p className="text-xs text-muted">Her ayın {row.due_day}. günü · Abonelik · {row.payment_source||"Ödeme kaynağı belirtilmedi"}</p></div></div><div className="flex items-center gap-3"><b>{tl(Number(row.amount))}/ay</b>{yonetebilir&&<button onClick={()=>void remove(row)} className="text-muted hover:text-down" aria-label="Aboneliği sil"><Trash2 size={16}/></button>}</div></div>)}</div>}
   </section>
   {yazabilir&&<form onSubmit={add} className={kart+" grid gap-3 md:grid-cols-2"}>
    <h2 className="font-bold md:col-span-2"><Plus size={17} className="mr-1 inline"/> Abonelik ekle</h2>
