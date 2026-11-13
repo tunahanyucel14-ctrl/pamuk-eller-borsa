@@ -6,6 +6,11 @@ test("amounts are reduced to broad bands", () => {
   assert.equal(amountBand(1249.90), "1000-4999");
   assert.equal(amountBand(-80), "0-99");
   assert.equal(amountBand("not-money"), "unknown");
+  assert.equal(amountBand(null), "unknown");
+  assert.equal(amountBand(undefined), "unknown");
+  assert.equal(amountBand(""), "unknown");
+  assert.equal(amountBand("   "), "unknown");
+  assert.equal(amountBand(true), "unknown");
 });
 
 test("date is reduced to month only", () => {
@@ -38,6 +43,14 @@ test("anonymized fixture contains no original PII, merchant, exact date or exact
   for (const secret of ["TUNAHAN", "MARKET", "2026-11-13", "1249.9", "private-account-123", "Example Bank"]) {
     assert.equal(serialized.includes(secret), false);
   }
+});
+
+test("invalid or missing amounts are never silently converted to zero", () => {
+  const output = anonymizeCorrectedRows([
+    { tx_date: "2026-11-13", kind: "gider", amount: null, description: "x" },
+    { tx_date: "2026-11-13", kind: "gider", amount: "", description: "x" }
+  ]);
+  assert.deepEqual(output.map(row => row.amount_band), ["unknown", "unknown"]);
 });
 
 test("caps fixture size and safely handles invalid input", () => {
