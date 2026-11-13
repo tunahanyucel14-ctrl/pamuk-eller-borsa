@@ -66,22 +66,29 @@ const handler = withSupabase({ auth: "user" }, async (req, ctx) => {
         // Son kayıtlı fiyatlarla portföy görüntülenmeye devam eder.
       }
 
-      const [seasonResult, accountResult, positionsResult, boardResult, tradeCountResult] = await Promise.all([
+      const [seasonResult, accountResult, positionsResult, boardResult, tradeCountResult, ownBoardResult] = await Promise.all([
         admin.from("arena_seasons").select("id,name,start_date,end_date,active").eq("id", ensuredData.season_id).single(),
         admin.from("arena_accounts").select("id,username,cash_balance,season_id").eq("id", ensuredData.account_id).single(),
         admin.from("arena_positions").select("symbol,quantity,avg_price,current_price").eq("account_id", ensuredData.account_id).order("symbol"),
         admin.from("arena_leaderboard").select("account_id,username,total_value").eq("season_id", ensuredData.season_id).order("total_value", { ascending: false }).limit(50),
         admin.from("arena_trades").select("id", { count: "exact", head: true }).eq("account_id", ensuredData.account_id),
+        admin.from("arena_leaderboard").select("total_value").eq("account_id", ensuredData.account_id).single(),
       ]);
-      if (seasonResult.error || accountResult.error || positionsResult.error || boardResult.error || tradeCountResult.error) {
+      if (seasonResult.error || accountResult.error || positionsResult.error || boardResult.error || tradeCountResult.error || ownBoardResult.error) {
         throw new Error("Arena verileri okunamadı.");
       }
+      const rankResult = await admin.from("arena_leaderboard")
+        .select("account_id", { count: "exact", head: true })
+        .eq("season_id", ensuredData.season_id)
+        .gt("total_value", ownBoardResult.data.total_value);
+      if (rankResult.error) throw rankResult.error;
       return json({
         account: accountResult.data,
         season: seasonResult.data,
         positions: positionsResult.data || [],
         leaderboard: boardResult.data || [],
         tradeCount: tradeCountResult.count || 0,
+        myRank: (rankResult.count || 0) + 1,
         marketUpdated: quotes.length > 0,
       });
     }
