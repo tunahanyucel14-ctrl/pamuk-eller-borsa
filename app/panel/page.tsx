@@ -42,7 +42,7 @@ function StatCard({
         : "text-accent bg-accent/10";
 
   return (
-    <article className={"relative overflow-hidden rounded-2xl border border-line bg-card p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"}>
+    <article className={"group relative overflow-hidden rounded-[26px] border border-line bg-card p-5 shadow-[0_12px_35px_rgba(0,0,0,.07)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_20px_45px_rgba(0,0,0,.12)] sm:p-6"}>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-sm font-medium text-muted">{title}</p>
@@ -51,11 +51,11 @@ function StatCard({
           </p>
           <p className="mt-2 text-xs text-muted">{note}</p>
         </div>
-        <div className={"rounded-2xl p-3 " + toneClass}>
+        <div className={"rounded-2xl p-3.5 transition duration-300 group-hover:scale-110 " + toneClass}>
           <Icon size={21} />
         </div>
       </div>
-      <div className="pointer-events-none absolute -bottom-8 -right-5 h-24 w-24 rounded-full bg-accent/5 blur-2xl" />
+      <div className="pointer-events-none absolute -bottom-10 -right-8 h-32 w-32 rounded-full bg-accent/10 blur-3xl transition group-hover:scale-125" /><div className="absolute bottom-0 left-5 right-5 h-px bg-gradient-to-r from-transparent via-accent/40 to-transparent" />
     </article>
   );
 }
@@ -147,26 +147,26 @@ export default function GenelBakis() {
   }).format(new Date(Number(ay.slice(0, 4)), Number(ay.slice(5, 7)) - 1, 1));
 
   return (
-    <div className="flex flex-col gap-6">
-      <section className="relative flex flex-col justify-between gap-4 overflow-hidden rounded-3xl border border-line bg-card p-5 shadow-sm sm:flex-row sm:items-end sm:p-7">
-        <div>
-          <p className="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-[0.18em] text-accent">
+    <div className="flex flex-col gap-7">
+      <section className="relative isolate flex flex-col justify-between gap-5 overflow-hidden rounded-[30px] border border-emerald-300/15 bg-[#0b211d] p-6 text-white shadow-[0_24px_70px_rgba(4,30,24,.22)] sm:flex-row sm:items-end sm:p-9">
+        <div className="relative z-10">
+          <p className="mb-3 flex items-center gap-2 text-[10px] font-extrabold uppercase tracking-[0.24em] text-emerald-300">
             <span className="h-2 w-2 rounded-full bg-accent" />
             PAMUK ELLER · FİNANSAL KONTROL MERKEZİ
           </p>
-          <h1 className={baslik + " text-2xl sm:text-3xl"}>Finansal durumun, tek bakışta.</h1>
-          <p className="mt-1 text-sm text-muted">
-            Gelirini, harcamalarını ve hedeflerini güvenle yönet.
-          </p>
+          <h1 className="max-w-2xl text-3xl font-black leading-tight tracking-tight sm:text-5xl">Paranın kontrolü <span className="text-emerald-300">sende.</span></h1>
+          <p className="mt-3 max-w-xl text-sm leading-6 text-emerald-50/65 sm:text-base">Gelirini, harcamalarını ve finansal hedeflerini tek bir akıllı merkezden yönet.</p>
+          <div className="mt-6 flex flex-wrap gap-2"><a href="/panel/islemler" className="rounded-xl bg-emerald-300 px-4 py-2.5 text-xs font-extrabold text-emerald-950 shadow-lg shadow-emerald-950/20 transition hover:-translate-y-0.5">+ Yeni işlem</a><a href="/panel/butce" className="rounded-xl border border-white/15 bg-white/5 px-4 py-2.5 text-xs font-bold text-white transition hover:bg-white/10">Bütçemi planla ↗</a></div>
         </div>
-        <label className="flex items-center gap-2 rounded-2xl border border-line bg-card px-3 py-2.5 shadow-sm">
+        <div className="pointer-events-none absolute -right-16 -top-28 -z-0 h-80 w-80 rounded-full border border-emerald-200/10 bg-emerald-300/10 blur-3xl"/><div className="pointer-events-none absolute right-1/4 top-0 -z-0 h-48 w-48 rounded-full bg-teal-300/10 blur-3xl"/>
+        <label className="relative z-10 flex items-center gap-2 rounded-2xl border border-white/15 bg-white/10 px-4 py-3 text-white shadow-xl backdrop-blur-xl">
           <CalendarDays size={17} className="text-accent" />
           <span className="sr-only">Rapor ayı</span>
           <input
             type="month"
             value={ay}
             onChange={(e) => e.target.value && setAy(e.target.value)}
-            className="w-auto border-0 bg-transparent text-sm font-semibold text-fg outline-none"
+            className="w-auto border-0 bg-transparent text-sm font-semibold text-white outline-none"
           />
         </label>
       </section>
@@ -189,7 +189,7 @@ export default function GenelBakis() {
         </div>
       ) : (
         <>
-          <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <StatCard
               title="Toplam varlık"
               value={tl(toplamVarlik)}
@@ -219,8 +219,8 @@ export default function GenelBakis() {
             />
           </section>
 
-          <section className="grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
-            <div className="rounded-2xl border border-line bg-card p-5 shadow-sm sm:p-6">
+          <section className="grid gap-4 xl:grid-cols-[1.25fr_0.75fr]">
+            <div className="rounded-[26px] border border-line bg-card p-5 shadow-[0_12px_35px_rgba(0,0,0,.055)] sm:p-7">
               <div className="mb-5 flex items-center justify-between gap-3">
                 <div>
                   <h2 className="font-bold text-fg">Aylık nakit akışı</h2>
