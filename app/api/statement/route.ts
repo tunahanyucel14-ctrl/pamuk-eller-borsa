@@ -43,7 +43,7 @@ function parseStatement(raw: string): { statement: ParsedStatement; skippedRows:
     const date = typeof r.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(r.date) ? r.date : "";
     const d = date ? new Date(date + "T00:00:00Z") : null;
     const amount = Number(r.amount);
-    if (!d || !Number.isFinite(d.getTime()) || d.toISOString().slice(0, 10) !== date || !Number.isFinite(amount) || amount <= 0 || (r.type !== "gelir" && r.type !== "gider")) return [];
+    if (!d || !Number.isFinite(d.getTime()) || d.toISOString().slice(0, 10) !== date || !Number.isFinite(amount) || amount <= 0 || amount > 1_000_000_000_000 || Math.round(amount * 100) / 100 <= 0 || (r.type !== "gelir" && r.type !== "gider")) return [];
     const description = typeof r.description === "string" ? r.description.trim().slice(0, 240) : "";
     if (!description) return [];
     return [{ date, description, amount: Math.round(amount * 100) / 100, type: r.type as "gelir" | "gider" }];
@@ -54,7 +54,7 @@ function parseStatement(raw: string): { statement: ParsedStatement; skippedRows:
     const date = new Date(value + "T00:00:00Z");
     return Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === value ? value : null;
   };
-  const nullableAmount = (value: unknown) => typeof value === "number" && Number.isFinite(value) && value >= 0 ? Math.round(value * 100) / 100 : null;
+  const nullableAmount = (value: unknown) => typeof value === "number" && Number.isFinite(value) && value >= 0 && value <= 1_000_000_000_000 ? Math.round(value * 100) / 100 : null;
   return {
     statement: {
       bank_name: nullableText(parsed.bank_name, 80),
