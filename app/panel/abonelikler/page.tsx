@@ -30,14 +30,21 @@ export default function AboneliklerPage(){
  const total=rows.reduce((s,x)=>s+Number(x.amount),0);
  const bySource=rows.reduce((acc,row)=>{const key=row.payment_source||"Ödeme kaynağı belirtilmedi";acc[key]=(acc[key]||0)+Number(row.amount);return acc;},{} as Record<string,number>);
  async function add(e:React.FormEvent){
-  e.preventDefault();setError("");
+  e.preventDefault();
+  if(busy)return;
+  setError("");
   const parsed=Number(amount),due=Number(day),name=provider==="Diğer / listede yok"?custom.trim():provider;
   if(!name||!Number.isFinite(parsed)||parsed<=0||!Number.isInteger(due)||due<1||due>31){setError("Uygulama adı, aylık ücret ve 1–31 arasında ödeme günü gir.");return;}
   setBusy(true);
-  const source=paymentSource==="custom"?customSource.trim():paymentSource;
-  const {error}=await supabase.from("family_bills").insert({family_id:aileId,created_by:kullaniciId,name,amount:parsed,due_day:due,category:"Abonelik",active:true,payment_source:source||null});
-  if(error)setError(error.message);else{setAmount("");setCustom("");setCustomSource("");setPaymentSource("");await load();}
-  setBusy(false);
+  try{
+   const source=paymentSource==="custom"?customSource.trim():paymentSource;
+   const {error}=await supabase.from("family_bills").insert({family_id:aileId,created_by:kullaniciId,name,amount:Math.round(parsed*100)/100,due_day:due,category:"Abonelik",active:true,payment_source:source||null});
+   if(error)throw error;
+   setAmount("");setCustom("");setCustomSource("");setPaymentSource("");
+   await load();
+  }catch(error){
+   setError(error instanceof Error?error.message:"Abonelik kaydedilemedi. Bağlantını kontrol edip tekrar dene.");
+  }finally{setBusy(false);}
  }
  async function remove(row:Subscription){
   if(!window.confirm(row.name+" aboneliği kaldırılsın mı?"))return;
