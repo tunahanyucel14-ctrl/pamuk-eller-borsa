@@ -88,7 +88,7 @@ function suggestCategory(description:string,kind:"gelir"|"gider",categories:Kate
 }
 async function parseExcel(file:File):Promise<string[][]>{
  const workbook=new ExcelJS.Workbook();
- await workbook.xlsx.load(await file.arrayBuffer(),{maxEntryUncompressedSize:16*1024*1024,maxTotalUncompressedSize:64*1024*1024,maxMergeCells:20000,maxDataValidationCells:50000,maxDefinedNameCells:20000});
+ await workbook.xlsx.load(await file.arrayBuffer(),{maxEntryUncompressedSize:16*1024*1024,maxTotalUncompressedSize:64*1024*1024,maxMergeCells:20000,maxDataValidationCells:50000,maxDefinedNameCells:20000,maxRows:2000,maxCols:40});
  const sheet=workbook.worksheets[0];
  if(!sheet)return [];
  const parsed:string[][]=[];
