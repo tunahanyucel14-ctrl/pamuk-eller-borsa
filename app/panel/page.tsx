@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   Activity,
+  AlertTriangle,
+  Gauge,
   ArrowDownLeft,
   ArrowRight,
   ArrowUpRight,
@@ -66,6 +68,8 @@ export default function GenelBakis() {
   const [bakiyeler, setBakiyeler] = useState<Bakiye[]>([]);
   const [islemler, setIslemler] = useState<Islem[]>([]);
   const [kategoriler, setKategoriler] = useState<Kategori[]>([]);
+  const [butceLimitleri, setButceLimitleri] = useState<{ category_id: string; limit_amount: number }[]>([]);
+  const [butceHata, setButceHata] = useState("");
   const [aylikTrend, setAylikTrend] = useState<{ ay: string; gelir: number; gider: number }[]>([]);
   const [hata, setHata] = useState("");
   const [trendHata, setTrendHata] = useState("");
@@ -81,7 +85,7 @@ export default function GenelBakis() {
       const trendBaslangic = new Date(yil, ayNo - 6, 1);
       const trendBitis = new Date(yil, ayNo, 1);
       const tarihISO = (d: Date) => String(d.getFullYear()) + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
-      const [b, i, k, trend] = await Promise.all([
+      const [b, i, k, trend, budgets] = await Promise.all([
         supabase.from("account_balances").select("*").eq("family_id", aileId),
         supabase
           .from("fin_transactions")
@@ -92,6 +96,7 @@ export default function GenelBakis() {
           .order("tx_date", { ascending: false })
           .order("created_at", { ascending: false }),
         supabase.from("categories").select("*").eq("family_id", aileId),
+        supabase.from("family_category_budgets").select("category_id,limit_amount").eq("family_id", aileId).eq("budget_month", bas),
         supabase.from("fin_transactions").select("tx_date,kind,amount").eq("family_id", aileId).gte("tx_date", tarihISO(trendBaslangic)).lt("tx_date", tarihISO(trendBitis)).in("kind", ["gelir", "gider"]),
       ]);
       if (iptal) return;
@@ -110,6 +115,8 @@ export default function GenelBakis() {
           ((i.data ?? []) as Islem[]).map((x) => ({ ...x, amount: Number(x.amount) }))
         );
         setKategoriler((k.data ?? []) as Kategori[]);
+        setButceLimitleri((budgets.data ?? []).map((x: any) => ({ category_id: x.category_id, limit_amount: Number(x.limit_amount) || 0 })));
+        setButceHata(budgets.error ? "Kategori bütçeleri şu an yüklenemedi." : "");
         setTrendHata(trend.error ? "Geçmiş karşılaştırma şu an yüklenemedi." : "");
         const grouped = new Map<string, { ay: string; gelir: number; gider: number }>();
         for (let offset = 5; offset >= 0; offset--) {
@@ -161,6 +168,13 @@ export default function GenelBakis() {
       ).sort((a, b) => b[1] - a[1]),
     [islemler, kategoriler, bakiyeler]
   );
+
+  const butceDurumlari = useMemo(() => butceLimitleri.map((limit) => {
+    const category = kategoriler.find((x) => x.id === limit.category_id);
+    const spent = islemler.filter((x) => x.kind === "gider" && x.category_id === limit.category_id).reduce((sum, x) => sum + x.amount, 0);
+    const pct = limit.limit_amount > 0 ? (spent / limit.limit_amount) * 100 : 0;
+    return { id: limit.category_id, name: category?.name ?? "Kategori", spent, limit: limit.limit_amount, pct };
+  }).sort((a, b) => b.pct - a.pct), [butceLimitleri, kategoriler, islemler]);
 
   const guncelTrend = aylikTrend[aylikTrend.length - 1];
   const oncekiTrend = aylikTrend[aylikTrend.length - 2];
@@ -252,6 +266,25 @@ export default function GenelBakis() {
             />
           </section>
 
+          {butceDurumlari.length > 0 && (
+            <section className={kart + " space-y-4"}>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div><h2 className="flex items-center gap-2 font-bold text-fg"><Gauge size={18} className="text-accent"/> Kategori bütçe kontrolü</h2><p className="mt-1 text-xs text-muted">{ayEtiketi} için limit kullanımın</p></div>
+                <a href="/panel/butce-limitleri" className="text-xs font-bold text-accent hover:underline">Tüm bütçeleri yönet →</a>
+              </div>
+              {butceHata && <p className="text-xs text-down">{butceHata}</p>}
+              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                {butceDurumlari.slice(0, 6).map((item) => (
+                  <div key={item.id} className="rounded-xl bg-inner p-3">
+                    <div className="flex items-center justify-between gap-2"><b className="truncate text-sm">{item.name}</b>{item.pct >= 80 && <AlertTriangle size={15} className={item.pct >= 100 ? "shrink-0 text-down" : "shrink-0 text-amber-500"}/>}</div>
+                    <p className="mt-2 text-xs text-muted">{tl(item.spent)} / {tl(item.limit)}</p>
+                    <div className="mt-2 h-2 overflow-hidden rounded-full bg-line"><div className={"h-full rounded-full " + (item.pct >= 100 ? "bg-down" : item.pct >= 80 ? "bg-amber-500" : "bg-up")} style={{width: Math.min(100, item.pct) + "%"}}/></div>
+                    <p className={"mt-1 text-[11px] font-semibold " + (item.pct >= 100 ? "text-down" : item.pct >= 80 ? "text-amber-600" : "text-muted")}>%{item.pct.toFixed(0)} kullanıldı{item.pct >= 100 ? " · Limit aşıldı" : item.pct >= 80 ? " · Limite yaklaşıyor" : ""}</p>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
           <section className="grid gap-4 xl:grid-cols-[1.25fr_0.75fr]">
             <div className="rounded-[26px] border border-line bg-card p-5 shadow-[0_12px_35px_rgba(0,0,0,.055)] sm:p-7">
               <div className="mb-5 flex items-center justify-between gap-3">
