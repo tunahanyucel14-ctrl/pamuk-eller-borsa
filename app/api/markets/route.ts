@@ -79,9 +79,12 @@ export async function GET() {
   const [fx, binance, coins, otherMarkets] = await Promise.all([
     tcmbRates(), binanceBitcoin(), coinGecko(),
     Promise.all([
-      yahoo("GC=F", "Altın vadeli · ons"), yahoo("^XU100", "BIST 100"),
-      yahoo("^GSPC", "S&P 500"), yahoo("^STOXX50E", "Euro Stoxx 50"),
-      yahoo("^N225", "Nikkei 225"),
+      yahoo("GC=F", "Altın vadeli · ons"), yahoo("SI=F", "Gümüş vadeli · ons"),
+      yahoo("CL=F", "Ham petrol · WTI"), yahoo("BZ=F", "Brent petrol"),
+      yahoo("NG=F", "Doğal gaz"), yahoo("HG=F", "Bakır"),
+      yahoo("^TNX", "ABD 10 yıllık tahvil faizi"),
+      yahoo("^XU100", "BIST 100"), yahoo("^GSPC", "S&P 500"),
+      yahoo("^STOXX50E", "Euro Stoxx 50"), yahoo("^N225", "Nikkei 225"),
     ]),
   ]);
   const quotes = [...fx, ...otherMarkets.filter((x): x is Quote => Boolean(x)), ...(binance ? [binance] : []), ...coins];
