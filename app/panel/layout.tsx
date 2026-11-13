@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { LayoutDashboard, ArrowLeftRight, Wallet, Tags, Users, Table2, CreditCard, Receipt, Target, TrendingUp, Activity, CalendarClock, WalletCards, BrainCircuit, Gauge, GraduationCap, ScanLine, FileUp, Settings, Trophy, UserRound, LogOut, ShieldCheck, Repeat } from "lucide-react";
+import { LayoutDashboard, ArrowLeftRight, Wallet, Tags, Users, Table2, CreditCard, Receipt, Target, TrendingUp, Activity, CalendarClock, WalletCards, BrainCircuit, Gauge, GraduationCap, ScanLine, FileUp, Settings, ChartNoAxesCombined, Trophy, UserRound, LogOut, ShieldCheck, Repeat } from "lucide-react";
 import { supabase } from "../../lib/supabase";
 import { AileSaglayici } from "../../lib/aile-baglami";
 import { ROL_ADI } from "../../lib/tipler";
@@ -15,6 +15,7 @@ type UyelikSatiri = { role: Rol; families: { id: string; name: string } | { id: 
 const MENU = [
   { href: "/panel", ad: "Genel Bakış", icon: LayoutDashboard },
   { href: "/panel/saglik", ad: "Finansal Sağlık", icon: ShieldCheck },
+  { href: "/panel/servet", ad: "Net Servet & 12 Ay", icon: ChartNoAxesCombined },
   { href: "/panel/zeka", ad: "Finansal Zekâ", icon: BrainCircuit },
   { href: "/panel/islemler", ad: "İşlemler", icon: ArrowLeftRight },
   { href: "/panel/aktarim", ad: "Banka Ekstresi Aktar", icon: FileUp },
