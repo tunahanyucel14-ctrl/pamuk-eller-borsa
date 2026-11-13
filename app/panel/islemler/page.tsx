@@ -111,7 +111,7 @@ export default function Islemler() {
   const kategoriAdi = (id: string | null) => kategoriler.find((k) => k.id === id)?.name ?? "Kategorisiz";
   const uygunKategoriler = kategoriler.filter((k) => k.kind === tur);
   const gorunenIslemler = useMemo(() => islemler.filter((x) => {
-    const metin = [x.description || "", kategoriAdi(x.category_id), hesapAdi(x.account_id), x.kind].join(" ").toLocaleLowerCase("tr-TR");
+    const metin = [x.description || "", x.tx_date, kategoriAdi(x.category_id), hesapAdi(x.account_id), x.kind].join(" ").toLocaleLowerCase("tr-TR");
     return (filtre === "hepsi" || x.kind === filtre) && metin.includes(arama.trim().toLocaleLowerCase("tr-TR"));
   }), [islemler, filtre, arama, kategoriler, hesaplar]);
   const toplamGelir = islemler.filter((x) => x.kind === "gelir").reduce((s, x) => s + x.amount, 0);
@@ -121,7 +121,7 @@ export default function Islemler() {
       ...gorunenIslemler.map((x) => [x.tx_date, x.kind, x.description || "", kategoriAdi(x.category_id), hesapAdi(x.account_id), String(x.amount)])];
     const csv = "\uFEFF" + satirlar.map((row) => row.map((v) => '"' + String(v).replace(/"/g, '""') + '"').join(";")).join("\r\n");
     const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
-    const a = document.createElement("a"); a.href = url; a.download = "pamuk-eller-islemler-" + ay + ".csv"; a.click(); URL.revokeObjectURL(url);
+    const a = document.createElement("a"); a.href = url; a.download = "pamuk-eller-islemler-" + ay + ".csv"; a.click(); window.setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
 
   return (
