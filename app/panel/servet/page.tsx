@@ -93,10 +93,18 @@ export default function ServetPage(){
   const debtBalances=debts.map(x=>({balance:Math.max(0,x.remaining_amount),payment:Math.max(0,x.monthly_payment),rate:Math.max(0,x.annual_interest_rate)}));
   for(let i=1;i<=12;i++){
    const date=new Date(current.getFullYear(),current.getMonth()+i,1);
-   for(const d of debtBalances){if(d.balance<=0)continue;d.balance+=d.balance*d.rate/1200;const payment=Math.min(d.balance,d.payment);d.balance-=payment;}
-   projectedCash+=free;
+   let debtPaymentThisMonth=0;
+   for(const d of debtBalances){
+    if(d.balance<=0)continue;
+    d.balance+=d.balance*d.rate/1200;
+    const payment=Math.min(d.balance,d.payment);
+    d.balance-=payment;
+    debtPaymentThisMonth+=payment;
+   }
+   const expenseThisMonth=fixedBills+variableExpense+debtPaymentThisMonth;
+   projectedCash+=monthlyIncome-expenseThisMonth;
    const remainingDebt=debtBalances.reduce((s,x)=>s+Math.max(0,x.balance),0);
-   forecast.push({date,label:date.toLocaleDateString("tr-TR",{month:"short",year:"2-digit"}),income:monthlyIncome,expense:monthlyExpense,cash:projectedCash,debt:remainingDebt,netWorth:projectedCash+portfolio-remainingDebt});
+   forecast.push({date,label:date.toLocaleDateString("tr-TR",{month:"short",year:"2-digit"}),income:monthlyIncome,expense:expenseThisMonth,cash:projectedCash,debt:remainingDebt,netWorth:projectedCash+portfolio-remainingDebt});
   }
   const topExpense=Object.entries(tx.filter(x=>x.kind==="gider").reduce<Record<string,number>>((acc,x)=>{const name=categories.find(c=>c.id===x.category_id)?.name||"Kategorisiz";acc[name]=(acc[name]||0)+x.amount;return acc;},{})).sort((a,b)=>b[1]-a[1])[0];
   const savingsRate=monthlyIncome>0?free/monthlyIncome*100:null;
