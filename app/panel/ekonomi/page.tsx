@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
-import { Activity, RefreshCw, ExternalLink, Globe2, Coins, Landmark } from "lucide-react";
+import { Activity, RefreshCw, ExternalLink, Globe2, Coins, Landmark, Calculator } from "lucide-react";
 import { kart, baslik } from "../../../lib/ui";
 type Quote={name:string;value:string;change?:string;source:string;url:string};
 type Country={code:string;name:string;latestYear:string;latest:number;history:{year:string;value:number}[]};
@@ -10,6 +10,7 @@ function Metric({label,value,note}:{label:string;value:string;note:string}){retu
 export default function EkonomiPage(){
  const [quotes,setQuotes]=useState<Quote[]>([]),[stamp,setStamp]=useState(""),[error,setError]=useState(""),[busy,setBusy]=useState(false);
  const [inflation,setInflation]=useState<InflationData|null>(null),[inflationError,setInflationError]=useState(""),[inflationBusy,setInflationBusy]=useState(false),[selectedYear,setSelectedYear]=useState("latest");
+ const [amount,setAmount]=useState("100000"),[annualRate,setAnnualRate]=useState("30"),[period,setPeriod]=useState("3");
  async function loadMarkets(){setBusy(true);setError("");try{const r=await fetch("/api/markets",{cache:"no-store"});const d=await r.json();if(!r.ok)throw new Error(d.error||"Piyasa verileri alınamadı.");setQuotes(d.quotes||[]);setStamp(d.updatedAt||"");}catch(e){setError(e instanceof Error?e.message:"Bağlantı hatası");}finally{setBusy(false);}}
  async function loadInflation(){setInflationBusy(true);setInflationError("");try{const r=await fetch("/api/inflation",{cache:"no-store"});const d=await r.json();if(!r.ok)throw new Error(d.error||"Enflasyon verileri alınamadı.");setInflation(d);}catch(e){setInflationError(e instanceof Error?e.message:"Enflasyon verisi alınamadı.");}finally{setInflationBusy(false);}}
  async function refresh(){await Promise.all([loadMarkets(),loadInflation()]);}
@@ -23,6 +24,16 @@ export default function EkonomiPage(){
    {error&&<p className="rounded-xl bg-down/10 p-3 text-sm text-down">{error}</p>}
    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{quotes.map(q=><article key={q.name} className={kart}><div className="flex items-center gap-2 text-xs text-muted"><Activity size={15} className="text-accent"/>{q.name}</div><p className="mt-3 text-2xl font-black">{q.value}</p>{q.change&&<p className="mt-1 text-sm text-muted">{q.change}</p>}<a href={q.url} target="_blank" rel="noreferrer" className="mt-3 inline-flex items-center gap-1 text-xs text-accent">{q.source}<ExternalLink size={12}/></a></article>)}</div>
    {!quotes.length&&!busy&&!error&&<div className={kart+" text-sm text-muted"}>Henüz piyasa verisi yok.</div>}<p className="text-xs text-muted">Piyasa son güncelleme: {stamp?new Date(stamp).toLocaleString("tr-TR"):"—"}. TCMB gösterge kuru, Binance ve CoinGecko fiyatları farklı hesaplama yöntemleri ve güncelleme sıklıkları kullanır.</p>
+  </section>
+  <section className="space-y-3">
+   <div className="flex items-center gap-2"><Calculator size={19} className="text-accent"/><h2 className="text-lg font-bold">Enflasyon ve satın alma gücü hesaplayıcı</h2></div>
+   <div className={kart+" grid gap-4 md:grid-cols-4"}>
+    <label className="space-y-1 text-xs text-muted">Bugünkü tutar (₺)<input inputMode="decimal" value={amount} onChange={e=>setAmount(e.target.value)} className="w-full rounded-xl border border-line bg-inner px-3 py-2 text-base font-semibold text-foreground"/></label>
+    <label className="space-y-1 text-xs text-muted">Yıllık enflasyon (%)<input inputMode="decimal" value={annualRate} onChange={e=>setAnnualRate(e.target.value)} className="w-full rounded-xl border border-line bg-inner px-3 py-2 text-base font-semibold text-foreground"/></label>
+    <label className="space-y-1 text-xs text-muted">Süre (yıl)<input inputMode="decimal" value={period} onChange={e=>setPeriod(e.target.value)} className="w-full rounded-xl border border-line bg-inner px-3 py-2 text-base font-semibold text-foreground"/></label>
+    <div className="rounded-xl bg-accent/10 p-3"><p className="text-xs text-muted">Aynı satın alma gücü için gereken tutar</p><p className="mt-1 text-xl font-black">{(Math.max(0,Number(amount)||0)*Math.pow(1+Math.max(-99,Number(annualRate)||0)/100,Math.max(0,Number(period)||0))).toLocaleString("tr-TR",{style:"currency",currency:"TRY",maximumFractionDigits:0})}</p><p className="mt-1 text-[11px] text-muted">Bileşik enflasyon varsayımıyla tahmin</p></div>
+    <p className="md:col-span-4 text-xs leading-5 text-muted">Bu araç tahmindir; girilen sabit yıllık enflasyon oranını bileşik uygular. Resmî enflasyon tahmini veya yatırım tavsiyesi değildir. Farklı senaryoları deneyerek gelecekte aynı mal ve hizmet sepetini alabilmek için gereken yaklaşık tutarı görebilirsin.</p>
+   </div>
   </section>
   <section className="space-y-4"><div className="flex flex-wrap items-center justify-between gap-3"><div className="flex items-center gap-2"><Globe2 size={19} className="text-accent"/><div><h2 className="text-lg font-bold">Türkiye ve dünya enflasyonu</h2><p className="text-xs text-muted">Ülkeler arası ortak yıllık TÜFE serisi</p></div></div><select value={selectedYear} onChange={e=>setSelectedYear(e.target.value)} className="rounded-xl border border-line bg-card px-3 py-2 text-sm"><option value="latest">Her ülkenin son yılı</option>{years.map(y=><option key={y} value={y}>{y}</option>)}</select></div>
    {inflationError&&<p className="rounded-xl bg-down/10 p-3 text-sm text-down">{inflationError}</p>}
