@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Activity,
   ArrowDownRight,
@@ -227,6 +227,7 @@ export default function Home() {
   const [arenaBoard, setArenaBoard] = useState<Array<{ account_id: string; username: string; total_value: number }>>([]);
   const [arenaSeason, setArenaSeason] = useState<{ id: number; name: string; start_date: string; end_date: string } | null>(null);
   const [arenaBusy, setArenaBusy] = useState(false);
+  const arenaWasAuthenticatedRef = useRef(false);
   const [balance, setBalance, balanceReady] = usePersistentState("pamuk-borsa-balance-v1", START_BALANCE);
   const [stocks, setStocks] = useState<Stock[]>([]);
   const [marketStamp, setMarketStamp] = useState("");
@@ -248,6 +249,7 @@ export default function Home() {
   const refreshArena = useCallback(async () => {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session?.access_token) {
+      arenaWasAuthenticatedRef.current = false;
       // Çıkış yapan kullanıcının çevrimiçi portföyü misafir modunda görünmesin.
       try {
         window.localStorage.removeItem("pamuk-borsa-balance-v1");
@@ -266,6 +268,7 @@ export default function Home() {
       setArenaSeason(null);
       return;
     }
+    arenaWasAuthenticatedRef.current = true;
     if (arenaUserId !== session.user.id) {
       // Aynı tarayıcıdaki önceki hesaba ait oyun verileri yeni kullanıcıya gösterilmesin.
       try {
@@ -316,7 +319,7 @@ export default function Home() {
     void load();
     const timer = window.setInterval(async () => {
       const { data: { session } } = await supabase.auth.getSession();
-      if (session?.access_token) void load();
+      if (session?.access_token || arenaWasAuthenticatedRef.current) void load();
     }, 60000);
     return () => { cancelled = true; window.clearInterval(timer); };
   }, [balanceReady, portfolioReady, tradeCountReady, stocks.length, refreshArena]);
