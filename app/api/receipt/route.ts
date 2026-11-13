@@ -20,7 +20,7 @@ export async function POST(request: Request) {
     method: "POST",
     headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
     body: JSON.stringify({
-      model: "openai/gpt-5.5",
+      model: "openai/gpt-5.4",
       messages: [
         { role: "system", content: "Fotoğraftaki fiş/faturayı oku. Yalnızca JSON döndür: {\"merchant\":string,\"date\":\"YYYY-MM-DD\",\"total\":number,\"currency\":\"TRY\",\"category\":string,\"description\":string,\"items\":string[]}. Bulamadığın alanlarda boş metin veya 0 kullan. Toplam tutarı KDV dahil ödenecek toplamdan al. Belirsizse uydurma." },
         { role: "user", content: [{ type: "text", text: "Bu fişten harcama bilgilerini çıkar." }, { type: "image_url", image_url: { url: `data:${mimeType};base64,${image}` } }] }
