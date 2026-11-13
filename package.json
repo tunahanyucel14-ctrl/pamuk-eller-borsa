@@ -15,7 +15,7 @@
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "lucide-react": "^0.468.0",
-    "exceljs": "^4.4.0"
+    "exceljs-hardened": "^5.1.0"
   },
   "devDependencies": {
     "typescript": "^5.9.0",
