@@ -53,9 +53,10 @@ SQL dosyaları `supabase/` altında sıralıdır. Şema değişikliklerini mümk
 7. Aile Finans Analizi: 3/6 aylık gelir-gider grafikleri, üyeye ve kategoriye göre kayıt özeti, aile toplamı ve dönem filtresi.
 8. Ortak birikim hedefleri: üye bazlı katkı/çekim geçmişi ve veritabanında atomik bakiye güncellemesi.
 9. Kategori bütçe limitleri: aylık kategori tavanı, gerçek giderlerle otomatik ilerleme, %80 ve %100 uyarıları.
-10. Yapay zekâ asistanı ve fiş OCR güvenilirliği (istek/doğrulama katmanı güçlendirildi).
-11. Hedef planlama, piyasa verisi, yatırım portföyü ve Borsa Arenası.
-12. Bildirim altyapısı, mobil deneyim ve tasarım sistemi.
+10. Banka ekstresi CSV aktarımı: sütun eşleştirme, ön izleme, aile/hesap doğrulaması, atomik kayıt ve aynı dosyayı tekrar aktarmaya karşı mükerrer koruması.
+11. Yapay zekâ asistanı ve fiş OCR güvenilirliği (istek/doğrulama katmanı güçlendirildi).
+12. Hedef planlama, piyasa verisi, yatırım portföyü ve Borsa Arenası.
+13. Bildirim altyapısı, mobil deneyim ve tasarım sistemi.
 
 ## Dikkat
 Bu uygulama finansal kayıt ve eğitim aracıdır; yatırım tavsiyesi veya kazanç garantisi sunmaz.
