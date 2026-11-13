@@ -22,6 +22,7 @@ const MENU = [
   { href: "/panel/hesaplar", ad: "Hesaplarım" },
   { href: "/panel/kategoriler", ad: "Kategoriler" },
   { href: "/panel/aile", ad: "Aile" },
+  { href: "/tarama", ad: "Fiş Tara" },
 ];
 
 export default function PanelLayout({ children }: { children: React.ReactNode }) {
