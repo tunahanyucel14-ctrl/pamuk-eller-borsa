@@ -90,7 +90,7 @@ export default function NakitAkisiPage() {
   const next = months[0];
   const totalIncome = incomeRows.reduce((s,x)=>s+Number(x.expected_amount),0);
   const totalBills = billRows.reduce((s,x)=>s+Number(x.amount),0);
-  const totalDebt = debtRows.reduce((s,x)=>s+Number(x.monthly_payment),0);
+  const totalDebt = debtRows.filter(x=>Number(x.remaining_amount)>0).reduce((s,x)=>s+Number(x.monthly_payment),0);
 
   return <div className="space-y-5">
     <header><p className="text-xs font-bold uppercase tracking-widest text-accent">6 aylık tahmin</p><h1 className={baslik}>Akıllı Nakit Akışı</h1><p className="text-sm text-muted">Kayıtlı hesap bakiyelerin, düzenli gelirlerin, faturaların ve borç taksitlerinle önümüzdeki altı ayı planla.</p></header>
