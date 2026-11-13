@@ -239,8 +239,8 @@ function StockTable({
 export default function Home() {
   const [balance, setBalance] = usePersistentState("pamuk-borsa-balance-v1", START_BALANCE);
   const [stocks, setStocks] = useState<Stock[]>([]);
-  const [marketStamp, setMarketStamp] = useState(\"\");
-  const [marketError, setMarketError] = useState(\"\");
+  const [marketStamp, setMarketStamp] = useState("");
+  const [marketError, setMarketError] = useState("");
   const [portfolio, setPortfolio] = usePersistentState<Record<string, Holding>>("pamuk-borsa-portfolio-v1", {});
   const [tradeCount, setTradeCount] = usePersistentState("pamuk-borsa-trade-count-v1", 0);
   const [history, setHistory] = useState<number[]>([START_BALANCE]);
