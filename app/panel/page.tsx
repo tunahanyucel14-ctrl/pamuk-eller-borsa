@@ -66,6 +66,7 @@ export default function GenelBakis() {
   const [bakiyeler, setBakiyeler] = useState<Bakiye[]>([]);
   const [islemler, setIslemler] = useState<Islem[]>([]);
   const [kategoriler, setKategoriler] = useState<Kategori[]>([]);
+  const [aylikTrend, setAylikTrend] = useState<{ ay: string; gelir: number; gider: number }[]>([]);
   const [hata, setHata] = useState("");
   const [yukleniyor, setYukleniyor] = useState(true);
 
@@ -75,7 +76,11 @@ export default function GenelBakis() {
       setYukleniyor(true);
       setHata("");
       const { bas, sonraki } = ayAraligi(ay);
-      const [b, i, k] = await Promise.all([
+      const [yil, ayNo] = ay.split("-").map(Number);
+      const trendBaslangic = new Date(yil, ayNo - 6, 1);
+      const trendBitis = new Date(yil, ayNo, 1);
+      const tarihISO = (d: Date) => String(d.getFullYear()) + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+      const [b, i, k, trend] = await Promise.all([
         supabase.from("account_balances").select("*").eq("family_id", aileId),
         supabase
           .from("fin_transactions")
@@ -86,9 +91,10 @@ export default function GenelBakis() {
           .order("tx_date", { ascending: false })
           .order("created_at", { ascending: false }),
         supabase.from("categories").select("*").eq("family_id", aileId),
+        supabase.from("fin_transactions").select("tx_date,kind,amount").eq("family_id", aileId).gte("tx_date", tarihISO(trendBaslangic)).lt("tx_date", tarihISO(trendBitis)).in("kind", ["gelir", "gider"]),
       ]);
       if (iptal) return;
-      const h = b.error || i.error || k.error;
+      const h = b.error || i.error || k.error || trend.error;
       if (h) {
         setHata(h.message);
       } else {
@@ -103,6 +109,19 @@ export default function GenelBakis() {
           ((i.data ?? []) as Islem[]).map((x) => ({ ...x, amount: Number(x.amount) }))
         );
         setKategoriler((k.data ?? []) as Kategori[]);
+        const grouped = new Map<string, { ay: string; gelir: number; gider: number }>();
+        for (let offset = 5; offset >= 0; offset--) {
+          const d = new Date(yil, ayNo - 1 - offset, 1);
+          const key = tarihISO(d).slice(0, 7);
+          grouped.set(key, { ay: new Intl.DateTimeFormat("tr-TR", { month: "short" }).format(d), gelir: 0, gider: 0 });
+        }
+        for (const row of trend.data ?? []) {
+          const item = grouped.get(String(row.tx_date).slice(0, 7));
+          if (!item) continue;
+          if (row.kind === "gelir") item.gelir += Number(row.amount) || 0;
+          if (row.kind === "gider") item.gider += Number(row.amount) || 0;
+        }
+        setAylikTrend(Array.from(grouped.values()));
       }
       setYukleniyor(false);
     }
@@ -291,6 +310,28 @@ export default function GenelBakis() {
                 <span className="font-black">{tl(toplamVarlik)}</span>
               </div>
             </div>
+          </section>
+
+          <section className={kart}>
+            <div className="mb-5 flex flex-wrap items-center justify-between gap-2">
+              <div><h2 className="font-bold">6 aylık finansal eğilim</h2><p className="mt-1 text-xs text-muted">Seçili ay ve önceki beş ayın gelir-gider karşılaştırması</p></div>
+              <span className="rounded-xl bg-accent/10 px-3 py-1.5 text-xs font-bold text-accent">6 ay</span>
+            </div>
+            <div className="grid grid-cols-6 items-end gap-2 sm:gap-4">
+              {aylikTrend.map((item) => {
+                const max = Math.max(1, ...aylikTrend.flatMap((x) => [x.gelir, x.gider]));
+                const gelirYukseklik = Math.max(item.gelir > 0 ? 5 : 0, (item.gelir / max) * 100);
+                const giderYukseklik = Math.max(item.gider > 0 ? 5 : 0, (item.gider / max) * 100);
+                return <div key={item.ay} className="flex min-w-0 flex-col items-center gap-2">
+                  <div className="flex h-36 w-full items-end justify-center gap-1 rounded-xl bg-inner/60 px-1 pt-2">
+                    <div title={"Gelir: " + tl(item.gelir)} className="w-1/3 rounded-t-md bg-up transition-all" style={{ height: gelirYukseklik + "%" }}/>
+                    <div title={"Gider: " + tl(item.gider)} className="w-1/3 rounded-t-md bg-down transition-all" style={{ height: giderYukseklik + "%" }}/>
+                  </div>
+                  <span className="text-[10px] font-semibold capitalize text-muted sm:text-xs">{item.ay}</span>
+                </div>;
+              })}
+            </div>
+            <div className="mt-4 flex flex-wrap gap-4 text-xs text-muted"><span className="flex items-center gap-2"><i className="h-2.5 w-2.5 rounded-sm bg-up"/> Gelir</span><span className="flex items-center gap-2"><i className="h-2.5 w-2.5 rounded-sm bg-down"/> Gider</span></div>
           </section>
 
           <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
