@@ -120,7 +120,8 @@ export default function AktarimPage(){
  const [defaultKind,setDefaultKind]=useState<"gelir"|"gider">("gider");
  const [error,setError]=useState("");
  const [message,setMessage]=useState("");
- const [busy,setBusy]=useState(false);\n const [ocrBusy,setOcrBusy]=useState(false);
+ const [busy,setBusy]=useState(false);
+ const [ocrBusy,setOcrBusy]=useState(false);
  const [result,setResult]=useState<{inserted:number;duplicates:number;checked:number}|null>(null);
 
  const load=useCallback(async()=>{
