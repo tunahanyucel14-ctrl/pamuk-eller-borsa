@@ -205,12 +205,12 @@ export async function POST(request: Request) {
       });
     } else {
       const images = loaded.map(file => ({ type: "image_url", image_url: { url: `data:${file.mime};base64,${file.bytes.toString("base64")}` } }));
-      response = await fetch("https://ai-gateway.vercel.sh/v1/chat/completions", {
+      response = await fetch(gatewayKey ? "https://ai-gateway.vercel.sh/v1/chat/completions" : "https://api.openai.com/v1/chat/completions", {
         method: "POST",
         headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
         signal: AbortSignal.timeout(45000),
         body: JSON.stringify({
-          model: "openai/gpt-5.4", temperature: 0, max_tokens: 6000,
+          model, temperature: 0, max_tokens: 6000,
           messages: [
             { role: "system", content: systemPrompt },
             { role: "user", content: [{ type: "text", text: "Bu banka ekstresi ekran görüntülerinden işlem satırlarını çıkar." }, ...images] }
