@@ -22,6 +22,9 @@ export default function FinansalSaglikPage() {
   const [bills, setBills] = useState<Bill[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [salaryDay, setSalaryDay] = useState("");
+
+  useEffect(() => { try { const saved = JSON.parse(localStorage.getItem("pamuk-reminder-settings-v1") || "null"); if (saved && typeof saved.salaryDay === "string") setSalaryDay(saved.salaryDay); } catch { /* Maaş günü ayarı yoksa tahmin gösterilmez. */ } }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -66,6 +69,24 @@ export default function FinansalSaglikPage() {
   },[transactions,cash,debts]);
 
   const projection = [30,60,90].map(days=>({days,balance:cash+metrics.net*days/30}));
+  const payday = useMemo(() => {
+    if (!salaryDay) return null;
+    const day = Number(salaryDay);
+    if (!Number.isInteger(day) || day < 1 || day > 31) return null;
+    const now = new Date();
+    const makeDate = (year:number, month:number) => new Date(year, month, Math.min(day, new Date(year, month+1, 0).getDate()));
+    let next = makeDate(now.getFullYear(), now.getMonth());
+    if (next <= new Date(now.getFullYear(),now.getMonth(),now.getDate())) next = makeDate(now.getFullYear(),now.getMonth()+1);
+    return next;
+  }, [salaryDay]);
+  const paydayPlan = useMemo(() => {
+    if (!payday) return null;
+    const now = new Date(); now.setHours(0,0,0,0);
+    const days = Math.max(1,Math.ceil((payday.getTime()-now.getTime())/86400000));
+    const obligations = events.filter(x=>x.date<=payday).reduce((s,x)=>s+x.amount,0);
+    const spendable = Math.max(0,cash-obligations);
+    return {days,obligations,spendable,daily:spendable/days};
+  }, [payday,events,cash]);
   const events = useMemo(()=>{
     const now=new Date();
     const due=(day:number)=>{let d=new Date(now.getFullYear(),now.getMonth(),Math.min(day,new Date(now.getFullYear(),now.getMonth()+1,0).getDate()));if(d<new Date(now.getFullYear(),now.getMonth(),now.getDate()))d=new Date(now.getFullYear(),now.getMonth()+1,Math.min(day,new Date(now.getFullYear(),now.getMonth()+2,0).getDate()));return d;};
@@ -80,7 +101,7 @@ export default function FinansalSaglikPage() {
     {error&&<p role="alert" className="rounded-xl border border-down/30 bg-down/5 p-3 text-sm text-down">Bazı veriler yüklenemedi: {error}</p>}
     <section className="grid gap-4 lg:grid-cols-[1fr_1.4fr]">
       <article className={kart+" flex flex-col justify-between"}><div><div className="flex items-center justify-between"><span className="text-sm font-semibold text-muted">Finansal dayanıklılık puanı</span><ShieldCheck className="text-accent" size={22}/></div><div className="mt-5 flex items-end gap-2"><strong className="text-6xl font-black tracking-tight">{metrics.score}</strong><span className="pb-2 text-sm text-muted">/ 100</span></div><p className="mt-2 font-bold text-accent">{scoreLabel}</p><div className="mt-5 h-3 overflow-hidden rounded-full bg-inner"><div className="h-full rounded-full bg-accent transition-all" style={{width:`${metrics.score}%`}}/></div></div><p className="mt-4 flex items-start gap-2 text-xs leading-5 text-muted"><CircleHelp size={15} className="mt-0.5 shrink-0"/>Puan; tasarruf oranı, aylık borç taksidi/gelir ve mevcut bakiye/ortalama gider göstergelerinden hesaplanan bilgilendirici bir metriktir. Kredi notu değildir.</p></article>
-      <article className={kart}><div className="flex items-center gap-2"><Wallet className="text-accent" size={20}/><h2 className="font-bold">Maaşa kadar harcanabilir tutar</h2></div><p className="mt-2 text-sm text-muted">Maaş günün henüz tanımlı değil. Şimdilik aylık gelir-gider ortalamasına göre tahmini günlük alan gösteriliyor.</p><div className="mt-5 grid gap-3 sm:grid-cols-3"><div className="rounded-2xl bg-inner p-4"><p className="text-xs text-muted">Ort. aylık gelir</p><b className="mt-2 block text-lg text-up">{tl(metrics.income)}</b></div><div className="rounded-2xl bg-inner p-4"><p className="text-xs text-muted">Ort. aylık gider</p><b className="mt-2 block text-lg text-down">{tl(metrics.expense)}</b></div><div className="rounded-2xl bg-inner p-4"><p className="text-xs text-muted">Ort. aylık net</p><b className="mt-2 block text-lg">{tl(metrics.net)}</b></div></div><p className="mt-4 text-xs text-muted">Gelir ve gider ortalamaları son üç aylık takvim aralığındaki kayıtların aylık ortalamasıdır. Eksik kayıtlar sonucu etkiler.</p></article>
+      <article className={kart}><div className="flex items-center gap-2"><Wallet className="text-accent" size={20}/><h2 className="font-bold">Maaşa kadar harcanabilir tutar</h2></div><p className="mt-2 text-sm text-muted">{paydayPlan ? `Sonraki maaş gününe ${paydayPlan.days} gün var (${dateText(payday!)}). Kayıtlı ve bu tarihe kadar vadesi gelen faturalar/borç taksitleri düşülerek hesaplandı.` : "Maaş gününü Ödemeler bölümünde tanımladığında günlük harcanabilir tutarını hesaplayabilirim."}</p>{paydayPlan && <div className="mt-4 rounded-2xl border border-accent/20 bg-accent/5 p-4"><p className="text-xs text-muted">Tahmini günlük harcanabilir tutar</p><b className="mt-1 block text-3xl font-black text-accent">{tl(paydayPlan.daily)}</b><p className="mt-1 text-xs text-muted">Maaşa kadar kalan bakiye: {tl(paydayPlan.spendable)} · Önümüzdeki ödemeler: {tl(paydayPlan.obligations)}</p></div>}<div className="mt-4 grid gap-3 sm:grid-cols-3"><div className="rounded-2xl bg-inner p-4"><p className="text-xs text-muted">Ort. aylık gelir</p><b className="mt-2 block text-lg text-up">{tl(metrics.income)}</b></div><div className="rounded-2xl bg-inner p-4"><p className="text-xs text-muted">Ort. aylık gider</p><b className="mt-2 block text-lg text-down">{tl(metrics.expense)}</b></div><div className="rounded-2xl bg-inner p-4"><p className="text-xs text-muted">Ort. aylık net</p><b className="mt-2 block text-lg">{tl(metrics.net)}</b></div></div><p className="mt-4 text-xs text-muted">Gelir ve gider ortalamaları son üç aylık takvim aralığındaki kayıtların aylık ortalamasıdır. Maaşa kadar hesap, mevcut bakiye ve maaş tarihinden önce vadesi gelen kayıtlı ödemeleri kullanır. Eksik kayıtlar sonucu etkiler.</p></article>
     </section>
     <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
       {[{label:"Mevcut hesap bakiyesi",value:tl(cash),note:"Hesap bakiyeleri toplamı",icon:Wallet},{label:"Toplam kalan borç",value:tl(metrics.debt),note:"Kaydedilmiş borçların toplamı",icon:ArrowDownRight},{label:"Aylık borç taksidi",value:tl(metrics.installments),note:metrics.debtRatio===null?"Gelir verisi yok":`Gelirin %${metrics.debtRatio.toFixed(1)}'i`,icon:Activity},{label:"Tasarruf oranı",value:metrics.savingsRate===null?"Veri yok":`%${metrics.savingsRate.toFixed(1)}`,note:"Ortalama net / ortalama gelir",icon:ArrowUpRight}].map((x,i)=><article key={x.label} className={kart}><x.icon className="mb-3 text-accent" size={20}/><p className="text-xs text-muted">{x.label}</p><b className="mt-2 block break-words text-xl">{x.value}</b><p className="mt-1 text-xs text-muted">{x.note}</p></article>)}
