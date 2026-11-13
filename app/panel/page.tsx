@@ -68,6 +68,7 @@ export default function GenelBakis() {
   const [kategoriler, setKategoriler] = useState<Kategori[]>([]);
   const [aylikTrend, setAylikTrend] = useState<{ ay: string; gelir: number; gider: number }[]>([]);
   const [hata, setHata] = useState("");
+  const [trendHata, setTrendHata] = useState("");
   const [yukleniyor, setYukleniyor] = useState(true);
 
   useEffect(() => {
@@ -94,7 +95,7 @@ export default function GenelBakis() {
         supabase.from("fin_transactions").select("tx_date,kind,amount").eq("family_id", aileId).gte("tx_date", tarihISO(trendBaslangic)).lt("tx_date", tarihISO(trendBitis)).in("kind", ["gelir", "gider"]),
       ]);
       if (iptal) return;
-      const h = b.error || i.error || k.error || trend.error;
+      const h = b.error || i.error || k.error;
       if (h) {
         setHata(h.message);
       } else {
@@ -109,6 +110,7 @@ export default function GenelBakis() {
           ((i.data ?? []) as Islem[]).map((x) => ({ ...x, amount: Number(x.amount) }))
         );
         setKategoriler((k.data ?? []) as Kategori[]);
+        setTrendHata(trend.error ? "Geçmiş karşılaştırma şu an yüklenemedi." : "");
         const grouped = new Map<string, { ay: string; gelir: number; gider: number }>();
         for (let offset = 5; offset >= 0; offset--) {
           const d = new Date(yil, ayNo - 1 - offset, 1);
@@ -317,6 +319,7 @@ export default function GenelBakis() {
               <div><h2 className="font-bold">6 aylık finansal eğilim</h2><p className="mt-1 text-xs text-muted">Seçili ay ve önceki beş ayın gelir-gider karşılaştırması</p></div>
               <span className="rounded-xl bg-accent/10 px-3 py-1.5 text-xs font-bold text-accent">6 ay</span>
             </div>
+            {trendHata && <p className="mb-3 text-xs text-muted">{trendHata}</p>}
             <div className="grid grid-cols-6 items-end gap-2 sm:gap-4">
               {aylikTrend.map((item) => {
                 const max = Math.max(1, ...aylikTrend.flatMap((x) => [x.gelir, x.gider]));
