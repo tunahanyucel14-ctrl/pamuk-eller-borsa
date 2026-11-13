@@ -65,6 +65,7 @@ function StatCard({
 export default function GenelBakis() {
   const { aileId } = useAile();
   const [ay, setAy] = useState(bugunAy());
+  const [trendDonem, setTrendDonem] = useState<3 | 6 | 12>(6);
   const [bakiyeler, setBakiyeler] = useState<Bakiye[]>([]);
   const [islemler, setIslemler] = useState<Islem[]>([]);
   const [kategoriler, setKategoriler] = useState<Kategori[]>([]);
@@ -82,7 +83,7 @@ export default function GenelBakis() {
       setHata("");
       const { bas, sonraki } = ayAraligi(ay);
       const [yil, ayNo] = ay.split("-").map(Number);
-      const trendBaslangic = new Date(yil, ayNo - 6, 1);
+      const trendBaslangic = new Date(yil, ayNo - trendDonem, 1);
       const trendBitis = new Date(yil, ayNo, 1);
       const tarihISO = (d: Date) => String(d.getFullYear()) + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
       const [b, i, k, budgets, trend] = await Promise.all([
@@ -113,7 +114,7 @@ export default function GenelBakis() {
         setButceHata(budgets.error ? "Kategori bütçeleri şu an yüklenemedi." : "");
         setTrendHata(trend.error ? "Geçmiş karşılaştırma şu an yüklenemedi." : "");
         const grouped = new Map<string, { ay: string; gelir: number; gider: number }>();
-        for (let offset = 5; offset >= 0; offset--) {
+        for (let offset = trendDonem - 1; offset >= 0; offset--) {
           const d = new Date(yil, ayNo - 1 - offset, 1);
           const key = tarihISO(d).slice(0, 7);
           grouped.set(key, { ay: new Intl.DateTimeFormat("tr-TR", { month: "short" }).format(d), gelir: 0, gider: 0 });
@@ -134,7 +135,7 @@ export default function GenelBakis() {
     return () => {
       iptal = true;
     };
-  }, [aileId, ay]);
+  }, [aileId, ay, trendDonem]);
 
   const gelir = islemler
     .filter((x) => x.kind === "gelir")
@@ -383,7 +384,7 @@ export default function GenelBakis() {
             )}
             {(() => {
               const maxValue = Math.max(1, ...aylikTrend.flatMap((x) => [x.gelir, x.gider]));
-              const xAt = (index: number) => 28 + (index * 664) / Math.max(1, aylikTrend.length - 1);
+              const xAt = (index: number) => aylikTrend.length === 1 ? 360 : 28 + (index * 664) / (aylikTrend.length - 1);
               const yAt = (value: number) => 194 - (value / maxValue) * 158;
               const incomePoints = aylikTrend.map((x, i) => `${xAt(i)},${yAt(x.gelir)}`).join(" ");
               const expensePoints = aylikTrend.map((x, i) => `${xAt(i)},${yAt(x.gider)}`).join(" ");
@@ -414,7 +415,7 @@ export default function GenelBakis() {
                           <circle className="dashboard-chart-dot dashboard-chart-expense-dot" cx={xAt(i)} cy={yAt(item.gider)} r="6" fill="var(--down)" stroke="var(--card)" strokeWidth="3"><title>{item.ay} gider: {tl(item.gider)}</title></circle>
                         </g>)}
                       </svg>
-                      <div className="grid grid-cols-6 gap-1">
+                      <div className="grid gap-1" style={{gridTemplateColumns: `repeat(${aylikTrend.length}, minmax(0, 1fr))`}}>
                         {aylikTrend.map((item, i) => <div key={i} className="min-w-0 text-center"><p className="truncate text-[10px] font-semibold capitalize text-muted sm:text-xs">{item.ay}</p><p className="mt-1 truncate text-[9px] text-up sm:text-[10px]">{tl(item.gelir)}</p><p className="truncate text-[9px] text-down sm:text-[10px]">{tl(item.gider)}</p></div>)}
                       </div>
                     </>
@@ -422,7 +423,7 @@ export default function GenelBakis() {
                 </div>
               );
             })()}
-            <p className="mt-3 text-[10px] text-muted">Noktaların üzerine gelerek ilgili ayın tutarını görebilirsin. Grafik, işlem kayıtlarından hesaplanır; örnek veri kullanılmaz.</p>
+            <p className="mt-3 text-[10px] text-muted">Noktaların üzerine gelerek tutarları görebilirsin. Grafik yalnızca gerçek TRY işlem kayıtlarını kullanır.</p>
           </section>
 
           {yabanciBakiyeler.length>0&&<p role="status" className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-muted">Yabancı para hesapları TL toplamına katılmadı; kur dönüşümü yapılmıyor. {Object.entries(yabanciBakiyeler.reduce<Record<string,number>>((acc,x)=>{const cur=String(x.currency||"TRY").toUpperCase();acc[cur]=(acc[cur]||0)+x.balance;return acc;},{})).map(([cur,v])=>v.toLocaleString("tr-TR",{maximumFractionDigits:2})+" "+cur).join(" · ")}</p>}
@@ -439,7 +440,26 @@ export default function GenelBakis() {
               {giderDagilimi.length === 0 ? (
                 <p className="py-8 text-center text-sm text-muted">Bu ay henüz gider kaydı yok.</p>
               ) : (
-                <div className="flex flex-col gap-4">
+                <>
+                  {(() => {
+                    const palette = ["#16a58b", "#f08a4b", "#6489e8", "#bd78d5", "#d6a83f", "#e16f8b", "#799a65", "#8291a8"];
+                    let cursor = 0;
+                    const segments = giderDagilimi.map(([, amount], index) => {
+                      const share = gider > 0 ? (amount / gider) * 100 : 0;
+                      const start = cursor;
+                      cursor += share;
+                      return palette[index % palette.length] + " " + start + "% " + cursor + "%";
+                    });
+                    return <div className="mb-5 flex flex-wrap items-center gap-5 rounded-2xl bg-inner/45 p-4">
+                      <div className="dashboard-donut relative grid h-36 w-36 shrink-0 place-items-center rounded-full" style={{background: "conic-gradient(" + segments.join(", ") + ")"}} role="img" aria-label={"Gider kategorileri toplamı " + tl(gider)}>
+                        <div className="grid h-24 w-24 place-items-center rounded-full bg-card text-center shadow-inner"><div><p className="text-[10px] text-muted">Toplam gider</p><p className="max-w-[5.5rem] truncate text-xs font-black">{tl(gider)}</p></div></div>
+                      </div>
+                      <div className="min-w-[150px] flex-1 space-y-2">
+                        {giderDagilimi.slice(0, 5).map(([name, amount], index) => <div key={name} className="flex items-center justify-between gap-2 text-xs"><span className="flex min-w-0 items-center gap-2"><i className="h-2.5 w-2.5 shrink-0 rounded-sm" style={{background: palette[index % palette.length]}}/><span className="truncate">{name}</span></span><b className="shrink-0">{gider > 0 ? "%" + ((amount / gider) * 100).toFixed(0) : "%0"}</b></div>)}
+                      </div>
+                    </div>;
+                  })()}
+                  <div className="flex flex-col gap-4">
                   {giderDagilimi.slice(0, 6).map(([ad, tutar]) => {
                     const oran = gider > 0 ? (tutar / gider) * 100 : 0;
                     return (
@@ -454,7 +474,8 @@ export default function GenelBakis() {
                       </div>
                     );
                   })}
-                </div>
+                  </div>
+                </>
               )}
               {giderDagilimi.length > 6 && (
                 <p className="mt-3 text-xs text-muted">En yüksek 6 kategori gösteriliyor.</p>
