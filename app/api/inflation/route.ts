@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 export const runtime = "nodejs";
 export const revalidate = 21600;
 const countries = [
- {code:"TUR",name:"Türkiye"},{code:"USA",name:"ABD"},{code:"DEU",name:"Almanya"},{code:"GBR",name:"Birleşik Krallık"},{code:"FRA",name:"Fransa"},{code:"JPN",name:"Japonya"},{code:"CHN",name:"Çin"},{code:"IND",name:"Hindistan"},{code:"BRA",name:"Brezilya"},{code:"ITA",name:"İtalya"}
+ {code:"TUR",name:"Türkiye"},{code:"USA",name:"ABD"},{code:"DEU",name:"Almanya"},{code:"GBR",name:"Birleşik Krallık"},{code:"FRA",name:"Fransa"},{code:"JPN",name:"Japonya"},{code:"CHN",name:"Çin"},{code:"IND",name:"Hindistan"},{code:"BRA",name:"Brezilya"},{code:"ITA",name:"İtalya"},{code:"CAN",name:"Kanada"},{code:"AUS",name:"Avustralya"},{code:"KOR",name:"Güney Kore"},{code:"ESP",name:"İspanya"},{code:"NLD",name:"Hollanda"},{code:"CHE",name:"İsviçre"},{code:"MEX",name:"Meksika"},{code:"IDN",name:"Endonezya"},{code:"SAU",name:"Suudi Arabistan"},{code:"POL",name:"Polonya"},{code:"SWE",name:"İsveç"}
 ];
 type Point={year:string;value:number};
 type Country={code:string;name:string;latestYear:string;latest:number;history:Point[]};
