@@ -37,8 +37,8 @@ async function tcmbRates(): Promise<Quote[]> {
     for (const [code, label] of [["USD", "ABD doları / TL"], ["EUR", "Euro / TL"]]) {
       const block = xml.match(new RegExp("<Currency[^>]*CurrencyCode=\"" + code + "\"[\\s\\S]*?<\\/Currency>"));
       if (!block) continue;
-      const sell = Number(block[0].match(/<ForexSelling>([\d.]+)<\\/ForexSelling>/)?.[1]);
-      const buy = Number(block[0].match(/<ForexBuying>([\d.]+)<\\/ForexBuying>/)?.[1]);
+      const sell = Number(block[0].match(new RegExp("<ForexSelling>([0-9.]+)</ForexSelling>"))?.[1]);
+      const buy = Number(block[0].match(new RegExp("<ForexBuying>([0-9.]+)</ForexBuying>"))?.[1]);
       if (sell > 0) result.push({ name: label, value: money(sell), change: buy > 0 ? "Gösterge satış · alış " + money(buy) : "Gösterge satış",
         source: "TCMB", url: "https://www.tcmb.gov.tr/kurlar/today.xml" });
     }
