@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
-export const revalidate = 0;
+export const revalidate = 60;
 
 type Quote = { name: string; value: string; change?: string; source: string; url: string };
 
@@ -11,7 +11,7 @@ const money = (value: number, currency = "TRY") =>
 async function yahoo(symbol: string, name: string): Promise<Quote | null> {
   try {
     const r = await fetch("https://query1.finance.yahoo.com/v8/finance/chart/" + encodeURIComponent(symbol) + "?range=1d&interval=5m", {
-      headers: { "User-Agent": "Mozilla/5.0 PamukEller/1.0" }, cache: "no-store",
+      headers: { "User-Agent": "Mozilla/5.0 PamukEller/1.0" }, next: { revalidate: 60 },
     });
     if (!r.ok) return null;
     const j = await r.json();
@@ -48,7 +48,7 @@ async function tcmbRates(): Promise<Quote[]> {
 
 async function binanceBitcoin(): Promise<Quote | null> {
   try {
-    const r = await fetch("https://api.binance.com/api/v3/ticker/24hr?symbol=BTCUSDT", { next: { revalidate: 30 } });
+    const r = await fetch("https://data-api.binance.vision/api/v3/ticker/24hr?symbol=BTCUSDT", { next: { revalidate: 30 } });
     if (!r.ok) return null;
     const j = await r.json();
     const price = Number(j.lastPrice), change = Number(j.priceChangePercent);
