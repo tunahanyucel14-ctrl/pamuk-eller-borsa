@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Plus, Download, Trash2, FileSpreadsheet, ChevronLeft, ChevronRight, AlertTriangle, Search } from "lucide-react";
 import { supabase } from "../../../lib/supabase";
 import { useAile } from "../../../lib/aile-baglami";
+import { sayiyaCevir } from "../../../lib/finans";
 
 const months = ["OCAK","ŞUBAT","MART","NİSAN","MAYIS","HAZİRAN","TEMMUZ","AĞUSTOS","EYLÜL","EKİM","KASIM","ARALIK"];
 type Kind = "Gider" | "Gelir";
@@ -56,7 +57,7 @@ export default function ButcePage() {
   const visible=rows.filter(r=>(filter==="Tümü"||r.kind===filter)&&(owner==="Tümü"||r.owner===owner)&&r.name.toLocaleLowerCase("tr-TR").includes(search.trim().toLocaleLowerCase("tr-TR")));
   const totals=useMemo(()=>months.map((_,i)=>({income:rows.filter(r=>r.kind==="Gelir").reduce((s,r)=>s+(Number(r.values[i])||0),0),expense:rows.filter(r=>r.kind==="Gider").reduce((s,r)=>s+(Number(r.values[i])||0),0)})),[rows]);
   const annualIncome=totals.reduce((s,t)=>s+t.income,0), annualExpense=totals.reduce((s,t)=>s+t.expense,0);
-  function change(id:string,index:number,value:string){setRows(old=>old.map(r=>r.id!==id?r:{...r,values:r.values.map((v,i)=>i===index?(value.trim()===""?null:Math.max(0,Number(value.replace(",","."))||0)):v)}));}
+  function change(id:string,index:number,value:string){setRows(old=>old.map(r=>r.id!==id?r:{...r,values:r.values.map((v,i)=>i===index?(value.trim()===""?null:Math.max(0,sayiyaCevir(value)||0)):v)}));}
   function add(kind:Kind){const name=prompt("Yeni kalemin adı:");if(!name?.trim())return;setRows(old=>[...old,{id:crypto.randomUUID(),name:name.trim().toLocaleUpperCase("tr-TR"),kind,owner:"Ortak",values:Array(12).fill(null)}]);}
   async function deleteMonthData(){
     if(!aileId || !yazabilir || deleting)return;
