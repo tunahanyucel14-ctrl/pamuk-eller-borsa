@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Gauge, AlertTriangle, CheckCircle2, Plus, Trash2, CalendarDays, TrendingUp } from "lucide-react";
 import { supabase } from "../../../lib/supabase";
 import { useAile } from "../../../lib/aile-baglami";
-import { tl } from "../../../lib/finans";
+import { sayiyaCevir, tl } from "../../../lib/finans";
 import { kart, girdi, dugme, baslik } from "../../../lib/ui";
 
 type Category={id:string;name:string};
@@ -60,7 +60,7 @@ export default function ButceLimitleriPage(){
 
  async function save(categoryId:string){
   setError("");setNotice("");
-  const amount=Number((drafts[categoryId]||"").replace(",","."));
+  const amount=sayiyaCevir(drafts[categoryId]||"");
   if(!Number.isFinite(amount)||amount<=0){setError("Bütçe limiti sıfırdan büyük olmalı.");return;}
   setBusy(categoryId);
   const {error}=await supabase.from("family_category_budgets").upsert({family_id:aileId,category_id:categoryId,budget_month:firstDay(month),limit_amount:amount,created_by:kullaniciId},{onConflict:"family_id,category_id,budget_month"});
