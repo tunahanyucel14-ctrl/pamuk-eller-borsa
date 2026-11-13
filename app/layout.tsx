@@ -13,7 +13,7 @@ export const viewport: Viewport = {
 };
 
 // Sayfa açılırken kayıtlı temayı hemen uygular (renk titremesi olmasın diye)
-const themeScript = `try{var t=localStorage.getItem("pamuk-tema");if(t==="zumrut"||!t){t="retro";localStorage.setItem("pamuk-tema","retro")}document.documentElement.setAttribute("data-theme",t)}catch(e){document.documentElement.setAttribute("data-theme","retro")}`;
+const themeScript = `try{var t=localStorage.getItem("pamuk-tema")||"retro";var f=localStorage.getItem("pamuk-font")||"modern";document.documentElement.setAttribute("data-theme",t);document.documentElement.setAttribute("data-font",f)}catch(e){document.documentElement.setAttribute("data-theme","retro")}`;
 
 export default function RootLayout({
   children,
