@@ -7,10 +7,11 @@ import { girdi, dugme } from "../../lib/ui";
 
 function hataCevir(mesaj: string) {
   const m = mesaj.toLowerCase();
-  if (m.includes("invalid login")) return "E-posta veya şifre hatalı.";
+  if (m.includes("invalid login") || m.includes("invalid_credentials")) return "E-posta veya şifre hatalı.";
   if (m.includes("already registered")) return "Bu e-posta ile zaten kayıt var.";
   if (m.includes("password")) return "Şifre en az 6 karakter olmalı.";
   if (m.includes("valid email")) return "Geçerli bir e-posta yaz.";
+  if (m.includes("fetch") || m.includes("network")) return "Sunucuya bağlanılamadı. İnternet bağlantını kontrol edip tekrar dene.";
   return "Bir hata oluştu: " + mesaj;
 }
 
@@ -26,42 +27,42 @@ export default function GirisSayfasi() {
 
   async function gonder(e: React.FormEvent) {
     e.preventDefault();
+    if (yukleniyor) return;
     setHata("");
     setMesaj("");
-    setYukleniyor(true);
-
-    if (mod === "kayit") {
-      if (kullanici.trim().length < 3) {
-        setHata("Kullanıcı adı en az 3 karakter olmalı.");
-        setYukleniyor(false);
-        return;
-      }
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password: sifre,
-        options: { data: { username: kullanici.trim() } },
-      });
-      if (error) {
-        setHata(hataCevir(error.message));
-      } else if (data.session) {
-        router.push("/");
-      } else {
-        setMesaj(
-          "Kayıt oluşturuldu. E-postana gelen onay bağlantısına tıkla, sonra giriş yap."
-        );
-      }
-    } else {
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password: sifre,
-      });
-      if (error) {
-        setHata(hataCevir(error.message));
-      } else {
-        router.push("/");
-      }
+    if (sifre.length < 6) {
+      setHata("Şifre en az 6 karakter olmalı.");
+      return;
     }
-    setYukleniyor(false);
+    if (mod === "kayit" && kullanici.trim().length < 3) {
+      setHata("Kullanıcı adı en az 3 karakter olmalı.");
+      return;
+    }
+    setYukleniyor(true);
+    try {
+      const normalizedEmail = email.trim().toLowerCase();
+      if (mod === "kayit") {
+        const { data, error } = await supabase.auth.signUp({
+          email: normalizedEmail,
+          password: sifre,
+          options: { data: { username: kullanici.trim() } },
+        });
+        if (error) throw error;
+        if (data.session) router.replace("/panel");
+        else setMesaj("Kayıt oluşturuldu. E-postana gelen onay bağlantısına tıkla, sonra giriş yap.");
+      } else {
+        const { error } = await supabase.auth.signInWithPassword({
+          email: normalizedEmail,
+          password: sifre,
+        });
+        if (error) throw error;
+        router.replace("/panel");
+      }
+    } catch (error) {
+      setHata(hataCevir(error instanceof Error ? error.message : "Beklenmeyen bağlantı hatası."));
+    } finally {
+      setYukleniyor(false);
+    }
   }
 
   return (
@@ -71,54 +72,26 @@ export default function GirisSayfasi() {
         <p className="mb-6 text-sm text-muted">
           {mod === "giris" ? "Hesabına giriş yap" : "Yeni hesap oluştur"}
         </p>
-
         <form onSubmit={gonder} className="flex flex-col gap-3">
           {mod === "kayit" && (
-            <input
-              className={girdi}
-              placeholder="Kullanıcı adı"
-              value={kullanici}
-              onChange={(e) => setKullanici(e.target.value)}
-              required
-            />
+            <input className={girdi} placeholder="Kullanıcı adı" value={kullanici}
+              onChange={(e) => setKullanici(e.target.value)} minLength={3} maxLength={40} required />
           )}
-          <input
-            className={girdi}
-            type="email"
-            placeholder="E-posta"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-          />
-          <input
-            className={girdi}
-            type="password"
-            placeholder="Şifre (en az 6 karakter)"
-            value={sifre}
-            onChange={(e) => setSifre(e.target.value)}
-            required
-          />
-
-          {hata && <p className="text-sm text-down">{hata}</p>}
-          {mesaj && <p className="text-sm text-up">{mesaj}</p>}
-
+          <input className={girdi} type="email" placeholder="E-posta" value={email}
+            onChange={(e) => setEmail(e.target.value)} autoComplete="email" maxLength={254} required />
+          <input className={girdi} type="password" placeholder="Şifre (en az 6 karakter)" value={sifre}
+            onChange={(e) => setSifre(e.target.value)} autoComplete={mod === "giris" ? "current-password" : "new-password"}
+            minLength={6} maxLength={128} required />
+          {hata && <p role="alert" className="text-sm text-down">{hata}</p>}
+          {mesaj && <p role="status" className="text-sm text-up">{mesaj}</p>}
           <button type="submit" disabled={yukleniyor} className={dugme + " mt-2"}>
             {yukleniyor ? "Bekle..." : mod === "giris" ? "Giriş Yap" : "Kayıt Ol"}
           </button>
         </form>
-
-        <button
-          type="button"
-          onClick={() => {
-            setMod(mod === "giris" ? "kayit" : "giris");
-            setHata("");
-            setMesaj("");
-          }}
-          className="mt-5 w-full text-center text-sm text-muted hover:text-fg"
-        >
-          {mod === "giris"
-            ? "Hesabın yok mu? Kayıt ol"
-            : "Zaten hesabın var mı? Giriş yap"}
+        <button type="button" disabled={yukleniyor}
+          onClick={() => { setMod(mod === "giris" ? "kayit" : "giris"); setHata(""); setMesaj(""); }}
+          className="mt-5 w-full text-center text-sm text-muted hover:text-fg disabled:opacity-50">
+          {mod === "giris" ? "Hesabın yok mu? Kayıt ol" : "Zaten hesabın var mı? Giriş yap"}
         </button>
       </div>
     </main>
