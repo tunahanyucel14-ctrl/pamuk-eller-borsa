@@ -47,12 +47,18 @@ export default function AyarlarSayfasi() {
   const [theme, setTheme] = useState("retro");
   const [font, setFont] = useState("modern");
   const [order, setOrder] = useState<string[]>(MENU_ITEMS.map((x) => x[1]));
-  const [saved, setSaved] = useState(false);\n  const [photo, setPhoto] = useState("none");\n  const [motion, setMotion] = useState("full");\n  const [density, setDensity] = useState("comfortable");
+  const [saved, setSaved] = useState(false);
+  const [photo, setPhoto] = useState("none");
+  const [motion, setMotion] = useState("full");
+  const [density, setDensity] = useState("comfortable");
   const [dragged, setDragged] = useState<string | null>(null);
 
   useEffect(() => {
     setTheme(localStorage.getItem("pamuk-tema") || "retro");
-    setFont(localStorage.getItem("pamuk-font") || "modern");\n    const storedPhoto = localStorage.getItem("pamuk-photo") || "none"; setPhoto(storedPhoto); document.documentElement.setAttribute("data-photo", storedPhoto);\n    const storedMotion = localStorage.getItem("pamuk-motion") || "full"; setMotion(storedMotion); document.documentElement.setAttribute("data-motion", storedMotion);\n    const storedDensity = localStorage.getItem("pamuk-density") || "comfortable"; setDensity(storedDensity); document.documentElement.setAttribute("data-density", storedDensity);
+    setFont(localStorage.getItem("pamuk-font") || "modern");
+    const storedPhoto = localStorage.getItem("pamuk-photo") || "none"; setPhoto(storedPhoto); document.documentElement.setAttribute("data-photo", storedPhoto);
+    const storedMotion = localStorage.getItem("pamuk-motion") || "full"; setMotion(storedMotion); document.documentElement.setAttribute("data-motion", storedMotion);
+    const storedDensity = localStorage.getItem("pamuk-density") || "comfortable"; setDensity(storedDensity); document.documentElement.setAttribute("data-density", storedDensity);
     try {
       const stored = JSON.parse(localStorage.getItem(ORDER_KEY) || "[]") as string[];
       const valid = stored.filter((href) => MENU_ITEMS.some((x) => x[1] === href));
@@ -92,7 +98,10 @@ export default function AyarlarSayfasi() {
     setSaved(true); window.setTimeout(() => setSaved(false), 1800);
   }
   function reset() {
-    applyTheme("retro"); applyFont("modern");\n    setPhoto("none"); localStorage.setItem("pamuk-photo","none"); document.documentElement.setAttribute("data-photo","none");\n    setMotion("full"); localStorage.setItem("pamuk-motion","full"); document.documentElement.setAttribute("data-motion","full");\n    setDensity("comfortable"); localStorage.setItem("pamuk-density","comfortable"); document.documentElement.setAttribute("data-density","comfortable");
+    applyTheme("retro"); applyFont("modern");
+    setPhoto("none"); localStorage.setItem("pamuk-photo","none"); document.documentElement.setAttribute("data-photo","none");
+    setMotion("full"); localStorage.setItem("pamuk-motion","full"); document.documentElement.setAttribute("data-motion","full");
+    setDensity("comfortable"); localStorage.setItem("pamuk-density","comfortable"); document.documentElement.setAttribute("data-density","comfortable");
     const next = MENU_ITEMS.map((x) => x[1]);
     setOrder(next); localStorage.setItem(ORDER_KEY, JSON.stringify(next));
     window.dispatchEvent(new Event("pamuk-settings-changed"));
@@ -109,7 +118,7 @@ export default function AyarlarSayfasi() {
     </section>
 
     <section id="gorunum" className="scroll-mt-28 rounded-3xl border border-line bg-card p-5 shadow-sm sm:p-7">
-      <div className="mb-5 flex items-center gap-3"><span className="rounded-2xl bg-accent/10 p-3 text-accent"><Palette size={21}/></span><div><h2 className="text-lg font-bold">Renk teması</h2><p className="text-xs text-muted">17 ayrı tasarım dili arasından seçimini yap.</p></div></div>
+      <div className="mb-5 flex items-center gap-3"><span className="rounded-2xl bg-accent/10 p-3 text-accent"><Palette size={21}/></span><div><h2 className="text-lg font-bold">Renk teması</h2><p className="text-xs text-muted">21 ayrı tasarım dili arasından seçimini yap.</p></div></div>
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
         {THEMES.map((t) => <button key={t.id} onClick={() => applyTheme(t.id)} className={"group rounded-2xl border p-3 text-left transition hover:-translate-y-0.5 hover:shadow-md " + (theme === t.id ? "border-accent ring-2 ring-accent/20" : "border-line")}>
           <div className="relative flex h-28 overflow-hidden rounded-xl border border-black/5 p-2.5" style={{ background: t.colors[0] }}>
