@@ -14,6 +14,8 @@ const TURLER: { id: IslemTuru; ad: string }[] = [
   { id: "transfer", ad: "Transfer" },
 ];
 
+function para(amount:number,currency:string){try{return new Intl.NumberFormat("tr-TR",{style:"currency",currency,maximumFractionDigits:2}).format(amount);}catch{return amount.toLocaleString("tr-TR",{maximumFractionDigits:2})+" "+currency;}}
+
 export default function Islemler() {
   const { aileId, yazabilir } = useAile();
   const [ay, setAy] = useState(bugunAy());
@@ -79,6 +81,14 @@ export default function Islemler() {
       setHata("Transfer için farklı bir hedef hesap seç.");
       return;
     }
+    if(tur==="transfer"){
+      const source=hesaplar.find(x=>x.account_id===hesapId);
+      const target=hesaplar.find(x=>x.account_id===hedefId);
+      if(!source||!target||String(source.currency).toUpperCase()!==String(target.currency).toUpperCase()){
+        setHata("Doğrudan transfer yalnızca aynı para birimindeki hesaplar arasında yapılabilir.");
+        return;
+      }
+    }
     setBekle(true);
     const { error } = await supabase.from("fin_transactions").insert({
       family_id: aileId,
@@ -110,6 +120,8 @@ export default function Islemler() {
   const hesapAdi = (id: string | null) => hesaplar.find((h) => h.account_id === id)?.name ?? "-";
   const kategoriAdi = (id: string | null) => kategoriler.find((k) => k.id === id)?.name ?? "Kategorisiz";
   const uygunKategoriler = kategoriler.filter((k) => k.kind === tur);
+  const hesapParaBirimi=(id:string)=>hesaplar.find(h=>h.account_id===id)?.currency||"TRY";
+  const totalsByCurrency=Object.entries(islemler.reduce<Record<string,{income:number;expense:number}>>((acc,x)=>{const cur=String(hesapParaBirimi(x.account_id)).toUpperCase();const item=acc[cur]||{income:0,expense:0};if(x.kind==="gelir")item.income+=x.amount;if(x.kind==="gider")item.expense+=x.amount;acc[cur]=item;return acc;},{}));
   const gorunenIslemler = useMemo(() => islemler.filter((x) => {
     const metin = [x.description || "", x.tx_date, kategoriAdi(x.category_id), hesapAdi(x.account_id), x.kind].join(" ").toLocaleLowerCase("tr-TR");
     return (filtre === "hepsi" || x.kind === filtre) && metin.includes(arama.trim().toLocaleLowerCase("tr-TR"));
@@ -117,8 +129,8 @@ export default function Islemler() {
   const toplamGelir = islemler.filter((x) => x.kind === "gelir").reduce((s, x) => s + x.amount, 0);
   const toplamGider = islemler.filter((x) => x.kind === "gider").reduce((s, x) => s + x.amount, 0);
   function csvIndir() {
-    const satirlar = [["Tarih", "Tür", "Açıklama", "Kategori", "Hesap", "Tutar (TL)"],
-      ...gorunenIslemler.map((x) => [x.tx_date, x.kind, x.description || "", kategoriAdi(x.category_id), hesapAdi(x.account_id), String(x.amount)])];
+    const satirlar = [["Tarih", "Tür", "Açıklama", "Kategori", "Hesap", "Tutar", "Para birimi"],
+      ...gorunenIslemler.map((x) => [x.tx_date, x.kind, x.description || "", kategoriAdi(x.category_id), hesapAdi(x.account_id), String(x.amount),hesapParaBirimi(x.account_id)])];
     const csv = "\uFEFF" + satirlar.map((row) => row.map((v) => '"' + String(v).replace(/"/g, '""') + '"').join(";")).join("\r\n");
     const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
     const a = document.createElement("a"); a.href = url; a.download = "pamuk-eller-islemler-" + ay + ".csv"; a.click(); window.setTimeout(() => URL.revokeObjectURL(url), 1000);
@@ -159,7 +171,7 @@ export default function Islemler() {
 
           <div className="grid gap-3 md:grid-cols-3">
             <div>
-              <label className={etiket}>Tutar (TL)</label>
+              <label className={etiket}>Tutar ({hesapParaBirimi(hesapId)})</label>
               <input className={girdi} inputMode="decimal" value={tutar} onChange={(e) => setTutar(e.target.value)} placeholder="Örn: 1250,50" />
             </div>
             <div>
@@ -167,7 +179,7 @@ export default function Islemler() {
               <select className={girdi} value={hesapId} onChange={(e) => setHesapId(e.target.value)}>
                 {hesaplar.map((h) => (
                   <option key={h.account_id} value={h.account_id}>
-                    {h.name}
+                    {h.name} · {h.currency}
                   </option>
                 ))}
               </select>
@@ -178,7 +190,7 @@ export default function Islemler() {
                 <select className={girdi} value={hedefId} onChange={(e) => setHedefId(e.target.value)}>
                   <option value="">Seç</option>
                   {hesaplar
-                    .filter((h) => h.account_id !== hesapId)
+                    .filter((h) => h.account_id !== hesapId && String(h.currency).toUpperCase()===String(hesapParaBirimi(hesapId)).toUpperCase())
                     .map((h) => (
                       <option key={h.account_id} value={h.account_id}>
                         {h.name}
@@ -220,11 +232,7 @@ export default function Islemler() {
 
       {!yazabilir && hata && <p className="text-sm text-down">{hata}</p>}
 
-      <section className="grid gap-3 sm:grid-cols-3">
-        <div className={kart}><p className="text-xs text-muted">Aylık gelir</p><p className="mt-2 text-xl font-black text-up">{tl(toplamGelir)}</p></div>
-        <div className={kart}><p className="text-xs text-muted">Aylık gider</p><p className="mt-2 text-xl font-black text-down">{tl(toplamGider)}</p></div>
-        <div className={kart}><p className="text-xs text-muted">Net nakit akışı</p><p className={"mt-2 text-xl font-black " + (toplamGelir-toplamGider >= 0 ? "text-up" : "text-down")}>{tl(toplamGelir-toplamGider)}</p></div>
-      </section>
+      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{totalsByCurrency.map(([cur,values])=><div key={cur} className={kart}><p className="text-xs font-bold text-muted">{cur} · Aylık özet</p><div className="mt-2 flex justify-between gap-2 text-sm"><span>Gelir</span><b className="text-up">{para(values.income,cur)}</b></div><div className="mt-1 flex justify-between gap-2 text-sm"><span>Gider</span><b className="text-down">{para(values.expense,cur)}</b></div><div className="mt-2 flex justify-between gap-2 border-t border-line pt-2 text-sm"><span>Net</span><b className={values.income-values.expense>=0?"text-up":"text-down"}>{para(values.income-values.expense,cur)}</b></div></div>)}</section>
       <div className={kart}>
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <div><h2 className="font-semibold">İşlem geçmişi</h2><p className="mt-1 text-xs text-muted">{gorunenIslemler.length} / {islemler.length} kayıt gösteriliyor</p></div>
@@ -259,7 +267,7 @@ export default function Islemler() {
                   }
                 >
                   {x.kind === "gelir" ? "+" : x.kind === "gider" ? "-" : ""}
-                  {tl(x.amount)}
+                  {para(x.amount,hesapParaBirimi(x.account_id))}
                 </p>
                 {yazabilir && (
                   <button onClick={() => sil(x.id)} className="text-xs text-muted hover:text-down">
