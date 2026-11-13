@@ -45,7 +45,7 @@ export default function NakitAkisiPage() {
         supabase.from("family_income_rules").select("id,name,expected_amount,pay_day,active").eq("family_id", aileId).eq("active", true),
         supabase.from("family_bills").select("id,name,amount,due_day,active,category").eq("family_id", aileId).eq("active", true),
         supabase.from("family_debts").select("id,name,monthly_payment,due_day,remaining_amount,annual_interest_rate").eq("family_id", aileId),
-        supabase.from("fin_transactions").select("amount,account_id").eq("family_id", aileId).eq("kind","gider").gte("tx_date",iso(historyStart)).lt("tx_date",iso(monthStart)).limit(5000),
+        supabase.from("fin_transactions").select("amount,account_id").eq("family_id", aileId).eq("kind","gider").gte("tx_date",iso(historyStart)).lt("tx_date",iso(monthStart)).range(0,999),
       ]);
       if (cancelled) return;
       const failed = balances.error || incomes.error || bills.error || debts.error || history.error;
