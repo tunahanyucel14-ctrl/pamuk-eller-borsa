@@ -86,7 +86,7 @@ export default function TaramaPage() {
       if (!token) throw new Error("Oturumun sona ermiş. Yeniden giriş yap.");
       let path=receiptPath;
       if(!path){
-        const safeName=(file.name.replace(/[^a-zA-Z0-9._-]/g,"_").slice(0,180)||"fis.jpg");
+        const safeName=(file.name.replace(/[^a-zA-Z0-9._-]/g,"_").replace(/\.{2,}/g,".").slice(0,180)||"fis.jpg");
         path=`${data.session!.user.id}/${Date.now()}-${safeName}`;
         const {error:uploadError}=await supabase.storage.from("receipts").upload(path,file,{contentType:file.type,upsert:false});
         if(uploadError)throw new Error("Fiş özel arşive yüklenemedi: "+uploadError.message);
