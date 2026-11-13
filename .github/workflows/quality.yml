@@ -30,6 +30,8 @@ jobs:
           node -e 'const r=JSON.parse(require("fs").readFileSync("npm-audit.json","utf8")); console.log("AUDIT_TOTALS",JSON.stringify(r.metadata?.vulnerabilities||{})); for(const [name,v] of Object.entries(r.vulnerabilities||{})) console.log("AUDIT_PACKAGE",name,"severity="+v.severity,"direct="+v.isDirect,"range="+v.range,"via="+JSON.stringify(v.via),"nodes="+JSON.stringify(v.nodes),"fix="+JSON.stringify(v.fixAvailable));'
       - name: Güvenlik kapısı
         run: npm audit --audit-level=moderate
+      - name: Banka tanıma regresyon testleri
+        run: npm test
       - name: TypeScript kontrolü
         run: npm run typecheck
       - name: Üretim derlemesi
