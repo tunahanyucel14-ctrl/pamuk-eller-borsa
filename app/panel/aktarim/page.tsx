@@ -138,16 +138,17 @@ export default function AktarimPage(){
   setError("");setMessage("");setResult(null);
   const selected=Array.from(files||[]);
   if(!selected.length)return;
+  if(ocrBusy)return;
   if(selected.length>5){setError("En fazla 5 dosya yükleyebilirsin.");return;}
   if(selected.some(file=>file.size>6*1024*1024)){setError("Her dosya en fazla 6 MB olabilir.");return;}
   if(selected.some(file=>!["image/jpeg","image/png","image/webp","application/pdf"].includes(file.type))){setError("PDF, JPG, PNG veya WEBP dosyaları destekleniyor.");return;}
   const pdfCount=selected.filter(file=>file.type==="application/pdf").length;
   if(pdfCount>1||(pdfCount&&selected.length>1)){setError("PDF dosyasını tek başına seç. Birden fazla ekran görüntüsünü birlikte yükleyebilirsin.");return;}
   setOcrBusy(true);
+  const uploaded:{path:string;mimeType:string}[]=[];
   try{
    const {data:sessionData,error:sessionError}=await supabase.auth.getSession();
    if(sessionError||!sessionData.session?.access_token)throw new Error("Oturumun doğrulanamadı. Yeniden giriş yap.");
-   const uploaded:{path:string;mimeType:string}[]=[];
    for(const file of selected){
     const safeName=file.name.replace(/[^A-Za-z0-9._-]/g,"-").slice(-100)||(file.type==="application/pdf"?"ekstre.pdf":"ekstre.png");
     const path=sessionData.session.user.id+"/"+Date.now()+"-"+crypto.randomUUID().slice(0,8)+"-"+safeName;
@@ -167,7 +168,10 @@ export default function AktarimPage(){
    setCategoryOverrides({});
    setMessage(extracted.length+" işlem dosyadan okundu. Aktarmadan önce satırları kontrol et.");
   }catch(e){setError(e instanceof Error?e.message:"Ekstre işlenirken hata oluştu.");}
-  finally{setOcrBusy(false);}
+  finally{
+   if(uploaded.length){const {error:cleanupError}=await supabase.storage.from("receipts").remove(uploaded.map(file=>file.path));if(cleanupError)console.warn("Geçici ekstre dosyaları temizlenemedi:",cleanupError.message);}
+   setOcrBusy(false);
+  }
  }
 
  async function fileSelected(file?:File){
@@ -203,9 +207,10 @@ export default function AktarimPage(){
  const finalRows=useMemo(()=>ready.map(row=>({...row,category_id:categoryOverrides[row.line]??row.category_id})),[ready,categoryOverrides]);
  const invalidCount=rows.length-ready.length;
  const preview=finalRows.slice(0,40);
- const canImport=ready.length>0&&ready.length<=1000&&Boolean(accountId)&&yazabilir;
+ const canImport=ready.length>0&&ready.length<=1000&&Boolean(accountId)&&yazabilir&&!busy;
 
  async function importRows(){
+  if(busy)return;
   setError("");setMessage("");setResult(null);
   if(!canImport){setError("Aktarım için geçerli satır, hesap ve yazma yetkisi gerekli.");return;}
   setBusy(true);
