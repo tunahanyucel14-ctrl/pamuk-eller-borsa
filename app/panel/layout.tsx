@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { LayoutDashboard, ArrowLeftRight, Wallet, Tags, Users, Table2, CreditCard, Receipt, Target, TrendingUp, Activity, CalendarClock, WalletCards, BrainCircuit, GraduationCap, ScanLine, Settings, Trophy, UserRound, LogOut, ShieldCheck, Repeat } from "lucide-react";
+import { LayoutDashboard, ArrowLeftRight, Wallet, Tags, Users, Table2, CreditCard, Receipt, Target, TrendingUp, Activity, CalendarClock, WalletCards, BrainCircuit, Gauge, GraduationCap, ScanLine, Settings, Trophy, UserRound, LogOut, ShieldCheck, Repeat } from "lucide-react";
 import { supabase } from "../../lib/supabase";
 import { AileSaglayici } from "../../lib/aile-baglami";
 import { ROL_ADI } from "../../lib/tipler";
@@ -24,6 +24,7 @@ const MENU = [
   { href: "/panel/aile", ad: "Aile", icon: Users },
   { href: "/panel/aile-analiz", ad: "Aile Finans Analizi", icon: UsersRound },
   { href: "/panel/butce", ad: "Bütçe Tablosu", icon: Table2 },
+  { href: "/panel/butce-limitleri", ad: "Kategori Bütçeleri", icon: Gauge },
   { href: "/panel/borclar", ad: "Borçlarım", icon: CreditCard },
   { href: "/panel/odemeler", ad: "Ödemeler", icon: Receipt },
   { href: "/panel/abonelikler", ad: "Aboneliklerim", icon: Repeat },
