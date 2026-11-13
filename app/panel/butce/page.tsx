@@ -64,8 +64,9 @@ export default function ButcePage() {
     if(!window.confirm(label+" ayına ait bütçe hücreleri ve "+new Date().getFullYear()+" yılı işlem kayıtları silinsin mi? Bu işlem geri alınamaz."))return;
     setDeleting(true);
     const year=new Date().getFullYear();
-    const start=new Date(year,month,1).toISOString().slice(0,10);
-    const end=new Date(year,month+1,1).toISOString().slice(0,10);
+    const dateOnly=(d:Date)=>d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+    const start=dateOnly(new Date(year,month,1));
+    const end=dateOnly(new Date(year,month+1,1));
     const {error}=await supabase.from("fin_transactions").delete().eq("family_id",aileId).gte("tx_date",start).lt("tx_date",end);
     if(error){setSaveStatus("Aylık işlem kayıtları silinemedi: "+error.message);setDeleting(false);return;}
     setRows(old=>old.map(r=>({...r,values:r.values.map((v,i)=>i===month?null:v)})));
