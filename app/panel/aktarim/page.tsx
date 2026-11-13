@@ -243,7 +243,7 @@ export default function AktarimPage(){
   finally{setBusy(false);}
  }
 
- function reset(){setFileName("");setHeaders([]);setRows([]);setCategoryOverrides({});setResult(null);setStatementMeta(null);setShowAllPreview(false);setError("");setMessage("");}
+ function reset(){setFileName("");setHeaders([]);setRows([]);setCategoryOverrides({});setResult(null);setStatementMeta(null);setShowAllPreview(false);setAcknowledgeReconciliation(false);setError("");setMessage("");}
  const setMap=(key:MapKey,value:string)=>setMapping(old=>({...old,[key]:value}));
  return <div className="mx-auto flex max-w-6xl flex-col gap-5">
   <header><p className="text-xs font-black uppercase tracking-[.2em] text-accent">Pamuk Eller · Veri aktarımı</p><h1 className={baslik}>Banka Ekstresi İçe Aktar</h1><p className="mt-2 max-w-3xl text-sm text-muted">Bankandan indirdiğin CSV ekstresini yükle. Sütunları kontrol et, işlemleri ön izle ve tek seferde hesabına aktar. Banka şifresi veya kart bilgisi istemiyoruz.</p></header>
