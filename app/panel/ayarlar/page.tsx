@@ -24,7 +24,7 @@ const FONTS = [
   { id: "mono", name: "Teknik", desc: "Monospace, terminal tarzı" },
 ];
 const MENU_ITEMS = [
-  ["Genel Bakış", "/panel"], ["İşlemler", "/panel/islemler"], ["Hesaplarım", "/panel/hesaplar"],
+  ["Genel Bakış", "/panel"], ["Finansal Sağlık", "/panel/saglik"], ["Finansal Zekâ", "/panel/zeka"], ["İşlemler", "/panel/islemler"], ["Hesaplarım", "/panel/hesaplar"],
   ["Kategoriler", "/panel/kategoriler"], ["Gelir Planlama", "/panel/gelirler"], ["Nakit Akışı", "/panel/nakit-akisi"], ["Aile", "/panel/aile"], ["Bütçe Tablosu", "/panel/butce"],
   ["Borçlarım", "/panel/borclar"], ["Ödemeler", "/panel/odemeler"], ["Aboneliklerim", "/panel/abonelikler"], ["Hedefler", "/panel/hedefler"],
   ["Yatırımlar", "/panel/yatirim"], ["Ekonomi", "/panel/ekonomi"], ["Gelecek Planı", "/panel/gelecek"],
