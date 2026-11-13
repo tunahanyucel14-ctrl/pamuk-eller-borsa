@@ -28,6 +28,7 @@ export default function NakitAkisiPage() {
   const [incomeRows, setIncomeRows] = useState<Income[]>([]);
   const [billRows, setBillRows] = useState<Bill[]>([]);
   const [debtRows, setDebtRows] = useState<Debt[]>([]);
+  const [historicalMonthlyExpense, setHistoricalMonthlyExpense] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [today] = useState(() => { const d=new Date(); d.setHours(0,0,0,0); return d; });
@@ -36,26 +37,38 @@ export default function NakitAkisiPage() {
     let cancelled = false;
     async function load() {
       setLoading(true); setError("");
-      const [balances, incomes, bills, debts] = await Promise.all([
-        supabase.from("account_balances").select("balance,currency").eq("family_id", aileId),
+      const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+      const historyStart = new Date(today.getFullYear(), today.getMonth()-3, 1);
+      const iso = (d:Date) => d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+      const [balances, incomes, bills, debts, history] = await Promise.all([
+        supabase.from("account_balances").select("account_id,balance,currency").eq("family_id", aileId),
         supabase.from("family_income_rules").select("id,name,expected_amount,pay_day,active").eq("family_id", aileId).eq("active", true),
         supabase.from("family_bills").select("id,name,amount,due_day,active,category").eq("family_id", aileId).eq("active", true),
         supabase.from("family_debts").select("id,name,monthly_payment,due_day,remaining_amount,annual_interest_rate").eq("family_id", aileId),
+        supabase.from("fin_transactions").select("amount,account_id").eq("family_id", aileId).eq("kind","gider").gte("tx_date",iso(historyStart)).lt("tx_date",iso(monthStart)).limit(5000),
       ]);
       if (cancelled) return;
-      const failed = balances.error || incomes.error || bills.error || debts.error;
+      const failed = balances.error || incomes.error || bills.error || debts.error || history.error;
       if (failed) setError("Bazı finans kayıtları yüklenemedi: " + failed.message);
-      const balanceRows=(balances.data||[]) as {balance:number;currency:string}[];
+      const balanceRows=(balances.data||[]) as {account_id:string;balance:number;currency:string}[];
       setOpeningBalance(balanceRows.filter(row=>String(row.currency||"TRY").toUpperCase()==="TRY").reduce((sum,row)=>sum+(Number(row.balance)||0),0));
       setForeignBalances(balanceRows.filter(row=>String(row.currency||"TRY").toUpperCase()!=="TRY").reduce<Record<string,number>>((acc,row)=>{const cur=String(row.currency||"TRY").toUpperCase();acc[cur]=(acc[cur]||0)+(Number(row.balance)||0);return acc;},{}));
       setIncomeRows((incomes.data || []) as Income[]);
       setBillRows((bills.data || []) as Bill[]);
       setDebtRows((debts.data || []) as Debt[]);
+      if(!history.error){
+        const tryAccounts=new Set(balanceRows.filter(row=>String(row.currency||"TRY").toUpperCase()==="TRY").map(row=>row.account_id));
+        const total= (history.data||[]).filter((row:any)=>tryAccounts.has(row.account_id)).reduce((sum:number,row:any)=>sum+(Number(row.amount)||0),0);
+        setHistoricalMonthlyExpense(total/3);
+      }else setHistoricalMonthlyExpense(null);
       setLoading(false);
     }
     void load();
     return () => { cancelled = true; };
   }, [aileId]);
+
+  const fixedMonthly = billRows.reduce((sum,row)=>sum+(Number(row.amount)||0),0) + debtRows.filter(row=>Number(row.remaining_amount)>0).reduce((sum,row)=>sum+Math.max(0,Number(row.monthly_payment)||0),0);
+  const variableMonthlyEstimate = historicalMonthlyExpense===null ? null : Math.max(0,historicalMonthlyExpense-fixedMonthly);
 
   const months = useMemo<MonthRow[]>(() => {
     let running = openingBalance;
@@ -82,6 +95,12 @@ export default function NakitAkisiPage() {
         debt.balance-=payment;
         if(payment>0)events.push({date,name:debt.name+" taksiti",amount:payment,kind:"gider",source:debt.dueDay?"Borç taksiti":"Borç taksiti · gün belirtilmedi, ayın 1’i varsayıldı"});
       }
+      if(variableMonthlyEstimate!==null&&variableMonthlyEstimate>0){
+        const daysInMonth=new Date(year,month+1,0).getDate();
+        const remainingDays=offset===0?Math.max(0,daysInMonth-today.getDate()+1):daysInMonth;
+        const estimate=variableMonthlyEstimate*remainingDays/daysInMonth;
+        if(estimate>0)events.push({date:dateAtDay(year,month,daysInMonth),name:"Tahmini günlük harcamalar",amount:estimate,kind:"gider",source:"Son 3 tamamlanmış ayın ortalaması · sabit ödemeler çıkarıldı"});
+      }
       events.sort((a,b)=>a.date.getTime()-b.date.getTime());
       const income=events.filter(x=>x.kind==="gelir").reduce((s,x)=>s+x.amount,0);
       const expense=events.filter(x=>x.kind==="gider").reduce((s,x)=>s+x.amount,0);
@@ -89,7 +108,7 @@ export default function NakitAkisiPage() {
       result.push({key:year+"-"+String(month+1).padStart(2,"0"),label:first.toLocaleDateString("tr-TR",{month:"long",year:"numeric"}),income,expense,net:income-expense,closing:running,events});
     }
     return result;
-  },[openingBalance,incomeRows,billRows,debtRows,today]);
+  },[openingBalance,incomeRows,billRows,debtRows,today,variableMonthlyEstimate]);
 
   const lowest = months.length ? Math.min(...months.map(x=>x.closing)) : openingBalance;
   const next = months[0];
@@ -101,6 +120,8 @@ export default function NakitAkisiPage() {
   return <div className="space-y-5">
     <header><p className="text-xs font-bold uppercase tracking-widest text-accent">6 aylık tahmin</p><h1 className={baslik}>Akıllı Nakit Akışı</h1><p className="text-sm text-muted">Kayıtlı hesap bakiyelerin, düzenli gelirlerin, faturaların ve borç taksitlerinle önümüzdeki altı ayı planla.</p></header>
     {error&&<p role="alert" className="rounded-xl bg-down/10 p-3 text-sm text-down">{error}</p>}
+    {variableMonthlyEstimate!==null&&<p role="status" className="rounded-xl border border-accent/20 bg-accent/5 p-3 text-xs leading-5 text-muted">Tahmine günlük harcama payı da eklendi: yaklaşık {tl(variableMonthlyEstimate)}/ay. Son 3 tamamlanmış ayın TL gider ortalamasından kayıtlı aylık faturalar ve borç taksitleri çıkarıldı. Bu tutar tahmindir; her ayın kalan gününe göre oranlanır.</p>}
+    {variableMonthlyEstimate===null&&<p role="status" className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs leading-5 text-muted">Günlük harcama tahmini için geçmiş işlem verisi alınamadı. Nakit akışı yalnızca kayıtlı gelir, fatura ve borç planlarını içeriyor.</p>}
     {debtsWithoutDueDate>0&&<p role="status" className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-muted">{debtsWithoutDueDate} açık borçta ödeme günü girilmemiş. Tahminde bu taksitler geçici olarak ayın 1’ine yerleştirildi; Borçlar bölümünden gerçek ödeme gününü ekle.</p>}
     {Object.keys(foreignBalances).length>0&&<div role="status" className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-sm"><b>Yabancı para hesapları nakit akışı tahminine katılmadı.</b><p className="mt-1 text-xs text-muted">Kur dönüşümü yapılmadığından yalnızca TL hesap bakiyesiyle tahmin yapılıyor.</p><div className="mt-2 flex flex-wrap gap-3 text-xs">{Object.entries(foreignBalances).map(([cur,value])=><span key={cur}>{value.toLocaleString("tr-TR",{maximumFractionDigits:2})} {cur}</span>)}</div></div>}
     <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
