@@ -1,0 +1,108 @@
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+import { CalendarDays, TrendingDown, TrendingUp, Wallet, AlertTriangle } from "lucide-react";
+import { supabase } from "../../../lib/supabase";
+import { useAile } from "../../../lib/aile-baglami";
+import { tl } from "../../../lib/finans";
+import { kart, baslik } from "../../../lib/ui";
+
+type Income = { id:string; name:string; expected_amount:number; pay_day:number; active:boolean };
+type Bill = { id:string; name:string; amount:number; due_day:number; active:boolean; category:string };
+type Debt = { id:string; name:string; monthly_payment:number; due_day:number|null; remaining_amount:number };
+type Event = { date:Date; name:string; amount:number; kind:"gelir"|"gider"; source:string };
+type MonthRow = { key:string; label:string; income:number; expense:number; net:number; closing:number; events:Event[] };
+
+function dateAtDay(year:number, month:number, day:number) {
+  const last = new Date(year, month + 1, 0).getDate();
+  return new Date(year, month, Math.min(Math.max(1, day), last));
+}
+function dateText(date:Date) {
+  return date.toLocaleDateString("tr-TR", { day:"numeric", month:"short" });
+}
+
+export default function NakitAkisiPage() {
+  const { aileId } = useAile();
+  const [openingBalance, setOpeningBalance] = useState(0);
+  const [incomeRows, setIncomeRows] = useState<Income[]>([]);
+  const [billRows, setBillRows] = useState<Bill[]>([]);
+  const [debtRows, setDebtRows] = useState<Debt[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [today] = useState(() => { const d=new Date(); d.setHours(0,0,0,0); return d; });
+
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      setLoading(true); setError("");
+      const [balances, incomes, bills, debts] = await Promise.all([
+        supabase.from("account_balances").select("balance").eq("family_id", aileId),
+        supabase.from("family_income_rules").select("id,name,expected_amount,pay_day,active").eq("family_id", aileId).eq("active", true),
+        supabase.from("family_bills").select("id,name,amount,due_day,active,category").eq("family_id", aileId).eq("active", true),
+        supabase.from("family_debts").select("id,name,monthly_payment,due_day,remaining_amount").eq("family_id", aileId),
+      ]);
+      if (cancelled) return;
+      const failed = balances.error || incomes.error || bills.error || debts.error;
+      if (failed) setError("Bazı finans kayıtları yüklenemedi: " + failed.message);
+      setOpeningBalance((balances.data || []).reduce((sum,row)=>sum+(Number(row.balance)||0),0));
+      setIncomeRows((incomes.data || []) as Income[]);
+      setBillRows((bills.data || []) as Bill[]);
+      setDebtRows((debts.data || []) as Debt[]);
+      setLoading(false);
+    }
+    void load();
+    return () => { cancelled = true; };
+  }, [aileId]);
+
+  const months = useMemo<MonthRow[]>(() => {
+    let running = openingBalance;
+    const result:MonthRow[] = [];
+    for(let offset=0; offset<6; offset++) {
+      const first = new Date(today.getFullYear(), today.getMonth()+offset, 1);
+      const year=first.getFullYear(), month=first.getMonth();
+      const events:Event[]=[];
+      for(const row of incomeRows) {
+        const date=dateAtDay(year,month,Number(row.pay_day));
+        if(date>=today) events.push({date,name:row.name,amount:Number(row.expected_amount)||0,kind:"gelir",source:"Planlanan gelir"});
+      }
+      for(const row of billRows) {
+        const date=dateAtDay(year,month,Number(row.due_day));
+        if(date>=today) events.push({date,name:row.name,amount:Number(row.amount)||0,kind:"gider",source:row.category||"Düzenli ödeme"});
+      }
+      for(const row of debtRows) {
+        if(Number(row.monthly_payment)<=0 || !row.due_day) continue;
+        const date=dateAtDay(year,month,Number(row.due_day));
+        if(date>=today && Number(row.remaining_amount)>0) events.push({date,name:row.name+" taksiti",amount:Number(row.monthly_payment)||0,kind:"gider",source:"Borç taksiti"});
+      }
+      events.sort((a,b)=>a.date.getTime()-b.date.getTime());
+      const income=events.filter(x=>x.kind==="gelir").reduce((s,x)=>s+x.amount,0);
+      const expense=events.filter(x=>x.kind==="gider").reduce((s,x)=>s+x.amount,0);
+      running+=income-expense;
+      result.push({key:year+"-"+String(month+1).padStart(2,"0"),label:first.toLocaleDateString("tr-TR",{month:"long",year:"numeric"}),income,expense,net:income-expense,closing:running,events});
+    }
+    return result;
+  },[openingBalance,incomeRows,billRows,debtRows,today]);
+
+  const lowest = months.length ? Math.min(...months.map(x=>x.closing)) : openingBalance;
+  const next = months[0];
+  const totalIncome = incomeRows.reduce((s,x)=>s+Number(x.expected_amount),0);
+  const totalBills = billRows.reduce((s,x)=>s+Number(x.amount),0);
+  const totalDebt = debtRows.reduce((s,x)=>s+Number(x.monthly_payment),0);
+
+  return <div className="space-y-5">
+    <header><p className="text-xs font-bold uppercase tracking-widest text-accent">6 aylık tahmin</p><h1 className={baslik}>Akıllı Nakit Akışı</h1><p className="text-sm text-muted">Kayıtlı hesap bakiyelerin, düzenli gelirlerin, faturaların ve borç taksitlerinle önümüzdeki altı ayı planla.</p></header>
+    {error&&<p role="alert" className="rounded-xl bg-down/10 p-3 text-sm text-down">{error}</p>}
+    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <div className={kart}><p className="text-xs text-muted">Bugünkü hesap bakiyesi</p><b className="mt-2 block text-xl">{tl(openingBalance)}</b><p className="mt-1 text-xs text-muted">Kayıtlı hesapların toplamı</p></div>
+      <div className={kart}><p className="text-xs text-muted">Aylık planlı gelir</p><b className="mt-2 block text-xl text-up">{tl(totalIncome)}</b><p className="mt-1 text-xs text-muted">Aktif gelir planları</p></div>
+      <div className={kart}><p className="text-xs text-muted">Aylık düzenli ödeme</p><b className="mt-2 block text-xl text-down">{tl(totalBills+totalDebt)}</b><p className="mt-1 text-xs text-muted">Fatura + borç taksitleri</p></div>
+      <div className={kart}><p className="text-xs text-muted">6 ay içindeki en düşük tahmini bakiye</p><b className={"mt-2 block text-xl "+(lowest<0?"text-down":"text-up")}>{tl(lowest)}</b><p className="mt-1 text-xs text-muted">Senaryo sonucu</p></div>
+    </div>
+    {loading?<div className={kart+" text-sm text-muted"}>Finansal kayıtlar yükleniyor...</div>:<section className={kart+" space-y-4"}>
+      <div className="flex items-center gap-2"><CalendarDays className="text-accent" size={19}/><h2 className="font-bold">Aylık nakit akışı</h2></div>
+      <div className="overflow-x-auto"><table className="w-full min-w-[620px] text-sm"><thead><tr className="border-b border-line text-left text-muted"><th className="p-2">Dönem</th><th className="p-2 text-right">Gelir</th><th className="p-2 text-right">Gider</th><th className="p-2 text-right">Net</th><th className="p-2 text-right">Dönem sonu bakiye</th></tr></thead><tbody>{months.map(row=><tr key={row.key} className="border-b border-line/60"><td className="p-2 font-semibold capitalize">{row.label}</td><td className="p-2 text-right text-up">{tl(row.income)}</td><td className="p-2 text-right text-down">{tl(row.expense)}</td><td className={"p-2 text-right font-semibold "+(row.net>=0?"text-up":"text-down")}>{tl(row.net)}</td><td className={"p-2 text-right font-bold "+(row.closing>=0?"":"text-down")}>{tl(row.closing)}</td></tr>)}</tbody></table></div>
+    </section>}
+    {!loading&&<section className={kart+" space-y-3"}><h2 className="font-bold">Yaklaşan dönem · {next?.label}</h2>{next?.events.length?next.events.map((event,i)=><div key={i} className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-inner p-3"><div className="flex items-center gap-3"><span className={"rounded-xl p-2 "+(event.kind==="gelir"?"bg-up/10 text-up":"bg-down/10 text-down")}>{event.kind==="gelir"?<TrendingUp size={17}/>:<TrendingDown size={17}/>}</span><div><p className="font-semibold">{event.name}</p><p className="text-xs text-muted">{dateText(event.date)} · {event.source}</p></div></div><b className={event.kind==="gelir"?"text-up":"text-down"}>{event.kind==="gelir"?"+":"−"}{tl(event.amount)}</b></div>):<p className="text-sm text-muted">Bu dönemde yaklaşan planlı kayıt bulunmuyor.</p>}</section>}
+    <div className="flex items-start gap-3 rounded-2xl border border-accent/20 bg-accent/5 p-4"><AlertTriangle size={19} className="mt-0.5 shrink-0 text-accent"/><p className="text-xs leading-5 text-muted">Bu bir tahmindir; yalnızca uygulamaya kaydedilmiş aktif gelir ve ödeme planlarını kullanır. Değişken günlük harcamalar, henüz girilmemiş faturalar, faiz değişimleri ve beklenmeyen gelir/giderler dahil değildir. Geçmiş aylar için eski günler tekrar sayılmaz; mevcut ayda yalnızca bugünden sonraki tarihler hesaba katılır.</p></div>
+  </div>;
+}
