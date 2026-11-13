@@ -246,6 +246,15 @@ export default function Home() {
   const refreshArena = useCallback(async () => {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session?.access_token) {
+      // Çıkış yapan kullanıcının çevrimiçi portföyü misafir modunda görünmesin.
+      try {
+        window.localStorage.removeItem("pamuk-borsa-balance-v1");
+        window.localStorage.removeItem("pamuk-borsa-portfolio-v1");
+        window.localStorage.removeItem("pamuk-borsa-trade-count-v1");
+      } catch { /* Depolama kapalıysa ekrana devam et. */ }
+      setBalance(START_BALANCE);
+      setPortfolio({});
+      setTradeCount(0);
       setArenaStatus("guest");
       setArenaError("");
       setArenaAccountId("");
