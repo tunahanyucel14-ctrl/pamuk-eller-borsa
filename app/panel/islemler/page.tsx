@@ -115,11 +115,13 @@ export default function Islemler() {
     const { error } = await supabase.rpc("delete_family_transaction",{p_transaction_id:islem.id});
     if (error) setHata(error.message);
     else {
+      let archiveWarning="";
       if(islem.receipt_path && islem.receipt_path.startsWith(kullaniciId+"/")){
         const {error:archiveError}=await supabase.storage.from("receipts").remove([islem.receipt_path]);
-        if(archiveError)setHata("İşlem silindi ancak fiş dosyası arşivden kaldırılamadı: "+archiveError.message);
+        if(archiveError)archiveWarning="İşlem silindi ancak fiş dosyası arşivden kaldırılamadı: "+archiveError.message;
       }
       await yukle();
+      if(archiveWarning)setHata(archiveWarning);
     }
   }
 
