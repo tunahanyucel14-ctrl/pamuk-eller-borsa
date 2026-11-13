@@ -17,6 +17,7 @@ export default function Hesaplar() {
   const [ad, setAd] = useState("");
   const [banka, setBanka] = useState("Ziraat Bankası");
   const [tur, setTur] = useState("banka");
+  const [currency, setCurrency] = useState("TRY");
   const [acilis, setAcilis] = useState("");
   const [hata, setHata] = useState("");
   const [bekle, setBekle] = useState(false);
@@ -61,7 +62,7 @@ export default function Hesaplar() {
       family_id: aileId,
       name: tur === "banka" ? banka + " · " + ad.trim() : ad.trim(),
       type: tur,
-      currency: "TRY",
+      currency,
       opening_balance: tutar,
     });
     if (error) {
@@ -69,6 +70,7 @@ export default function Hesaplar() {
     } else {
       setAd("");
       setAcilis("");
+      setCurrency("TRY");
       await yukle();
     }
     setBekle(false);
@@ -149,7 +151,7 @@ export default function Hesaplar() {
             </select>
           </div>
           <div>
-            <label className={etiket}>Açılış bakiyesi (TL)</label>
+            <label className={etiket}>Açılış bakiyesi ({currency})</label>
             <input className={girdi} inputMode="decimal" value={acilis} onChange={(e) => setAcilis(e.target.value)} placeholder="0" />
           </div>
           <button type="submit" disabled={bekle} className={dugme + " md:col-span-4"}>
