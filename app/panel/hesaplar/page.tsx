@@ -9,6 +9,8 @@ import type { Bakiye } from "../../../lib/tipler";
 import { kart, girdi, dugme, etiket, baslik } from "../../../lib/ui";
 import { BANKALAR } from "../../../lib/kataloglar";
 
+function para(amount:number,currency:string){try{return new Intl.NumberFormat("tr-TR",{style:"currency",currency}).format(amount);}catch{return amount.toLocaleString("tr-TR",{maximumFractionDigits:2})+" "+currency;}}
+
 export default function Hesaplar() {
   const { aileId, yazabilir } = useAile();
   const [liste, setListe] = useState<Bakiye[]>([]);
@@ -87,7 +89,8 @@ export default function Hesaplar() {
     }
   }
 
-  const toplam = liste.reduce((t, x) => t + x.balance, 0);
+  const toplam = liste.filter(x=>String(x.currency||"TRY").toUpperCase()==="TRY").reduce((t, x) => t + x.balance, 0);
+  const yabanci = Object.entries(liste.filter(x=>String(x.currency||"TRY").toUpperCase()!=="TRY").reduce<Record<string,number>>((acc,x)=>{const cur=String(x.currency).toUpperCase();acc[cur]=(acc[cur]||0)+x.balance;return acc;},{}));
 
   return (
     <div className="flex flex-col gap-4">
@@ -97,8 +100,9 @@ export default function Hesaplar() {
       <div className={kart}>
         <div className="mb-3 flex justify-between">
           <h2 className="font-semibold">Hesap listesi</h2>
-          <p className="font-semibold text-accent">{tl(toplam)}</p>
+          <p className="font-semibold text-accent">TL toplamı: {tl(toplam)}</p>
         </div>
+        {yabanci.length>0&&<p className="mb-3 text-xs text-muted">Diğer para birimleri ayrı: {yabanci.map(([cur,value])=>para(value,cur)).join(" · ")}</p>}
         {liste.length === 0 && <p className="text-sm text-muted">Henüz hesap yok.</p>}
         <div className="flex flex-col gap-2">
           {liste.map((h) => (
@@ -106,11 +110,11 @@ export default function Hesaplar() {
               <div>
                 <p className="font-medium">{h.name}</p>
                 <p className="text-xs text-muted">
-                  {HESAP_TURU_ADI[h.type] ?? h.type} · açılış {tl(h.opening_balance)}
+                  {HESAP_TURU_ADI[h.type] ?? h.type} · {h.currency} · açılış {para(h.opening_balance,h.currency)}
                 </p>
               </div>
               <div className="flex items-center gap-3">
-                <p className="font-semibold">{tl(h.balance)}</p>
+                <p className="font-semibold">{para(h.balance,h.currency)}</p>
                 {yazabilir && (
                   <button
                     onClick={() => sil(h.account_id, h.name)}
