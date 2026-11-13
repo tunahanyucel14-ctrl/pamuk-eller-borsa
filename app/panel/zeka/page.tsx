@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Activity, AlertTriangle, ArrowDownRight, ArrowUpRight, BrainCircuit, Lightbulb, RefreshCw, Sparkles, TrendingDown, TrendingUp } from "lucide-react";
+import { Activity, AlertTriangle, ArrowDownRight, ArrowUpRight, BrainCircuit, Lightbulb, RefreshCw, Sparkles, TrendingDown, TrendingUp, Target } from "lucide-react";
 import { supabase } from "../../../lib/supabase";
 import { useAile } from "../../../lib/aile-baglami";
 import { tl } from "../../../lib/finans";
@@ -11,7 +11,8 @@ type Tx = { id:string; kind:"gelir"|"gider"|"transfer"; amount:number; tx_date:s
 type Category = { id:string; name:string; kind:string };
 type Income = { id:string; name:string; expected_amount:number; active:boolean };
 type Bill = { id:string; name:string; amount:number; active:boolean; category:string };
-type Debt = { id:string; name:string; remaining_amount:number; monthly_payment:number };\ntype Goal = { id:string; name:string; target_amount:number; current_amount:number; target_date:string|null };
+type Debt = { id:string; name:string; remaining_amount:number; monthly_payment:number; annual_interest_rate:number };
+type Goal = { id:string; name:string; target_amount:number; current_amount:number; target_date:string|null };
 type Month = { key:string; label:string; income:number; expense:number };
 type CategorySpend = { id:string; name:string; amount:number; previous:number; change:number };
 
@@ -25,7 +26,9 @@ export default function FinansalZekaPage(){
  const [categories,setCategories]=useState<Category[]>([]);
  const [incomes,setIncomes]=useState<Income[]>([]);
  const [bills,setBills]=useState<Bill[]>([]);
- const [debts,setDebts]=useState<Debt[]>([]);\n const [goals,setGoals]=useState<Goal[]>([]);
+ const [debts,setDebts]=useState<Debt[]>([]);
+ const [goals,setGoals]=useState<Goal[]>([]);
+ const [monthlyPlan,setMonthlyPlan]=useState("0");
  const [cash,setCash]=useState(0);
  const [foreignBalances,setForeignBalances]=useState<Record<string,number>>({});
  const [loading,setLoading]=useState(true);
@@ -47,7 +50,7 @@ export default function FinansalZekaPage(){
     supabase.from("categories").select("id,name,kind").eq("family_id",aileId),
     supabase.from("family_income_rules").select("id,name,expected_amount,active").eq("family_id",aileId),
     supabase.from("family_bills").select("id,name,amount,active,category").eq("family_id",aileId).eq("active",true),
-    supabase.from("family_debts").select("id,name,remaining_amount,monthly_payment").eq("family_id",aileId),
+    supabase.from("family_debts").select("id,name,remaining_amount,monthly_payment,annual_interest_rate").eq("family_id",aileId),
     supabase.from("account_balances").select("account_id,balance,currency").eq("family_id",aileId),
    ]);
    if(cancelled)return;
@@ -59,7 +62,8 @@ export default function FinansalZekaPage(){
    setCategories((cats.data||[]) as Category[]);
    setIncomes((incomeRows.data||[]) as Income[]);
    setBills((billRows.data||[]) as Bill[]);
-   setDebts((debtRows.data||[]) as Debt[]);\n   setGoals((goalRows.data||[]) as Goal[]);
+   setDebts((debtRows.data||[]) as Debt[]);
+   setGoals((goalRows.data||[]) as Goal[]);
    setCash(balanceRows.filter(x=>String(x.currency||"TRY").toUpperCase()==="TRY").reduce((s,x)=>s+(Number(x.balance)||0),0));
    setForeignBalances(balanceRows.filter(x=>String(x.currency||"TRY").toUpperCase()!=="TRY").reduce<Record<string,number>>((acc,x)=>{const cur=String(x.currency||"TRY").toUpperCase();acc[cur]=(acc[cur]||0)+(Number(x.balance)||0);return acc;},{}));
    setLoading(false);
@@ -147,6 +151,10 @@ export default function FinansalZekaPage(){
   const rank={Yüksek:0,Orta:1,Fırsat:2};
   return items.sort((a,b)=>rank[a.priority]-rank[b.priority]).slice(0,7);
  },[analysis,bills,goals]);
+ const extraAmount=Math.max(0,Number(monthlyPlan)||0);
+ const debtPriority=[...debts].filter(d=>Number(d.remaining_amount)>0).sort((a,b)=>(Number(b.annual_interest_rate)||0)-(Number(a.annual_interest_rate)||0));
+ const suggestedSaving=Math.max(0,Math.min(analysis.estimatedFree,analysis.estimatedFree*0.5));
+ const planTotalGoals=goals.reduce((sum,g)=>sum+Math.max(0,Number(g.target_amount)-Number(g.current_amount)),0);
  const maxExpense=Math.max(1,...analysis.months.map(x=>x.expense));
  if(loading)return <div className={kart+" animate-pulse"}>Finansal alışkanlıkların analiz ediliyor…</div>;
  return <div className="space-y-6">
@@ -163,6 +171,7 @@ export default function FinansalZekaPage(){
   <section className="grid gap-4 lg:grid-cols-2"><article className={kart+" space-y-3"}><h2 className="font-bold">Harcama kategorileri</h2>{analysis.categorySpends.length?analysis.categorySpends.slice(0,8).map(x=><div key={x.id}><div className="flex justify-between gap-2 text-sm"><span>{x.name}</span><b>{money(x.amount)}</b></div><div className="mt-1 h-2 overflow-hidden rounded-full bg-inner"><div className="h-full rounded-full bg-accent" style={{width:Math.max(2,x.amount/Math.max(1,analysis.categorySpends[0].amount)*100)+"%"}}/></div><p className={"mt-1 text-[10px] "+(x.change>10?"text-down":"text-muted")}>Önceki 3 aya göre {x.previous>0?(x.change>0?"+":"")+x.change.toFixed(0)+"%":"karşılaştırma verisi yok"}</p></div>):<p className="text-sm text-muted">Henüz gider kaydı bulunmuyor.</p>}</article>
    <article className={kart+" space-y-3"}><h2 className="font-bold">Tasarruf fırsatları</h2>{analysis.insights.map((item,i)=><div key={i} className="flex gap-3 rounded-xl bg-inner p-3"><Lightbulb size={17} className="mt-0.5 shrink-0 text-accent"/><p className="text-sm leading-6">{item}</p></div>)}</article></section>
   <section className={kart+" space-y-4"}><div className="flex items-center gap-2"><Lightbulb className="text-accent" size={19}/><h2 className="font-bold">Akıllı finansal öneriler</h2></div><p className="text-xs text-muted">Kayıtlı gelir, gider, abonelik, borç ve hedeflerinden otomatik üretilir. Tutarlar tahmindir; hiçbir abonelik iptal edilmez ve ödeme yapılmaz.</p><div className="grid gap-3 md:grid-cols-2">{recommendations.map((item,i)=><article key={i} className="rounded-xl border border-line bg-inner p-4"><div className="flex items-center justify-between gap-2"><span className={"rounded-full px-2 py-1 text-[10px] font-bold "+(item.priority==="Yüksek"?"bg-down/10 text-down":item.priority==="Orta"?"bg-amber-500/10 text-amber-600":"bg-accent/10 text-accent")}>{item.priority} öncelik</span>{item.amount!==undefined&&<b className="text-sm">{money(item.amount)}</b>}</div><h3 className="mt-3 font-bold">{item.title}</h3><p className="mt-1 text-sm leading-6 text-muted">{item.detail}</p><p className="mt-3 text-xs font-semibold text-accent">{item.action} →</p></article>)}</div></section>
+  <section className={kart+" space-y-4"}><div className="flex items-center gap-2"><Target className="text-accent" size={19}/><h2 className="font-bold">Kişisel tasarruf ve borç planı</h2></div><p className="text-xs leading-5 text-muted">Aşağıdaki plan, mevcut kayıtlarından hesaplanan bir senaryodur. Tutarı değiştirerek farklı seçenekleri dene; hiçbir ödeme veya hesap hareketi otomatik oluşturulmaz.</p><div className="grid gap-3 sm:grid-cols-2"><div className="rounded-xl bg-inner p-3"><p className="text-xs text-muted">Aylık serbest tutar tahmini</p><b className="mt-1 block text-xl">{money(analysis.estimatedFree)}</b><p className="mt-1 text-[10px] text-muted">Gelir planı ve gider geçmişinden hesaplanır.</p></div><div className="rounded-xl bg-inner p-3"><p className="text-xs text-muted">Tüm hedeflerde kalan tutar</p><b className="mt-1 block text-xl">{money(planTotalGoals)}</b><p className="mt-1 text-[10px] text-muted">{goals.length} kayıtlı hedef</p></div></div><div className="rounded-xl border border-line p-3"><label className="text-sm font-semibold" htmlFor="monthly-plan">Borçlara ek ayırmak istediğin tutar (TL / ay)</label><input id="monthly-plan" type="number" min="0" step="100" className="mt-2 w-full rounded-xl border border-line bg-inner px-3 py-2" value={monthlyPlan} onChange={e=>setMonthlyPlan(e.target.value)}/><p className="mt-2 text-xs text-muted">Bu tutar yalnızca senaryo hesabında kullanılır. Serbest nakit tahminini aşarsa risk uyarısı gösterilir.</p>{extraAmount>analysis.estimatedFree&&<p className="mt-2 text-xs font-semibold text-down">Dikkat: Seçtiğin ek ödeme, tahmini serbest tutarı aşıyor.</p>}</div><div className="grid gap-3 md:grid-cols-2"><article className="rounded-xl bg-inner p-3"><p className="text-xs font-bold text-accent">Tasarruf önerisi</p><b className="mt-1 block text-lg">{money(suggestedSaving)} / ay</b><p className="mt-1 text-xs leading-5 text-muted">Serbest tutar pozitifse bunun yaklaşık yarısını başlangıç tasarruf hedefi olarak ayırmayı deneyebilirsin. Bu öneri zorunlu bir ödeme değildir.</p></article><article className="rounded-xl bg-inner p-3"><p className="text-xs font-bold text-accent">Borç kapatma sırası</p>{debtPriority.length? <><b className="mt-1 block text-lg">{debtPriority[0].name}</b><p className="mt-1 text-xs leading-5 text-muted">Kayıtlı yıllık faiz oranı en yüksek borç. Asgari taksitleri aksatmadan, ek ödeme yapacaksan faiz maliyeti yüksek borcu önce değerlendirmek genellikle toplam maliyeti azaltabilir.</p><p className="mt-2 text-xs text-muted">Faiz: %{Number(debtPriority[0].annual_interest_rate||0).toFixed(2)} · Kalan: {money(Number(debtPriority[0].remaining_amount)||0)}</p></>:<p className="mt-2 text-xs text-muted">Açık borç kaydı bulunmuyor.</p>}</article></div>{debtPriority.length>1&&<div className="space-y-2"><p className="text-xs font-bold text-muted">Faiz oranına göre borç sırası</p>{debtPriority.map((d,i)=><div key={d.id} className="flex items-center justify-between gap-2 rounded-lg bg-inner px-3 py-2 text-xs"><span>{i+1}. {d.name}</span><span>%{Number(d.annual_interest_rate||0).toFixed(2)} · {money(Number(d.remaining_amount)||0)}</span></div>)}</div>}<p className="text-[10px] leading-4 text-muted">Borç sıralaması girilen faiz oranlarına dayanır. Vergi, erken kapama cezası, değişken faiz ve sözleşme koşulları hesaba katılmamıştır. Bankanın güncel kapama tutarını doğrulamadan işlem yapma.</p></section>
   <section className={kart+" space-y-3"}><div className="flex items-center gap-2"><BrainCircuit className="text-accent" size={19}/><h2 className="font-bold">Gelecek ay için bütçe sinyali</h2></div><div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4"><div className="rounded-xl bg-inner p-3"><p className="text-xs text-muted">Aylık gelir varsayımı</p><b>{money(analysis.monthlyIncome)}</b><p className="mt-1 text-[10px] text-muted">{analysis.incomeSource}</p></div><div className="rounded-xl bg-inner p-3"><p className="text-xs text-muted">Düzenli faturalar / abonelikler</p><b>{money(analysis.fixedBills)}</b></div><div className="rounded-xl bg-inner p-3"><p className="text-xs text-muted">Borç taksitleri</p><b>{money(analysis.debtPayments)}</b></div><div className="rounded-xl bg-inner p-3"><p className="text-xs text-muted">Değişken gider tahmini</p><b>{money(analysis.variableMonthly)}</b></div></div><div className={"rounded-xl p-4 "+(analysis.estimatedFree>=0?"bg-up/10":"bg-down/10")}><p className="text-xs text-muted">Tahmini serbest tutar · aylık</p><b className={"mt-1 block text-2xl "+(analysis.estimatedFree>=0?"text-up":"text-down")}>{money(analysis.estimatedFree)}</b><p className="mt-1 text-xs text-muted">Gelir varsayımı − son 3 ayın ortalama değişken gideri − kayıtlı düzenli ödemeler − açık borç taksitleri. Gelir planı yoksa geçmiş üç ay ortalaması kullanılır.</p></div><p className="text-xs leading-5 text-muted">Bu bir öngörüdür, kesin bakiye değildir. Gelir ve ödeme planlarının tam girilmiş olması gerekir. Değişken gider ortalaması geçmiş işlemlerden hesaplanır; kategorisi fatura, abonelik, kredi, borç, taksit veya sigorta olarak işaretlenenler dışarıda bırakılır. Geçmiş veride yanlış kategorilendirme varsa tahmin etkilenebilir.</p></section>
   {aiText&&<section className={kart+" space-y-3"}><div className="flex items-center gap-2"><Sparkles className="text-accent" size={19}/><h2 className="font-bold">Yapay zekâ finans koçun</h2></div><div className="whitespace-pre-wrap text-sm leading-7">{aiText}</div><p className="text-xs text-muted">Yapay zekâ önerileri eğitim ve planlama amaçlıdır; banka teyidi veya yatırım tavsiyesi değildir.</p></section>}
   {aiError&&<p role="alert" className="rounded-xl bg-down/10 p-3 text-sm text-down">{aiError}</p>}
