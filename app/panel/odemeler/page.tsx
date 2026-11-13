@@ -1,17 +1,204 @@
 "use client";
-import {useEffect,useState} from "react";
-import {Plus,CalendarClock,Trash2} from "lucide-react";
-import {supabase} from "../../../lib/supabase";
-import {useAile} from "../../../lib/aile-baglami";
-import {tl} from "../../../lib/finans";
-import {kart,girdi,dugme,baslik,etiket} from "../../../lib/ui";
-type Bill={id:string;name:string;amount:number;due_day:number;category:string;active:boolean};
-export default function OdemelerPage(){const {aileId,kullaniciId,yazabilir}=useAile();const [rows,setRows]=useState<Bill[]>([]);const [name,setName]=useState("");const [amount,setAmount]=useState("");const [day,setDay]=useState("1");const [category,setCategory]=useState("Fatura");const [error,setError]=useState("");
-async function load(){const {data,error}=await supabase.from("family_bills").select("*").eq("family_id",aileId).eq("active",true).order("due_day");if(error)setError(error.message);else setRows((data||[]) as Bill[]);}
-useEffect(()=>{load();},[aileId]);async function add(e:React.FormEvent){e.preventDefault();const {error}=await supabase.from("family_bills").insert({family_id:aileId,created_by:kullaniciId,name,amount:Number(amount),due_day:Number(day),category});if(error)setError(error.message);else{setName("");setAmount("");load();}}
-const total=rows.reduce((s,x)=>s+Number(x.amount),0);
-function nextDue(day:number){const now=new Date();const today=new Date(now.getFullYear(),now.getMonth(),now.getDate());let due=new Date(now.getFullYear(),now.getMonth(),Math.min(day,new Date(now.getFullYear(),now.getMonth()+1,0).getDate()));if(due<today)due=new Date(now.getFullYear(),now.getMonth()+1,Math.min(day,new Date(now.getFullYear(),now.getMonth()+2,0).getDate()));return due;}
-function daysLeft(day:number){const now=new Date();const today=new Date(now.getFullYear(),now.getMonth(),now.getDate());return Math.round((nextDue(day).getTime()-today.getTime())/86400000);}
-const sortedRows=[...rows].sort((a,b)=>daysLeft(a.due_day)-daysLeft(b.due_day));
-return <div className="space-y-5"><header><p className="text-xs font-bold uppercase tracking-widest text-accent">Ödeme takvimi</p><h1 className={baslik}>Düzenli ödemeler</h1><p className="text-sm text-muted">Fatura, kira, abonelik ve taksitlerin yaklaşan ödeme günlerini takip et.</p></header><div className={kart}><p className="text-sm text-muted">Aylık düzenli ödeme toplamı</p><p className="mt-2 text-2xl font-black">{tl(total)}</p></div>{error&&<p className="text-sm text-down">{error}</p>}<section className={kart}><h2 className="mb-3 font-bold">Ödeme listesi</h2>{rows.length===0?<p className="text-sm text-muted">Henüz düzenli ödeme yok.</p>:<div className="space-y-2">{sortedRows.map(x=><div key={x.id} className="flex items-center justify-between gap-3 rounded-xl bg-inner p-3"><div className="flex items-center gap-3"><span className="rounded-xl bg-accent/10 p-2 text-accent"><CalendarClock size={18}/></span><div><b className="text-sm">{x.name}</b><p className="text-xs text-muted">Her ayın {x.due_day}. günü · {x.category}</p><p className={"mt-1 text-[11px] font-semibold "+(daysLeft(x.due_day)===0?"text-down":"text-accent")}>{daysLeft(x.due_day)===0?"Bugün ödenmeli":daysLeft(x.due_day)+" gün sonra · "+nextDue(x.due_day).toLocaleDateString("tr-TR")}</p></div></div><div className="flex items-center gap-3"><b>{tl(Number(x.amount))}</b>{yazabilir&&<button onClick={async()=>{if(!window.confirm(x.name+" ödeme kaydı silinsin mi?"))return;const {error}=await supabase.from("family_bills").delete().eq("id",x.id).eq("family_id",aileId);if(error)setError(error.message);else await load();}} aria-label="Ödemeyi sil" className="text-muted hover:text-down"><Trash2 size={15}/></button>}</div></div>)}</div>}</section>{yazabilir&&<form onSubmit={add} className={kart+" grid gap-3 sm:grid-cols-2"}><h2 className="sm:col-span-2 font-bold">Ödeme ekle</h2><div><label className={etiket}>Ödeme adı</label><input required className={girdi} value={name} onChange={e=>setName(e.target.value)}/></div><div><label className={etiket}>Tutar (TL)</label><input required type="number" min="0" className={girdi} value={amount} onChange={e=>setAmount(e.target.value)}/></div><div><label className={etiket}>Ödeme günü</label><input required type="number" min="1" max="31" className={girdi} value={day} onChange={e=>setDay(e.target.value)}/></div><div><label className={etiket}>Kategori</label><input className={girdi} value={category} onChange={e=>setCategory(e.target.value)}/></div><button className={dugme+" sm:col-span-2"}><Plus size={16} className="inline"/> Ödeme ekle</button></form>}</div>;
+
+import { useCallback, useEffect, useState } from "react";
+import { Plus, CalendarClock, Trash2, Bell, BellRing, Wallet, ShieldCheck } from "lucide-react";
+import { supabase } from "../../../lib/supabase";
+import { useAile } from "../../../lib/aile-baglami";
+import { tl } from "../../../lib/finans";
+import { kart, girdi, dugme, baslik, etiket } from "../../../lib/ui";
+
+type Bill = { id: string; name: string; amount: number; due_day: number; category: string; active: boolean };
+type ReminderSettings = { salaryDay: string; leadDays: number };
+const SETTINGS_KEY = "pamuk-reminder-settings-v1";
+const SENT_KEY = "pamuk-reminder-sent-v1";
+
+function dateForDay(day: number, from = new Date()) {
+  const today = new Date(from.getFullYear(), from.getMonth(), from.getDate());
+  let due = new Date(today.getFullYear(), today.getMonth(), Math.min(day, new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate()));
+  if (due < today) due = new Date(today.getFullYear(), today.getMonth() + 1, Math.min(day, new Date(today.getFullYear(), today.getMonth() + 2, 0).getDate()));
+  return due;
+}
+function daysUntil(date: Date) {
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  return Math.round((date.getTime() - today.getTime()) / 86400000);
+}
+function dateLabel(date: Date) { return date.toLocaleDateString("tr-TR", { day: "numeric", month: "long" }); }
+
+export default function OdemelerPage() {
+  const { aileId, kullaniciId, yazabilir } = useAile();
+  const [rows, setRows] = useState<Bill[]>([]);
+  const [name, setName] = useState("");
+  const [amount, setAmount] = useState("");
+  const [day, setDay] = useState("1");
+  const [category, setCategory] = useState("Fatura");
+  const [error, setError] = useState("");
+  const [settings, setSettings] = useState<ReminderSettings>({ salaryDay: "", leadDays: 3 });
+  const [permission, setPermission] = useState<NotificationPermission | "unsupported">("default");
+  const [saved, setSaved] = useState(false);
+  const [upcoming, setUpcoming] = useState<{ title: string; detail: string; date: Date; kind: "salary" | "bill" }[]>([]);
+
+  const load = useCallback(async () => {
+    const { data, error } = await supabase.from("family_bills").select("*").eq("family_id", aileId).eq("active", true).order("due_day");
+    if (error) setError(error.message); else setRows((data || []) as Bill[]);
+  }, [aileId]);
+
+  useEffect(() => { void load(); }, [load]);
+
+  useEffect(() => {
+    try {
+      const stored = JSON.parse(localStorage.getItem(SETTINGS_KEY) || "null");
+      if (stored && typeof stored === "object") setSettings({
+        salaryDay: typeof stored.salaryDay === "string" ? stored.salaryDay : "",
+        leadDays: [1, 3, 5, 7].includes(Number(stored.leadDays)) ? Number(stored.leadDays) : 3,
+      });
+    } catch { /* Varsayılan ayarlar kullanılır. */ }
+    setPermission("Notification" in window ? Notification.permission : "unsupported");
+  }, []);
+
+  const total = rows.reduce((sum, row) => sum + Number(row.amount), 0);
+  const billEvents = rows.map(row => ({ title: row.name, detail: tl(Number(row.amount)), date: dateForDay(row.due_day), kind: "bill" as const }));
+  const salaryEvents = settings.salaryDay ? [{
+    title: "Maaş günü",
+    detail: "Maaşını kontrol etmeyi unutma.",
+    date: dateForDay(Number(settings.salaryDay)),
+    kind: "salary" as const,
+  }] : [];
+  const events = [...billEvents, ...salaryEvents].sort((a, b) => a.date.getTime() - b.date.getTime());
+
+  useEffect(() => {
+    const next = events.map(event => ({ ...event, days: daysUntil(event.date) })).filter(event => event.days >= 0 && event.days <= settings.leadDays);
+    setUpcoming(next);
+    if (permission !== "granted" || next.length === 0) return;
+    let sent: string[] = [];
+    try { sent = JSON.parse(localStorage.getItem(SENT_KEY) || "[]"); } catch { sent = []; }
+    let changed = false;
+    for (const event of next) {
+      const eventKey = [event.kind, event.title, event.date.getFullYear(), event.date.getMonth() + 1, event.date.getDate()].join(":");
+      if (sent.includes(eventKey)) continue;
+      const timing = event.days === 0 ? "Bugün" : event.days + " gün sonra";
+      try {
+        new Notification("Pamuk Eller · " + (event.kind === "salary" ? "Maaş hatırlatması" : "Ödeme hatırlatması"), {
+          body: event.title + " · " + timing + " (" + dateLabel(event.date) + ") · " + event.detail,
+          icon: "/icon.svg",
+          tag: eventKey,
+        });
+        sent.push(eventKey); changed = true;
+      } catch { /* Tarayıcı bildirimi oluşturulamazsa uygulama içi hatırlatma gösterilir. */ }
+    }
+    if (changed) localStorage.setItem(SENT_KEY, JSON.stringify(sent.slice(-100)));
+  // The list is intentionally rechecked when payment rows or reminder preferences change.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows, settings, permission]);
+
+  function saveSettings() {
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+    setSaved(true);
+    window.setTimeout(() => setSaved(false), 2200);
+  }
+
+  async function enableNotifications() {
+    if (!("Notification" in window)) { setPermission("unsupported"); return; }
+    const result = await Notification.requestPermission();
+    setPermission(result);
+  }
+
+  async function add(e: React.FormEvent) {
+    e.preventDefault(); setError("");
+    const parsedAmount = Number(amount);
+    const parsedDay = Number(day);
+    if (!name.trim() || !Number.isFinite(parsedAmount) || parsedAmount <= 0 || !Number.isInteger(parsedDay) || parsedDay < 1 || parsedDay > 31) {
+      setError("Ödeme adı, pozitif tutar ve 1–31 arasında geçerli bir gün gir.");
+      return;
+    }
+    const { error } = await supabase.from("family_bills").insert({
+      family_id: aileId, created_by: kullaniciId, name: name.trim(), amount: parsedAmount, due_day: parsedDay, category: category.trim() || "Diğer",
+    });
+    if (error) setError(error.message);
+    else { setName(""); setAmount(""); await load(); }
+  }
+
+  return (
+    <div className="space-y-5">
+      <header>
+        <p className="text-xs font-bold uppercase tracking-widest text-accent">Ödeme takvimi</p>
+        <h1 className={baslik}>Düzenli ödemeler</h1>
+        <p className="text-sm text-muted">Faturalarını, taksitlerini ve maaş gününü takip et; yaklaşan tarihler için hatırlatma al.</p>
+      </header>
+
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div className={kart}>
+          <p className="text-sm text-muted">Aylık düzenli ödeme toplamı</p>
+          <p className="mt-2 text-2xl font-black">{tl(total)}</p>
+        </div>
+        <div className={kart}>
+          <p className="text-sm text-muted">Yaklaşan hatırlatmalar</p>
+          <p className="mt-2 text-2xl font-black">{upcoming.length}</p>
+          <p className="mt-1 text-xs text-muted">Seçtiğin bildirim aralığındaki maaş ve ödemeler</p>
+        </div>
+      </div>
+
+      <section className={kart + " space-y-4"}>
+        <div className="flex items-center gap-3">
+          <span className="rounded-xl bg-accent/10 p-3 text-accent"><Bell size={19}/></span>
+          <div><h2 className="font-bold">Maaş ve ödeme bildirimleri</h2><p className="text-xs text-muted">Hatırlatma tercihlerini bu cihazda sakla.</p></div>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div>
+            <label className={etiket}>Maaş günü (ayın kaçında?)</label>
+            <input type="number" min="1" max="31" className={girdi} placeholder="Örn. 15" value={settings.salaryDay} onChange={e => setSettings(old => ({ ...old, salaryDay: e.target.value }))}/>
+            <p className="mt-1 text-[11px] text-muted">Maaş gününü girersen yaklaşınca hatırlatırım.</p>
+          </div>
+          <div>
+            <label className={etiket}>Kaç gün önceden hatırlatayım?</label>
+            <select className={girdi} value={settings.leadDays} onChange={e => setSettings(old => ({ ...old, leadDays: Number(e.target.value) }))}>
+              <option value={1}>1 gün önce</option><option value={3}>3 gün önce</option><option value={5}>5 gün önce</option><option value={7}>7 gün önce</option>
+            </select>
+            <p className="mt-1 text-[11px] text-muted">Maaş ve kayıtlı ödemeler için geçerlidir.</p>
+          </div>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <button type="button" onClick={saveSettings} className={dugme}>Hatırlatma ayarlarını kaydet</button>
+          <button type="button" onClick={enableNotifications} className="inline-flex items-center gap-2 rounded-xl border border-line bg-inner px-4 py-2.5 text-sm font-bold hover:border-accent">
+            <BellRing size={16}/> {permission === "granted" ? "Bildirimler açık" : "Bildirimleri etkinleştir"}
+          </button>
+        </div>
+        {saved && <p className="text-xs font-semibold text-up">Hatırlatma tercihlerin kaydedildi.</p>}
+        {permission === "denied" && <p className="text-xs text-down">Tarayıcı bildirim izni kapalı. Site ayarlarından bildirimlere izin vermelisin.</p>}
+        {permission === "unsupported" && <p className="text-xs text-down">Bu tarayıcı bildirimleri desteklemiyor. Yaklaşan hatırlatmalar uygulama içinde görünür.</p>}
+        {permission === "default" && <p className="text-xs text-muted">Bildirim almak için önce izin vermelisin. Tarayıcı izin penceresini açacağız.</p>}
+        <p className="flex items-start gap-2 rounded-xl bg-inner p-3 text-xs leading-5 text-muted"><ShieldCheck size={16} className="mt-0.5 shrink-0 text-accent"/> Şimdilik hatırlatmalar, Pamuk Eller bu tarayıcıda açıkken kontrol edilir. Uygulama kapalıyken veya telefonda tarayıcı tamamen kapalıyken bildirim garantisi vermez.</p>
+      </section>
+
+      {upcoming.length > 0 && <section className={kart}>
+        <h2 className="mb-3 flex items-center gap-2 font-bold"><BellRing size={17} className="text-accent"/> Yaklaşan hatırlatmalar</h2>
+        <div className="space-y-2">{upcoming.map((event, index) => <div key={event.kind + event.title + index} className="flex items-center justify-between gap-3 rounded-xl bg-inner p-3">
+          <div className="flex items-center gap-3"><span className="rounded-xl bg-accent/10 p-2 text-accent">{event.kind === "salary" ? <Wallet size={17}/> : <CalendarClock size={17}/>}</span><div><p className="text-sm font-bold">{event.title}</p><p className="text-xs text-muted">{event.detail} · {dateLabel(event.date)}</p></div></div>
+          <span className="shrink-0 text-xs font-bold text-accent">{daysUntil(event.date) === 0 ? "Bugün" : daysUntil(event.date) + " gün kaldı"}</span>
+        </div>)}</div>
+      </section>}
+
+      {error && <p className="text-sm text-down">{error}</p>}
+      <section className={kart}>
+        <h2 className="mb-3 font-bold">Ödeme listesi</h2>
+        {rows.length === 0 ? <p className="text-sm text-muted">Henüz düzenli ödeme yok.</p> : <div className="space-y-2">
+          {rows.map(row => {
+            const due = dateForDay(row.due_day); const left = daysUntil(due);
+            return <div key={row.id} className="flex items-center justify-between gap-3 rounded-xl bg-inner p-3">
+              <div className="flex min-w-0 items-center gap-3"><span className="rounded-xl bg-accent/10 p-2 text-accent"><CalendarClock size={18}/></span><div className="min-w-0"><b className="text-sm">{row.name}</b><p className="text-xs text-muted">Her ayın {row.due_day}. günü · {row.category}</p><p className={"mt-1 text-[11px] font-semibold " + (left === 0 ? "text-down" : "text-accent")}>{left === 0 ? "Bugün ödenmeli" : left + " gün sonra · " + dateLabel(due)}</p></div></div>
+              <div className="flex items-center gap-3"><b className="shrink-0 text-sm">{tl(Number(row.amount))}</b>{yazabilir && <button onClick={async () => { if (!window.confirm(row.name + " ödeme kaydı silinsin mi?")) return; const { error } = await supabase.from("family_bills").delete().eq("id", row.id).eq("family_id", aileId); if (error) setError(error.message); else await load(); }} aria-label="Ödemeyi sil" className="text-muted hover:text-down"><Trash2 size={15}/></button>}</div>
+            </div>;
+          })}
+        </div>}
+      </section>
+
+      {yazabilir && <form onSubmit={add} className={kart + " grid gap-3 sm:grid-cols-2"}>
+        <h2 className="font-bold sm:col-span-2">Ödeme ekle</h2>
+        <div><label className={etiket}>Ödeme adı</label><input required className={girdi} value={name} onChange={e => setName(e.target.value)} placeholder="Kira, elektrik, internet..."/></div>
+        <div><label className={etiket}>Tutar (TL)</label><input required type="number" min="0.01" step="0.01" className={girdi} value={amount} onChange={e => setAmount(e.target.value)}/></div>
+        <div><label className={etiket}>Ödeme günü</label><input required type="number" min="1" max="31" className={girdi} value={day} onChange={e => setDay(e.target.value)}/></div>
+        <div><label className={etiket}>Kategori</label><input className={girdi} value={category} onChange={e => setCategory(e.target.value)}/></div>
+        <button className={dugme + " sm:col-span-2"}><Plus size={16} className="inline"/> Ödeme ekle</button>
+      </form>}
+    </div>
+  );
 }
