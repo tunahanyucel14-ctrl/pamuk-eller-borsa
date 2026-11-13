@@ -138,7 +138,7 @@ export default function AktarimPage(){
   setError("");setMessage("");setResult(null);
   const selected=Array.from(files||[]);
   if(!selected.length)return;
-  if(selected.length>5){setError("En fazla 5 ekstre ekran görüntüsü yükleyebilirsin.");return;}
+  if(selected.length>5){setError("En fazla 5 dosya yükleyebilirsin.");return;}
   if(selected.some(file=>file.size>6*1024*1024)){setError("Her dosya en fazla 6 MB olabilir.");return;}
   if(selected.some(file=>!["image/jpeg","image/png","image/webp","application/pdf"].includes(file.type))){setError("PDF, JPG, PNG veya WEBP dosyaları destekleniyor.");return;}\n  const pdfCount=selected.filter(file=>file.type==="application/pdf").length;\n  if(pdfCount>1||(pdfCount&&selected.length>1)){setError("PDF dosyasını tek başına seç. Birden fazla ekran görüntüsünü birlikte yükleyebilirsin.");return;}
   setOcrBusy(true);
@@ -150,21 +150,21 @@ export default function AktarimPage(){
     const safeName=file.name.replace(/[^A-Za-z0-9._-]/g,"-").slice(-100)||(file.type==="application/pdf"?"ekstre.pdf":"ekstre.png");
     const path=sessionData.session.user.id+"/"+Date.now()+"-"+crypto.randomUUID().slice(0,8)+"-"+safeName;
     const {error:uploadError}=await supabase.storage.from("receipts").upload(path,file,{contentType:file.type,upsert:false});
-    if(uploadError)throw new Error("Görsel güvenli alana yüklenemedi: "+uploadError.message);
+    if(uploadError)throw new Error("Dosya güvenli alana yüklenemedi: "+uploadError.message);
     uploaded.push({path,mimeType:file.type});
    }
    const response=await fetch("/api/statement",{method:"POST",headers:{"Content-Type":"application/json",Authorization:"Bearer "+sessionData.session.access_token},body:JSON.stringify({files:uploaded})});
    const data=await response.json().catch(()=>({}));
-   if(!response.ok)throw new Error(data.error||"Görselden ekstre okunamadı.");
+   if(!response.ok)throw new Error(data.error||"Dosyadan ekstre okunamadı.");
    const extracted=Array.isArray(data.rows)?data.rows as {date:string;description:string;amount:number;type:"gelir"|"gider"}[]:[];
-   if(!extracted.length)throw new Error("Görsellerde aktarılabilir işlem bulunamadı.");
+   if(!extracted.length)throw new Error("Dosyada aktarılabilir işlem bulunamadı.");
    setFileName(selected.length===1?selected[0].name:selected.length+" görselden okunan banka ekstresi");
    setHeaders(["İşlem tarihi","Açıklama","Tutar","İşlem türü"]);
    setRows(extracted.map((r,i)=>({line:i+2,cells:[r.date,r.description,String(r.amount),r.type]})));
    setMapping({date:"0",description:"1",amount:"2",kind:"3"});
    setCategoryOverrides({});
    setMessage(extracted.length+" işlem dosyadan okundu. Aktarmadan önce satırları kontrol et.");
-  }catch(e){setError(e instanceof Error?e.message:"Görsel işlenirken hata oluştu.");}
+  }catch(e){setError(e instanceof Error?e.message:"Ekstre işlenirken hata oluştu.");}
   finally{setOcrBusy(false);}
  }
 
@@ -238,7 +238,7 @@ export default function AktarimPage(){
     <label className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-accent/40 bg-card px-4 py-4 text-sm font-semibold transition hover:border-accent">{ocrBusy?"Ekstre okunuyor…":"PDF veya görsel seç"} <FileImage size={17}/><input type="file" accept="application/pdf,image/jpeg,image/png,image/webp" multiple className="sr-only" disabled={ocrBusy||!yazabilir} onChange={e=>{void statementFilesSelected(e.target.files);e.currentTarget.value="";}}/></label>
     <p className="mt-2 text-[11px] leading-5 text-muted">Yazma yetkin varsa yapay zekâ PDF metnini ve sayfa görüntülerini veya görselleri okuyarak tarih, açıklama, tutar ve gelir/gider türünü çıkarır. Aktarım öncesinde tüm satırları kontrol et; şifreli PDF ve bulanık görüntüler okunamayabilir.</p>
    </div>
-   <div className="rounded-xl bg-accent/5 p-3 text-xs leading-5 text-muted"><ShieldCheck size={15} className="mr-1 inline text-accent"/> Dosya tarayıcıda okunur; sunucuya dosyanın tamamı yüklenmez. Yalnızca onayladığın işlem alanları hesabına kaydedilir. Önce küçük bir CSV ile deneme yapmanı öneririz.</div>
+   <div className="rounded-xl bg-accent/5 p-3 text-xs leading-5 text-muted"><ShieldCheck size={15} className="mr-1 inline text-accent"/> Ekstre, kullanıcıya özel ve erişim kontrollü depolama alanına yüklenir; yalnızca oturum sahibinin dosyaya erişimi vardır. Aktarımda sadece onayladığın işlem alanları hesabına kaydedilir. Önce küçük bir CSV ile deneme yapmanı öneririz.</div>
   </section>
   {headers.length>0&&<section className={kart+" space-y-4"}>
    <div className="flex flex-wrap items-center justify-between gap-2"><div><h2 className="font-bold">2. Sütun eşleştirmesi</h2><p className="text-xs text-muted">{rows.length} satır okundu · sütunları kontrol et</p></div><button type="button" onClick={reset} className="inline-flex items-center gap-1 text-xs text-muted hover:text-fg"><RotateCcw size={14}/> Dosyayı değiştir</button></div>
