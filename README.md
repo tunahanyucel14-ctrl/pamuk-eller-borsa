@@ -51,8 +51,8 @@ SQL dosyaları `supabase/` altında sıralıdır. Şema değişikliklerini mümk
 5. Borç faiz oranı takibi ve ek ödeme senaryolu kapatma simülatörü.
 6. Finansal Zekâ Merkezi: son 6 tamamlanmış ayda gelir-gider ve kategori eğilimleri, tasarruf fırsatları, gelecek ay bütçe sinyali ve isteğe bağlı AI koçluğu.
 7. Aile Finans Analizi: 3/6 aylık gelir-gider grafikleri, üyeye ve kategoriye göre kayıt özeti, aile toplamı ve dönem filtresi.
-6. Yapay zekâ asistanı ve fiş OCR güvenilirliği (istek/doğrulama katmanı güçlendirildi).
-7. Hedef planlama, piyasa verisi, yatırım portföyü ve Borsa Arenası.
+8. Yapay zekâ asistanı ve fiş OCR güvenilirliği (istek/doğrulama katmanı güçlendirildi).
+9. Hedef planlama, piyasa verisi, yatırım portföyü ve Borsa Arenası.
 10. Bildirim altyapısı, mobil deneyim ve tasarım sistemi.
 
 ## Dikkat
