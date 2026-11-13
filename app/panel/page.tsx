@@ -44,11 +44,11 @@ function StatCard({
         : "text-accent bg-accent/10";
 
   return (
-    <article className={"dashboard-stat group relative overflow-hidden rounded-[26px] border border-line bg-card p-5 shadow-[0_12px_35px_rgba(0,0,0,.07)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_20px_45px_rgba(0,0,0,.12)] sm:p-6"}>
+    <article className={"dashboard-stat financial-highlight group relative overflow-hidden rounded-[26px] border border-line bg-card p-5 shadow-[0_12px_35px_rgba(0,0,0,.07)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_20px_45px_rgba(0,0,0,.12)] sm:p-6"}>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-sm font-medium text-muted">{title}</p>
-          <p className="mt-3 break-words text-xl font-black tracking-tight text-fg sm:text-2xl">
+          <p className="financial-kpi mt-3 break-words text-xl font-black tracking-tight text-fg sm:text-2xl">
             {value}
           </p>
           <p className="mt-2 text-xs text-muted">{note}</p>
