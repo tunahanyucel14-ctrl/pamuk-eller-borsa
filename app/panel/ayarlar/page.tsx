@@ -26,7 +26,7 @@ const FONTS = [
 const MENU_ITEMS = [
   ["Genel Bakış", "/panel"], ["İşlemler", "/panel/islemler"], ["Hesaplarım", "/panel/hesaplar"],
   ["Kategoriler", "/panel/kategoriler"], ["Aile", "/panel/aile"], ["Bütçe Tablosu", "/panel/butce"],
-  ["Borçlarım", "/panel/borclar"], ["Ödemeler", "/panel/odemeler"], ["Hedefler", "/panel/hedefler"],
+  ["Borçlarım", "/panel/borclar"], ["Ödemeler", "/panel/odemeler"], ["Aboneliklerim", "/panel/abonelikler"], ["Hedefler", "/panel/hedefler"],
   ["Yatırımlar", "/panel/yatirim"], ["Ekonomi", "/panel/ekonomi"], ["Gelecek Planı", "/panel/gelecek"],
   ["Finans Akademisi", "/panel/akademi"], ["Fiş Tara", "/tarama"],
 ];
