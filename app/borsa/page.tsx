@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   Activity,
   ArrowDownRight,
@@ -30,6 +30,7 @@ import {
 import type { LucideIcon } from "lucide-react";
 import { usePersistentState } from "../../lib/use-persistent-state";
 import Link from "next/link";
+import { supabase } from "../../lib/supabase";
 
 /* ---------- TİPLER ---------- */
 
@@ -76,17 +77,6 @@ const SUBTITLES: Record<Tab, string> = {
   Sıralama: "Türkiye geneli yarışmadaki yerin.",
   Başarımlar: "İşlem yaptıkça rozetleri topla.",
 };
-
-const DEMO_PLAYERS = [
-  { name: "Ayşe Y.", value: 127450 },
-  { name: "Mehmet K.", value: 118900 },
-  { name: "Zeynep A.", value: 112300 },
-  { name: "Can D.", value: 108750 },
-  { name: "Elif S.", value: 104200 },
-  { name: "Burak T.", value: 101100 },
-  { name: "Selin M.", value: 97800 },
-  { name: "Emre G.", value: 94300 },
-];
 
 /* ---------- YARDIMCI FONKSİYONLAR ---------- */
 
@@ -229,12 +219,18 @@ function StockTable({
 /* ---------- ANA SAYFA ---------- */
 
 export default function Home() {
-  const [balance, setBalance] = usePersistentState("pamuk-borsa-balance-v1", START_BALANCE);
+  const [arenaStatus, setArenaStatus] = useState<"loading" | "online" | "guest" | "offline">("loading");
+  const [arenaError, setArenaError] = useState("");
+  const [arenaAccountId, setArenaAccountId] = useState("");
+  const [arenaBoard, setArenaBoard] = useState<Array<{ account_id: string; username: string; total_value: number }>>([]);
+  const [arenaSeason, setArenaSeason] = useState<{ id: number; name: string; start_date: string; end_date: string } | null>(null);
+  const [arenaBusy, setArenaBusy] = useState(false);
+  const [balance, setBalance, balanceReady] = usePersistentState("pamuk-borsa-balance-v1", START_BALANCE);
   const [stocks, setStocks] = useState<Stock[]>([]);
   const [marketStamp, setMarketStamp] = useState("");
   const [marketError, setMarketError] = useState("");
-  const [portfolio, setPortfolio] = usePersistentState<Record<string, Holding>>("pamuk-borsa-portfolio-v1", {});
-  const [tradeCount, setTradeCount] = usePersistentState("pamuk-borsa-trade-count-v1", 0);
+  const [portfolio, setPortfolio, portfolioReady] = usePersistentState<Record<string, Holding>>("pamuk-borsa-portfolio-v1", {});
+  const [tradeCount, setTradeCount, tradeCountReady] = usePersistentState("pamuk-borsa-trade-count-v1", 0);
   const [history, setHistory] = useState<number[]>([START_BALANCE]);
 
   const [activeTab, setActiveTab] = useState<Tab>("Genel Bakış");
@@ -246,6 +242,58 @@ export default function Home() {
 
   const [theme, setTheme] = useState("retro");
   const [themeOpen, setThemeOpen] = useState(false);
+
+  const refreshArena = useCallback(async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.access_token) {
+      setArenaStatus("guest");
+      setArenaError("");
+      setArenaAccountId("");
+      setArenaBoard([]);
+      setArenaSeason(null);
+      return;
+    }
+    const response = await fetch("/api/arena", {
+      headers: { Authorization: "Bearer " + session.access_token },
+      cache: "no-store",
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      const message = typeof data.error === "string" ? data.error : "Çevrimiçi Arena bağlantısı kurulamadı.";
+      setArenaStatus("offline");
+      setArenaError(message);
+      setArenaBoard([]);
+      throw new Error(message);
+    }
+    setBalance(Number(data.account?.cash_balance) || 0);
+    const nextPortfolio: Record<string, Holding> = {};
+    for (const position of Array.isArray(data.positions) ? data.positions : []) {
+      if (typeof position.symbol === "string") {
+        nextPortfolio[position.symbol] = { qty: Number(position.quantity) || 0, avg: Number(position.avg_price) || 0 };
+      }
+    }
+    setPortfolio(nextPortfolio);
+    setTradeCount(Number(data.tradeCount) || 0);
+    setArenaAccountId(String(data.account?.id || ""));
+    setArenaBoard(Array.isArray(data.leaderboard) ? data.leaderboard.map((row: { account_id: string; username: string; total_value: number }) => ({
+      account_id: row.account_id, username: row.username, total_value: Number(row.total_value) || 0,
+    })) : []);
+    setArenaSeason(data.season || null);
+    setArenaError("");
+    setArenaStatus("online");
+  }, [setBalance, setPortfolio, setTradeCount]);
+
+  useEffect(() => {
+    if (!balanceReady || !portfolioReady || !tradeCountReady || stocks.length === 0) return;
+    let cancelled = false;
+    const load = async () => {
+      if (cancelled) return;
+      try { await refreshArena(); } catch { /* Durum ekranda açıklanır. */ }
+    };
+    void load();
+    const timer = window.setInterval(() => { void load(); }, 60000);
+    return () => { cancelled = true; window.clearInterval(timer); };
+  }, [balanceReady, portfolioReady, tradeCountReady, stocks.length, refreshArena]);
 
   /* Kayıtlı temayı yükle */
   useEffect(() => {
@@ -333,9 +381,16 @@ export default function Home() {
 
   const topMovers = [...stocks].sort((a, b) => b.change - a.change);
 
-  const board = [...DEMO_PLAYERS.map((p) => ({ ...p, me: false })), { name: "Sen", value: totalValue, me: true }]
-    .sort((a, b) => b.value - a.value);
-  const myRank = board.findIndex((p) => p.me) + 1;
+  const board = arenaBoard.map((player) => ({
+    name: player.username,
+    value: player.total_value,
+    me: player.account_id === arenaAccountId,
+  }));
+  const myRank = board.findIndex((player) => player.me) + 1;
+  const seasonDay = arenaSeason
+    ? Math.min(30, Math.max(1, Math.floor((Date.now() - new Date(arenaSeason.start_date).getTime()) / 86400000) + 1))
+    : 0;
+  const seasonProgress = seasonDay ? Math.min(100, (seasonDay / 30) * 100) : 0;
 
   const badges: { name: string; desc: string; done: boolean; progress: string; icon: LucideIcon }[] = [
     { name: "İlk Yatırım", desc: "İlk hisse alımını yap", done: tradeCount > 0, progress: `${Math.min(tradeCount, 1)}/1`, icon: Sparkles },
@@ -359,15 +414,38 @@ export default function Home() {
     setQuantity(1);
   }
 
-  function buyStock() {
-    if (!selectedStock || quantity < 1) return;
-    const cost = selectedStock.price * quantity;
+  async function onlineTrade(side: "BUY" | "SELL") {
+    if (!selectedStock) return;
+    setArenaBusy(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) throw new Error("Oturumun sona ermiş. Yeniden giriş yap.");
+      const response = await fetch("/api/arena", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: "Bearer " + session.access_token },
+        body: JSON.stringify({ symbol: selectedStock.symbol, side, quantity }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(typeof data.error === "string" ? data.error : "Sanal işlem tamamlanamadı.");
+      await refreshArena();
+      setToast({ text: quantity + " adet " + selectedStock.symbol + (side === "BUY" ? " satın alındı." : " satıldı."), ok: true });
+      closeTrade();
+    } catch (error) {
+      setToast({ text: error instanceof Error ? error.message : "İşlem tamamlanamadı.", ok: false });
+    } finally {
+      setArenaBusy(false);
+    }
+  }
 
-    if (cost > balance) {
-      setToast({ text: "Yetersiz bakiye!", ok: false });
+  function buyStock() {
+    if (!selectedStock || quantity < 1 || arenaBusy) return;
+    if (arenaStatus === "online") { void onlineTrade("BUY"); return; }
+    if (arenaStatus === "offline" || arenaStatus === "loading") {
+      setToast({ text: arenaError || "Çevrimiçi Arena henüz hazır değil. İşlem kaydedilmedi.", ok: false });
       return;
     }
-
+    const cost = selectedStock.price * quantity;
+    if (cost > balance) { setToast({ text: "Yetersiz bakiye!", ok: false }); return; }
     setBalance((prev) => prev - cost);
     setPortfolio((prev) => {
       const old = prev[selectedStock.symbol] ?? { qty: 0, avg: 0 };
@@ -375,33 +453,30 @@ export default function Home() {
       const newAvg = (old.avg * old.qty + cost) / newQty;
       return { ...prev, [selectedStock.symbol]: { qty: newQty, avg: newAvg } };
     });
-    setTradeCount((c) => c + 1);
-    setToast({ text: `${quantity} adet ${selectedStock.symbol} satın alındı.`, ok: true });
+    setTradeCount((count) => count + 1);
+    setToast({ text: quantity + " adet " + selectedStock.symbol + " satın alındı. (Misafir modu)", ok: true });
     closeTrade();
   }
 
   function sellStock() {
-    if (!selectedStock || quantity < 1) return;
-    const old = portfolio[selectedStock.symbol];
-
-    if (!old || quantity > old.qty) {
-      setToast({ text: "Portföyünde yeterli adet yok!", ok: false });
+    if (!selectedStock || quantity < 1 || arenaBusy) return;
+    if (arenaStatus === "online") { void onlineTrade("SELL"); return; }
+    if (arenaStatus === "offline" || arenaStatus === "loading") {
+      setToast({ text: arenaError || "Çevrimiçi Arena henüz hazır değil. İşlem kaydedilmedi.", ok: false });
       return;
     }
-
+    const old = portfolio[selectedStock.symbol];
+    if (!old || quantity > old.qty) { setToast({ text: "Portföyünde yeterli adet yok!", ok: false }); return; }
     setBalance((prev) => prev + selectedStock.price * quantity);
     setPortfolio((prev) => {
       const next = { ...prev };
       const left = old.qty - quantity;
-      if (left === 0) {
-        delete next[selectedStock.symbol];
-      } else {
-        next[selectedStock.symbol] = { qty: left, avg: old.avg };
-      }
+      if (left === 0) delete next[selectedStock.symbol];
+      else next[selectedStock.symbol] = { qty: left, avg: old.avg };
       return next;
     });
-    setTradeCount((c) => c + 1);
-    setToast({ text: `${quantity} adet ${selectedStock.symbol} satıldı.`, ok: true });
+    setTradeCount((count) => count + 1);
+    setToast({ text: quantity + " adet " + selectedStock.symbol + " satıldı. (Misafir modu)", ok: true });
     closeTrade();
   }
 
@@ -465,11 +540,11 @@ export default function Home() {
               <Flame size={19} />
               <span className="text-sm font-bold">30 Günlük Sezon</span>
             </div>
-            <p className="text-xs text-muted">Sezon devam ediyor. Yarışmada yerini al!</p>
+            <p className="text-xs text-muted">{arenaSeason ? arenaSeason.name + " · " + (arenaStatus === "online" ? "Canlı sezon" : "Sezon bilgisi") : "Sezon bilgisi yükleniyor."}</p>
             <div className="mt-3 h-2 overflow-hidden rounded-full bg-fg/10">
-              <div className="h-full w-1/3 rounded-full bg-accent" />
+              <div className="h-full rounded-full bg-accent transition-all" style={{ width: seasonProgress + "%" }} />
             </div>
-            <p className="mt-2 text-xs text-muted">Gün 10 / 30</p>
+            <p className="mt-2 text-xs text-muted">{seasonDay ? "Gün " + seasonDay + " / 30" : "30 günlük sezon"}</p>
           </div>
         </aside>
 
@@ -493,6 +568,9 @@ export default function Home() {
               </div>
               <h2 className="text-2xl font-black md:text-3xl">{activeTab}</h2>
               <p className="mt-1 text-sm text-muted">{SUBTITLES[activeTab]}</p>
+              <p className={"mt-2 text-xs font-semibold " + (arenaStatus === "online" ? "text-up" : arenaStatus === "offline" ? "text-down" : "text-muted")}>
+                {arenaStatus === "online" ? "● Çevrimiçi Arena · İşlemlerin hesabına kaydediliyor" : arenaStatus === "guest" ? "Misafir modu · İşlemler yalnızca bu cihazda saklanır" : arenaStatus === "offline" ? "Çevrimiçi bağlantı kurulamadı · İşlemler kapalı" : "Çevrimiçi Arena bağlanıyor…"}
+              </p>
               {activeTab === "Piyasalar" && <p className="mt-2 text-xs text-muted">{marketError || (marketStamp ? "Kaynak: Yahoo Finance · Son güncelleme: " + new Date(marketStamp).toLocaleTimeString("tr-TR") + " · Fiyatlar gecikmeli olabilir." : "BIST verileri yükleniyor…")}</p>}
             </div>
 
@@ -815,8 +893,11 @@ export default function Home() {
                 <h3 className="text-lg font-bold">Liderlik Tablosu</h3>
               </div>
               <p className="mb-5 text-xs text-muted">
-                Şimdilik örnek oyuncularla gösteriliyor. Üyelik ve veritabanı bağlanınca Türkiye genelindeki
-                gerçek oyuncular burada yarışacak.
+                {arenaStatus === "online"
+                  ? (arenaSeason?.name || "Aktif sezon") + " · Gerçek oyuncu hesaplarıyla güncellenen Türkiye sıralaması."
+                  : arenaStatus === "guest"
+                    ? "Gerçek sıralamaya katılmak için giriş yap. Misafir işlemleri sıralamaya eklenmez."
+                    : arenaError || "Çevrimiçi sıralama yükleniyor."}
               </p>
               <div className="space-y-2">
                 {board.map((p, i) => (
@@ -846,6 +927,9 @@ export default function Home() {
                     </span>
                   </div>
                 ))}
+                {board.length === 0 && <p className="rounded-xl bg-inner px-4 py-8 text-center text-sm text-muted">
+                  {arenaStatus === "online" ? "Bu sezonda henüz sıralamaya giren oyuncu yok." : arenaStatus === "guest" ? "Sıralamayı görmek için giriş yapmalısın." : "Gerçek sıralama şu anda yüklenemiyor."}
+                </p>}
               </div>
             </div>
           )}
@@ -1018,14 +1102,14 @@ export default function Home() {
             <div className="grid grid-cols-2 gap-3">
               <button
                 onClick={buyStock}
-                disabled={selectedStock.price * quantity > balance}
+                disabled={arenaBusy || arenaStatus === "loading" || arenaStatus === "offline" || selectedStock.price * quantity > balance}
                 className="rounded-xl bg-up py-3 font-black text-white transition hover:opacity-90 disabled:opacity-35"
               >
                 AL
               </button>
               <button
                 onClick={sellStock}
-                disabled={quantity > ownedQty}
+                disabled={arenaBusy || arenaStatus === "loading" || arenaStatus === "offline" || quantity > ownedQty}
                 className="rounded-xl bg-down py-3 font-black text-white transition hover:opacity-90 disabled:opacity-35"
               >
                 SAT
