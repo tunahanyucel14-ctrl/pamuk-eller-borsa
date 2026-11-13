@@ -1,0 +1,6 @@
+project_id = "tdwoqankjznioxnupsvn"
+
+# Authentication is verified inside the function by @supabase/server (auth: "user").
+# This supports both legacy JWT keys and the current publishable/secret key model.
+[functions.arena]
+verify_jwt = false
