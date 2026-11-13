@@ -14,14 +14,17 @@ type ParsedRow={cells:string[];line:number};
 type ReadyRow={fingerprint:string;account_id:string;category_id:string|null;kind:"gelir"|"gider";amount:number;tx_date:string;description:string;line:number};
 const normalize=(s:string)=>s.toLocaleLowerCase("tr-TR").normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/ı/g,"i").replace(/[^a-z0-9]+/g," ").trim();
 function parseCsv(text:string):string[][]{
- const first=text.split(/\r?\n/,1)[0]||"";
+ const first=text.split(/\r?
+/,1)[0]||"";
  const counts=[",",";","\t"].map(d=>({d,n:(first.match(new RegExp(d==="\t"?"\\t":d===","?",":";","g"))||[]).length}));
  const delimiter=counts.sort((a,b)=>b.n-a.n)[0]?.d||",";
  const rows:string[][]=[];let row:string[]=[];let cell="";let quoted=false;
  for(let i=0;i<text.length;i++){const ch=text[i];
   if(ch==='"'){if(quoted&&text[i+1]==='"'){cell+='"';i++;}else quoted=!quoted;}
   else if(ch===delimiter&&!quoted){row.push(cell.trim());cell="";}
-  else if((ch==="\n"||ch==="\r")&&!quoted){if(ch==="\r"&&text[i+1]==="\n")i++;row.push(cell.trim());if(row.some(x=>x!==""))rows.push(row);row=[];cell="";}
+  else if((ch==="
+"||ch==="\r")&&!quoted){if(ch==="\r"&&text[i+1]==="
+")i++;row.push(cell.trim());if(row.some(x=>x!==""))rows.push(row);row=[];cell="";}
   else cell+=ch;
  }
  row.push(cell.trim());if(row.some(x=>x!==""))rows.push(row);
@@ -140,7 +143,9 @@ export default function AktarimPage(){
   if(!selected.length)return;
   if(selected.length>5){setError("En fazla 5 dosya yükleyebilirsin.");return;}
   if(selected.some(file=>file.size>6*1024*1024)){setError("Her dosya en fazla 6 MB olabilir.");return;}
-  if(selected.some(file=>!["image/jpeg","image/png","image/webp","application/pdf"].includes(file.type))){setError("PDF, JPG, PNG veya WEBP dosyaları destekleniyor.");return;}\n  const pdfCount=selected.filter(file=>file.type==="application/pdf").length;\n  if(pdfCount>1||(pdfCount&&selected.length>1)){setError("PDF dosyasını tek başına seç. Birden fazla ekran görüntüsünü birlikte yükleyebilirsin.");return;}
+  if(selected.some(file=>!["image/jpeg","image/png","image/webp","application/pdf"].includes(file.type))){setError("PDF, JPG, PNG veya WEBP dosyaları destekleniyor.");return;}
+  const pdfCount=selected.filter(file=>file.type==="application/pdf").length;
+  if(pdfCount>1||(pdfCount&&selected.length>1)){setError("PDF dosyasını tek başına seç. Birden fazla ekran görüntüsünü birlikte yükleyebilirsin.");return;}
   setOcrBusy(true);
   try{
    const {data:sessionData,error:sessionError}=await supabase.auth.getSession();
