@@ -23,5 +23,11 @@
     "@types/react": "^19.0.0",
     "tailwindcss": "^4.1.0",
     "@tailwindcss/postcss": "^4.1.0"
+  },
+  "overrides": {
+    "postcss": "^8.5.23",
+    "readdir-glob": {
+      "minimatch": "^11.0.8"
+    }
   }
 }
