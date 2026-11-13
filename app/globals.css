@@ -551,3 +551,13 @@ html[data-theme="retro"] .dashboard-copy { color:#766a68; }
 html[data-theme="retro"] .dashboard-primary-action { color:#fff8ef; background:#c84d3c; }
 html[data-theme="retro"] .dashboard-secondary-action,html[data-theme="retro"] .dashboard-month { color:#43333a; border-color:rgba(67,48,53,.2); background:rgba(255,255,255,.48); }
 html[data-theme="retro"] .dashboard-stat { border:1.5px solid rgba(67,48,53,.16); box-shadow:0 4px 0 rgba(67,48,53,.06),0 14px 28px rgba(67,48,53,.07); }
+
+.dashboard-orb { position:absolute; pointer-events:none; border-radius:9999px; }
+.dashboard-orb-large { right:-4rem; top:-7rem; width:20rem; height:20rem; border:1px solid color-mix(in srgb,var(--accent) 22%,transparent); background:color-mix(in srgb,var(--accent) 12%,transparent); }
+.dashboard-orb-small { right:25%; top:0; width:12rem; height:12rem; background:color-mix(in srgb,var(--accent) 10%,transparent); }
+.dashboard-month-input { color:inherit !important; }
+.dashboard-month-input::-webkit-calendar-picker-indicator { filter:invert(1); opacity:.85; }
+html[data-theme="paper"] .dashboard-month-input::-webkit-calendar-picker-indicator,
+html[data-theme="retro"] .dashboard-month-input::-webkit-calendar-picker-indicator,
+html[data-theme="terracotta"] .dashboard-month-input::-webkit-calendar-picker-indicator,
+html[data-theme="sakura"] .dashboard-month-input::-webkit-calendar-picker-indicator { filter:none; }
