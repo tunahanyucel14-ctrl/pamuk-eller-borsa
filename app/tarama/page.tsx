@@ -1,6 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useAile } from "../../lib/aile-baglami";
 import Link from "next/link";
 import { Camera, FileImage, ScanLine, ArrowLeft, CheckCircle2 } from "lucide-react";
 import { supabase } from "../../lib/supabase";
@@ -13,6 +15,14 @@ export default function TaramaPage() {
   const [receipt, setReceipt] = useState<Receipt | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
+  const { aileId } = useAile();
+  const router = useRouter();
+  const [accounts,setAccounts] = useState<{account_id:string;name:string}[]>([]);
+  const [categories,setCategories] = useState<{id:string;name:string}[]>([]);
+  const [accountId,setAccountId] = useState("");
+  const [categoryId,setCategoryId] = useState("");
+  const [saving,setSaving] = useState(false);
+  useEffect(()=>{Promise.all([supabase.from("account_balances").select("account_id,name").eq("family_id",aileId).order("name"),supabase.from("categories").select("id,name").eq("family_id",aileId).eq("kind","gider").order("name")]).then(([a,k])=>{setAccounts(a.data||[]);setCategories(k.data||[]);if(a.data?.[0])setAccountId(a.data[0].account_id);});},[aileId]);
 
   function choose(f?: File) {
     if (!f) return;
@@ -44,6 +54,8 @@ export default function TaramaPage() {
       const result = await res.json();
       if (!res.ok) throw new Error(result.error || "Tarama başarısız.");
       setReceipt(result.receipt);
+      const suggested = (categories||[]).find(x=>result.receipt.category?.toLocaleLowerCase("tr-TR").includes(x.name.toLocaleLowerCase("tr-TR")) || x.name.toLocaleLowerCase("tr-TR").includes(result.receipt.category?.toLocaleLowerCase("tr-TR")));
+      if(suggested)setCategoryId(suggested.id);
       const path = `${data.session!.user.id}/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
       const { error } = await supabase.storage.from("receipts").upload(path, file, { contentType: file.type, upsert: false });
       if (error) setMessage("Fiş okundu; ancak arşive kaydedilemedi: " + error.message);
@@ -53,6 +65,15 @@ export default function TaramaPage() {
     } finally {
       setBusy(false);
     }
+  }
+
+  async function saveExpense(){
+    if(!receipt || !accountId || !(Number(receipt.total)>0)){setMessage("Geçerli tutar ve hesap seçmelisin.");return;}
+    setSaving(true);setMessage("");
+    const {error}=await supabase.from("fin_transactions").insert({family_id:aileId,account_id:accountId,category_id:categoryId||null,kind:"gider",amount:Number(receipt.total),description:receipt.merchant ? receipt.merchant+" · "+(receipt.description||"Fiş taraması") : (receipt.description||"Fiş taraması"),tx_date:receipt.date||new Date().toISOString().slice(0,10)});
+    if(error)setMessage("İşlem kaydedilemedi: "+error.message);
+    else{setMessage("Gider işlemi başarıyla kaydedildi.");setTimeout(()=>router.push("/panel/islemler"),700);}
+    setSaving(false);
   }
 
   return <main className="mx-auto flex min-h-screen max-w-3xl flex-col gap-5 bg-bg p-4 text-fg md:p-8">
@@ -66,7 +87,7 @@ export default function TaramaPage() {
       <button onClick={scan} disabled={!file || busy} className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-accent px-4 py-3 font-bold text-accent-fg disabled:opacity-40"><ScanLine size={18}/>{busy ? "Fiş okunuyor..." : "Fişi Tara ve Bilgileri Çıkar"}</button>
       {message && <p className="mt-3 text-sm text-muted">{message}</p>}
     </section>
-    {receipt && <section className="rounded-2xl border border-line bg-card p-5"><h2 className="mb-4 flex items-center gap-2 font-bold"><CheckCircle2 className="text-up"/> Okunan bilgiler · Kontrol et</h2><div className="grid gap-3 sm:grid-cols-2">{[["İşletme",receipt.merchant],["Tarih",receipt.date],["Toplam",`${receipt.total} ${receipt.currency}`],["Kategori önerisi",receipt.category],["Açıklama",receipt.description]].map(([k,v])=><div key={k} className="rounded-xl bg-inner p-3"><p className="text-xs text-muted">{k}</p><p className="mt-1 font-semibold">{v || "Belirlenemedi"}</p></div>)}</div><p className="mt-3 text-xs text-muted">Bu aşamada yalnızca okuma ve güvenli dosya arşivleme yapılır. Finans hareketine otomatik eklenmez; yanlış tutar oluşmaması için sonraki adımda onaylı kayıt formu bağlanacak.</p></section>}
+    {receipt && <section className="rounded-2xl border border-line bg-card p-5"><h2 className="mb-4 flex items-center gap-2 font-bold"><CheckCircle2 className="text-up"/> Okunan bilgiler · Kontrol et</h2><div className="grid gap-3 sm:grid-cols-2"><div><label className="mb-1 block text-xs text-muted">İşletme / açıklama</label><input value={receipt.merchant} onChange={e=>setReceipt({...receipt,merchant:e.target.value})} className="w-full rounded-xl border border-line bg-inner p-3 text-sm"/></div><div><label className="mb-1 block text-xs text-muted">Tarih</label><input type="date" value={receipt.date} onChange={e=>setReceipt({...receipt,date:e.target.value})} className="w-full rounded-xl border border-line bg-inner p-3 text-sm"/></div><div><label className="mb-1 block text-xs text-muted">Toplam tutar (TL)</label><input type="number" min="0" step="0.01" value={receipt.total} onChange={e=>setReceipt({...receipt,total:Number(e.target.value)})} className="w-full rounded-xl border border-line bg-inner p-3 text-sm"/></div><div><label className="mb-1 block text-xs text-muted">Hesap</label><select value={accountId} onChange={e=>setAccountId(e.target.value)} className="w-full rounded-xl border border-line bg-inner p-3 text-sm"><option value="">Hesap seç</option>{accounts.map(a=><option key={a.account_id} value={a.account_id}>{a.name}</option>)}</select></div><div><label className="mb-1 block text-xs text-muted">Gider kategorisi</label><select value={categoryId} onChange={e=>setCategoryId(e.target.value)} className="w-full rounded-xl border border-line bg-inner p-3 text-sm"><option value="">Kategorisiz</option>{categories.map(k=><option key={k.id} value={k.id}>{k.name}</option>)}</select></div><div><label className="mb-1 block text-xs text-muted">Açıklama</label><input value={receipt.description} onChange={e=>setReceipt({...receipt,description:e.target.value})} className="w-full rounded-xl border border-line bg-inner p-3 text-sm"/></div></div><button onClick={saveExpense} disabled={saving||!accounts.length} className="mt-4 w-full rounded-xl bg-accent px-4 py-3 font-bold text-accent-fg disabled:opacity-40">{saving?"Kaydediliyor...":accounts.length?"Onayla ve gider olarak kaydet":"Önce Hesaplarım bölümünden hesap ekle"}</button><p className="mt-3 text-xs text-muted">Fiş bilgilerini kontrol edip onayladığında aile bütçene gider hareketi olarak eklenir.</p></section>}
     <div className="flex items-center gap-2 text-xs text-muted"><FileImage size={15}/> Belgeler yalnızca giriş yapan hesabın özel alanına yüklenir.</div>
   </main>;
 }
