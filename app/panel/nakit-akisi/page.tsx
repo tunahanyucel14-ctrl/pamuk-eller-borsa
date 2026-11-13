@@ -9,7 +9,7 @@ import { kart, baslik } from "../../../lib/ui";
 
 type Income = { id:string; name:string; expected_amount:number; pay_day:number; active:boolean };
 type Bill = { id:string; name:string; amount:number; due_day:number; active:boolean; category:string };
-type Debt = { id:string; name:string; monthly_payment:number; due_day:number|null; remaining_amount:number };
+type Debt = { id:string; name:string; monthly_payment:number; due_day:number|null; remaining_amount:number; annual_interest_rate:number };
 type Event = { date:Date; name:string; amount:number; kind:"gelir"|"gider"; source:string };
 type MonthRow = { key:string; label:string; income:number; expense:number; net:number; closing:number; events:Event[] };
 
@@ -40,7 +40,7 @@ export default function NakitAkisiPage() {
         supabase.from("account_balances").select("balance,currency").eq("family_id", aileId),
         supabase.from("family_income_rules").select("id,name,expected_amount,pay_day,active").eq("family_id", aileId).eq("active", true),
         supabase.from("family_bills").select("id,name,amount,due_day,active,category").eq("family_id", aileId).eq("active", true),
-        supabase.from("family_debts").select("id,name,monthly_payment,due_day,remaining_amount").eq("family_id", aileId),
+        supabase.from("family_debts").select("id,name,monthly_payment,due_day,remaining_amount,annual_interest_rate").eq("family_id", aileId),
       ]);
       if (cancelled) return;
       const failed = balances.error || incomes.error || bills.error || debts.error;
@@ -59,6 +59,7 @@ export default function NakitAkisiPage() {
 
   const months = useMemo<MonthRow[]>(() => {
     let running = openingBalance;
+    const projectedDebts=debtRows.map(row=>({id:row.id,name:row.name,payment:Math.max(0,Number(row.monthly_payment)||0),dueDay:Number(row.due_day)||0,balance:Math.max(0,Number(row.remaining_amount)||0),rate:Math.max(0,Number(row.annual_interest_rate)||0)}));
     const result:MonthRow[] = [];
     for(let offset=0; offset<6; offset++) {
       const first = new Date(today.getFullYear(), today.getMonth()+offset, 1);
@@ -72,10 +73,14 @@ export default function NakitAkisiPage() {
         const date=dateAtDay(year,month,Number(row.due_day));
         if(date>=today) events.push({date,name:row.name,amount:Number(row.amount)||0,kind:"gider",source:row.category||"Düzenli ödeme"});
       }
-      for(const row of debtRows) {
-        if(Number(row.monthly_payment)<=0 || !row.due_day) continue;
-        const date=dateAtDay(year,month,Number(row.due_day));
-        if(date>=today && Number(row.remaining_amount)>0) events.push({date,name:row.name+" taksiti",amount:Number(row.monthly_payment)||0,kind:"gider",source:"Borç taksiti"});
+      for(const debt of projectedDebts) {
+        if(debt.payment<=0 || !debt.dueDay || debt.balance<=0) continue;
+        const date=dateAtDay(year,month,debt.dueDay);
+        if(date<today) continue;
+        debt.balance+=debt.balance*debt.rate/1200;
+        const payment=Math.min(debt.balance,debt.payment);
+        debt.balance-=payment;
+        if(payment>0)events.push({date,name:debt.name+" taksiti",amount:payment,kind:"gider",source:"Borç taksiti"});
       }
       events.sort((a,b)=>a.date.getTime()-b.date.getTime());
       const income=events.filter(x=>x.kind==="gelir").reduce((s,x)=>s+x.amount,0);
@@ -90,7 +95,7 @@ export default function NakitAkisiPage() {
   const next = months[0];
   const totalIncome = incomeRows.reduce((s,x)=>s+Number(x.expected_amount),0);
   const totalBills = billRows.reduce((s,x)=>s+Number(x.amount),0);
-  const totalDebt = debtRows.filter(x=>Number(x.remaining_amount)>0).reduce((s,x)=>s+Number(x.monthly_payment),0);
+  const totalDebt = next?.events.filter(x=>x.source==="Borç taksiti").reduce((s,x)=>s+x.amount,0)||0;
 
   return <div className="space-y-5">
     <header><p className="text-xs font-bold uppercase tracking-widest text-accent">6 aylık tahmin</p><h1 className={baslik}>Akıllı Nakit Akışı</h1><p className="text-sm text-muted">Kayıtlı hesap bakiyelerin, düzenli gelirlerin, faturaların ve borç taksitlerinle önümüzdeki altı ayı planla.</p></header>
