@@ -15,6 +15,13 @@ const THEMES = [
   { id: "grafit", name: "Grafit", desc: "Modern antrasit ve sıcak altın", colors: ["#17191d", "#282d34", "#d4a96a"] },
   { id: "mint", name: "Nane", desc: "Ferahlık veren doğal yeşiller", colors: ["#eaf4ef", "#f8fffb", "#27845f"] },
   { id: "rose", name: "Gül", desc: "Yumuşak pudra ve gül kurusu", colors: ["#fbf0ef", "#fffafa", "#c66b78"] },
+
+  { id: "aurora", name: "Aurora", desc: "Kuzey ışıkları, derin petrol ve turkuaz", colors: ["#07131a", "#102a32", "#6ee7c2"], tag: "Yeni · Atmosferik" },
+  { id: "obsidyen", name: "Obsidyen", desc: "Siyah taş, bronz ve mücevher hissi", colors: ["#101012", "#202023", "#d6a66b"], tag: "Yeni · Lüks" },
+  { id: "terracotta", name: "Terra", desc: "Toprak, kiremit ve doğal dokular", colors: ["#f1e5d8", "#fff8ef", "#bd5b3f"], tag: "Yeni · Sıcak" },
+  { id: "cobalt", name: "Kobalt", desc: "Gece mavisi ve elektrikli mavi", colors: ["#080f27", "#142454", "#80a7ff"], tag: "Yeni · Canlı" },
+  { id: "sakura", name: "Sakura", desc: "Pudra, gül ve yumuşak kontrast", colors: ["#f8edf1", "#fff9fb", "#c66b91"], tag: "Yeni · Zarif" },
+  { id: "paper", name: "Editorial", desc: "Mat kâğıt, orman yeşili ve editoryal sadelik", colors: ["#f2f0e9", "#fffef9", "#456b55"], tag: "Yeni · Minimal" },
 ];
 const FONTS = [
   { id: "modern", name: "Modern", desc: "Çağdaş ve dengeli · Önerilen" },
@@ -98,12 +105,11 @@ export default function AyarlarSayfasi() {
     </section>
 
     <section id="gorunum" className="scroll-mt-28 rounded-3xl border border-line bg-card p-5 shadow-sm sm:p-7">
-      <div className="mb-5 flex items-center gap-3"><span className="rounded-2xl bg-accent/10 p-3 text-accent"><Palette size={21}/></span><div><h2 className="text-lg font-bold">Renk teması</h2><p className="text-xs text-muted">11 farklı görünüm arasından seçimini yap.</p></div></div>
+      <div className="mb-5 flex items-center gap-3"><span className="rounded-2xl bg-accent/10 p-3 text-accent"><Palette size={21}/></span><div><h2 className="text-lg font-bold">Renk teması</h2><p className="text-xs text-muted">17 ayrı tasarım dili arasından seçimini yap.</p></div></div>
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
         {THEMES.map((t) => <button key={t.id} onClick={() => applyTheme(t.id)} className={"group rounded-2xl border p-3 text-left transition hover:-translate-y-0.5 hover:shadow-md " + (theme === t.id ? "border-accent ring-2 ring-accent/20" : "border-line")}>
-          <div className="flex h-16 overflow-hidden rounded-xl border border-black/5">
-            <div className="flex-1" style={{ background: t.colors[0] }}/><div className="flex-1" style={{ background: t.colors[1] }}/><div className="w-1/3" style={{ background: t.colors[2] }}/>
-          </div>
+          <div className="relative flex h-24 overflow-hidden rounded-xl border border-black/5 p-2" style={{ background: t.colors[0] }}><div className="relative z-10 flex w-[30%] flex-col gap-1 rounded-lg p-2" style={{background:t.colors[1]}}><span className="h-1.5 w-8 rounded-full" style={{background:t.colors[2]}}/><span className="h-1 w-6 rounded-full opacity-50" style={{background:t.colors[2]}}/><span className="mt-auto h-5 w-5 rounded-md" style={{background:t.colors[2]}}/></div><div className="relative z-10 ml-2 flex flex-1 flex-col justify-between rounded-lg p-2" style={{background:t.colors[1]}}><div className="flex items-center justify-between"><span className="h-1.5 w-10 rounded-full" style={{background:t.colors[2]}}/><span className="h-3 w-3 rounded-full" style={{background:t.colors[2]}}/></div><div className="flex gap-1"><span className="h-6 flex-1 rounded-md opacity-80" style={{background:t.colors[2]}}/><span className="h-6 flex-1 rounded-md opacity-25" style={{background:t.colors[2]}}/></div></div>
+            <div className="flex-1" style={{ background: t.colors[0] }}/><div className="flex-1" style={{ background: t.colors[1] }}/></div>
           <div className="mt-3 flex items-center justify-between gap-2"><span className="font-bold">{t.name}</span>{theme === t.id ? <span className="flex items-center gap-1 rounded-full bg-accent/10 px-2 py-1 text-[10px] font-bold text-accent"><Check size={12}/> Seçili</span> : null}</div>
           <p className="mt-1 text-xs text-muted">{t.desc}</p>{t.tag && <span className="mt-2 inline-block text-[10px] font-bold uppercase tracking-wider text-accent">{t.tag}</span>}
         </button>)}
