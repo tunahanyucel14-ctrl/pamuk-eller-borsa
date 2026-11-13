@@ -481,6 +481,7 @@ export default function Home() {
               <div className="mb-1 hidden items-center gap-2 text-xs font-semibold text-accent lg:flex">
                 <span className="h-2 w-2 rounded-full bg-accent" />
                 SANAL BORSA YARIŞMASI
+                <span className="rounded-md border border-accent/30 bg-accent/10 px-2 py-1 text-[10px] font-black tracking-wide text-accent">DEMO VERİ</span>
               </div>
               <h2 className="text-2xl font-black md:text-3xl">{activeTab}</h2>
               <p className="mt-1 text-sm text-muted">{SUBTITLES[activeTab]}</p>
@@ -863,7 +864,7 @@ export default function Home() {
 
           <footer className="mt-8 flex flex-col justify-between gap-2 border-t border-line pt-5 text-xs text-muted md:flex-row">
             <span>© 2026 Pamuk Eller Borsa Arenası</span>
-            <span>Sanal yatırım oyunudur. Gerçek para içermez.</span>
+            <span>Sanal yatırım oyunudur. Fiyatlar demo amaçlı simüle edilir; gerçek piyasa verisi değildir.</span>
           </footer>
         </section>
       </div>
