@@ -598,3 +598,14 @@ html[data-theme="retro"] .dashboard-chart-grid { opacity:.55; stroke-dasharray:2
 html[data-theme="retro"] .dashboard-income-line { stroke-width:5; }
 html[data-theme="retro"] .dashboard-expense-line { stroke-width:3.5; stroke-dasharray:10 4; }
 html[data-theme="retro"] .dashboard-chart-dot { stroke-width:2; }
+
+
+/* Motion for financial visualizations */
+.dashboard-income-line,.dashboard-expense-line { stroke-dasharray:1; stroke-dashoffset:1; animation:dashboard-line-reveal 1.15s cubic-bezier(.2,.75,.25,1) forwards; }
+.dashboard-expense-line { animation-delay:.12s; }
+.dashboard-donut { animation:dashboard-donut-enter .7s cubic-bezier(.2,.8,.2,1) both; box-shadow:0 12px 28px rgba(0,0,0,.1),inset 0 0 0 1px rgba(255,255,255,.28); }
+@keyframes dashboard-line-reveal { to { stroke-dashoffset:0; } }
+@keyframes dashboard-donut-enter { from { opacity:0; transform:scale(.82) rotate(-18deg); } to { opacity:1; transform:scale(1) rotate(0); } }
+@media (prefers-reduced-motion: reduce) {
+ .dashboard-income-line,.dashboard-expense-line,.dashboard-donut { animation:none; stroke-dashoffset:0; }
+}
