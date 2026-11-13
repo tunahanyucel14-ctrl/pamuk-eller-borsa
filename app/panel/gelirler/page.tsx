@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { CalendarClock, Plus, Trash2, Wallet } from "lucide-react";
 import { supabase } from "../../../lib/supabase";
 import { useAile } from "../../../lib/aile-baglami";
-import { tl } from "../../../lib/finans";
+import { sayiyaCevir, tl } from "../../../lib/finans";
 import { kart, girdi, dugme, etiket, baslik } from "../../../lib/ui";
 
 type IncomeRule = {
@@ -53,8 +53,9 @@ export default function GelirPlanlamaPage() {
 
   async function add(e: React.FormEvent) {
     e.preventDefault();
+    if (busy) return;
     setError("");
-    const parsed = Number(amount.replace(",", "."));
+    const parsed = sayiyaCevir(amount);
     const parsedDay = Number(day);
     if (!name.trim() || !Number.isFinite(parsed) || parsed <= 0 || !Number.isInteger(parsedDay) || parsedDay < 1 || parsedDay > 31) {
       setError("Gelir adı, pozitif tutar ve 1–31 arasında ödeme günü gir.");
