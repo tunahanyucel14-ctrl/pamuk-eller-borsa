@@ -8,7 +8,7 @@ import {useAile} from "../../../lib/aile-baglami";
 import {tl} from "../../../lib/finans";
 import {kart,baslik} from "../../../lib/ui";
 
-type Tx={kind:string;amount:number;tx_date:string;category_id:string|null};
+type Tx={kind:string;amount:number;tx_date:string;category_id:string|null;account_id:string};
 type Category={id:string;name:string};
 type Debt={id:string;name:string;remaining_amount:number;monthly_payment:number;annual_interest_rate:number};
 type Bill={id:string;name:string;amount:number};
@@ -29,6 +29,8 @@ export default function ServetPage(){
  const [tx,setTx]=useState<Tx[]>([]);
  const [categories,setCategories]=useState<Category[]>([]);
  const [cash,setCash]=useState(0);
+ const [foreignCash,setForeignCash]=useState<Record<string,number>>({});
+ const [foreignPortfolio,setForeignPortfolio]=useState<Record<string,number>>({});
  const [investments,setInvestments]=useState<Investment[]>([]);
  const [debts,setDebts]=useState<Debt[]>([]);
  const [bills,setBills]=useState<Bill[]>([]);
@@ -41,9 +43,9 @@ export default function ServetPage(){
   setLoading(true);setError("");
   const now=new Date();const end=monthStart(now);const start=new Date(end.getFullYear(),end.getMonth()-3,1);
   const [txR,catR,balR,invR,debtR,billR,incomeR]=await Promise.all([
-   supabase.from("fin_transactions").select("kind,amount,tx_date,category_id").eq("family_id",aileId).in("kind",["gelir","gider"]).gte("tx_date",iso(start)).lt("tx_date",iso(end)).order("tx_date").limit(3000),
+   supabase.from("fin_transactions").select("kind,amount,tx_date,category_id,account_id").eq("family_id",aileId).in("kind",["gelir","gider"]).gte("tx_date",iso(start)).lt("tx_date",iso(end)).order("tx_date").limit(3000),
    supabase.from("categories").select("id,name").eq("family_id",aileId),
-   supabase.from("account_balances").select("balance").eq("family_id",aileId),
+   supabase.from("account_balances").select("account_id,balance,currency").eq("family_id",aileId),
    supabase.from("family_investments").select("id,asset_name,quantity,current_price,currency").eq("family_id",aileId),
    supabase.from("family_debts").select("id,name,remaining_amount,monthly_payment,annual_interest_rate").eq("family_id",aileId),
    supabase.from("family_bills").select("id,name,amount").eq("family_id",aileId).eq("active",true),
@@ -51,10 +53,15 @@ export default function ServetPage(){
   ]);
   const failure=txR.error||catR.error||balR.error||invR.error||debtR.error||billR.error||incomeR.error;
   if(failure)setError(failure.message);
-  setTx((txR.data||[]).map((x:any)=>({...x,amount:Number(x.amount)||0})) as Tx[]);
+  const balanceRows=(balR.data||[]) as {account_id:string;balance:number;currency:string}[];
+  const currencyByAccount=new Map(balanceRows.map(x=>[x.account_id,String(x.currency||"TRY").toUpperCase()]));
+  setTx((txR.data||[]).filter((x:any)=>currencyByAccount.get(x.account_id)==="TRY").map((x:any)=>({...x,amount:Number(x.amount)||0})) as Tx[]);
   setCategories((catR.data||[]) as Category[]);
-  setCash((balR.data||[]).reduce((sum:number,x:any)=>sum+(Number(x.balance)||0),0));
-  setInvestments((invR.data||[]).map((x:any)=>({...x,quantity:Number(x.quantity)||0,current_price:Number(x.current_price)||0})) as Investment[]);
+  setCash(balanceRows.filter(x=>String(x.currency||"TRY").toUpperCase()==="TRY").reduce((sum,x)=>sum+(Number(x.balance)||0),0));
+  setForeignCash(balanceRows.filter(x=>String(x.currency||"TRY").toUpperCase()!=="TRY").reduce<Record<string,number>>((acc,x)=>{const cur=String(x.currency||"TRY").toUpperCase();acc[cur]=(acc[cur]||0)+(Number(x.balance)||0);return acc;},{}));
+  const investmentRows=(invR.data||[]).map((x:any)=>({...x,quantity:Number(x.quantity)||0,current_price:Number(x.current_price)||0,currency:String(x.currency||"TRY").toUpperCase()})) as Investment[];
+  setInvestments(investmentRows.filter(x=>x.currency==="TRY"));
+  setForeignPortfolio(investmentRows.filter(x=>x.currency!=="TRY").reduce<Record<string,number>>((acc,x)=>{acc[x.currency]=(acc[x.currency]||0)+x.quantity*x.current_price;return acc;},{}));
   setDebts((debtR.data||[]).map((x:any)=>({...x,remaining_amount:Number(x.remaining_amount)||0,monthly_payment:Number(x.monthly_payment)||0,annual_interest_rate:Number(x.annual_interest_rate)||0})) as Debt[]);
   setBills((billR.data||[]).map((x:any)=>({...x,amount:Number(x.amount)||0})) as Bill[]);
   setIncomes((incomeR.data||[]).map((x:any)=>({...x,expected_amount:Number(x.expected_amount)||0})) as Income[]);
@@ -119,10 +126,11 @@ export default function ServetPage(){
    <Metric title="Toplam kalan borç" value={money(analysis.debtTotal)} note={debts.length+" kayıtlı borç"} icon={ArrowDownRight} tone={analysis.debtTotal>0?"bad":"good"}/>
    <Metric title="Aylık serbest nakit" value={money(analysis.free)} note="Planlı gelir − tahmini aylık gider" icon={Activity} tone={analysis.free>=0?"good":"bad"}/>
   </section>
+  {(Object.keys(foreignCash).length>0||Object.keys(foreignPortfolio).length>0)&&<div role="status" className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-sm"><b>Yabancı para varlıkları ayrı gösteriliyor.</b><p className="mt-1 text-xs leading-5 text-muted">Kur dönüşümü yapılmadığı için bu tutarlar TL net servet toplamına eklenmedi.</p><div className="mt-2 flex flex-wrap gap-3 text-xs">{Object.entries(foreignCash).map(([cur,v])=><span key={"cash-"+cur}>Hesap: {v.toLocaleString("tr-TR",{maximumFractionDigits:2})+" "+cur}</span>)}{Object.entries(foreignPortfolio).map(([cur,v])=><span key={"inv-"+cur}>Yatırım: {v.toLocaleString("tr-TR",{maximumFractionDigits:2})+" "+cur}</span>)}</div></div>}
   <section className="grid gap-4 lg:grid-cols-[1.1fr_.9fr]">
    <article className={kart+" space-y-4"}><div className="flex items-center gap-2"><ChartNoAxesCombined className="text-accent" size={19}/><h2 className="font-bold">Net servet dağılımı</h2></div>
     {[{label:"Banka ve nakit hesapları",value:cash},{label:"Yatırım portföyü",value:analysis.portfolio},{label:"Kalan borçlar",value:-analysis.debtTotal}].map(x=><div key={x.label}><div className="mb-1 flex justify-between gap-3 text-sm"><span>{x.label}</span><b className={x.value<0?"text-down":""}>{money(x.value)}</b></div><div className="h-2 overflow-hidden rounded-full bg-inner"><div className={"h-full rounded-full "+(x.value<0?"bg-down":"bg-accent")} style={{width:Math.min(100,Math.abs(x.value)/Math.max(1,cash+analysis.portfolio,analysis.debtTotal)*100)+"%"}}/></div></div>)}
-    <p className="text-xs leading-5 text-muted">Yatırım portföyü, Yatırımlar bölümüne kaydedilmiş miktar × güncel birim fiyat toplamıdır. Portföye eklenen gayrimenkul veya diğer varlıkların hesap bakiyelerinde ayrıca tutulmadığından emin ol; aksi hâlde çift sayım oluşabilir.</p>
+    <p className="text-xs leading-5 text-muted">TL yatırım portföyü, Yatırımlar bölümündeki TRY cinsinden miktar × güncel birim fiyat toplamıdır. Yabancı para cinsindeki varlıklar ayrı gösterilir; kur dönüşümü yapılmaz. Portföye eklenen varlıkları hesap bakiyelerinde ayrıca tutarak çift sayım yapmamaya dikkat et.</p>
    </article>
    <article className={kart+" space-y-3"}><div className="flex items-center gap-2"><Coins className="text-accent" size={19}/><h2 className="font-bold">Aylık bütçe varsayımları</h2></div>
     {[["Aylık gelir",analysis.monthlyIncome],["Kayıtlı faturalar",analysis.fixedBills],["Borç taksitleri",analysis.monthlyDebt],["Tahmini değişken gider",analysis.variableExpense]].map(([label,value])=><div key={String(label)} className="flex justify-between gap-3 border-b border-line pb-2 text-sm"><span className="text-muted">{label}</span><b>{money(Number(value))}</b></div>)}
