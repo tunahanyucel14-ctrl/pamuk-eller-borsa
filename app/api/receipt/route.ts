@@ -12,8 +12,12 @@ export async function POST(request: Request) {
   const key = process.env.AI_GATEWAY_API_KEY;
   if (!key) return NextResponse.json({ error: "Fiş okuma için AI_GATEWAY_API_KEY tanımlanmalı." }, { status: 503 });
 
-  const { image, mimeType } = await request.json();
-  if (typeof image !== "string" || image.length > 8_000_000 || !["image/jpeg", "image/png", "image/webp"].includes(mimeType)) {
+  const payload = await request.json().catch(() => null);
+  if (!payload || typeof payload !== "object") {
+    return NextResponse.json({ error: "İstek gövdesi geçersiz." }, { status: 400 });
+  }
+  const { image, mimeType } = payload as { image?: unknown; mimeType?: unknown };
+  if (typeof image !== "string" || image.length > 8_000_000 || image.length === 0 || !/^[A-Za-z0-9+/]+={0,2}$/.test(image) || !["image/jpeg", "image/png", "image/webp"].includes(String(mimeType))) {
     return NextResponse.json({ error: "JPG, PNG veya WEBP biçiminde en fazla 6 MB fotoğraf yükle." }, { status: 400 });
   }
   const response = await fetch("https://ai-gateway.vercel.sh/v1/chat/completions", {
@@ -29,7 +33,7 @@ export async function POST(request: Request) {
       max_tokens: 500
     })
   });
-  const data = await response.json();
+  const data = await response.json().catch(() => ({}));
   if (!response.ok) return NextResponse.json({ error: data?.error?.message || "Fiş okunamadı." }, { status: 502 });
   const raw = data?.choices?.[0]?.message?.content;
   try {
