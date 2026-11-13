@@ -112,7 +112,7 @@ export default function Islemler() {
 
   async function sil(id: string) {
     if (!window.confirm("Bu işlem silinsin mi?")) return;
-    const { error } = await supabase.from("fin_transactions").delete().eq("id", id);
+    const { error } = await supabase.rpc("delete_family_transaction",{p_transaction_id:id});
     if (error) setHata(error.message);
     else await yukle();
   }
