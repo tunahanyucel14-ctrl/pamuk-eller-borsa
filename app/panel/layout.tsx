@@ -168,7 +168,7 @@ export default function PanelLayout({ children }: { children: React.ReactNode })
               </p>
             </div>
             <div className="flex items-center gap-2 text-sm">
-              <Link href="/" className="rounded-lg px-3 py-2 text-muted hover:text-fg">
+              <Link href="/borsa" className="rounded-lg px-3 py-2 text-muted hover:text-fg">
                 Borsa Arenası
               </Link>
               <Link href="/hesabim" className="rounded-lg px-3 py-2 text-muted hover:text-fg">
