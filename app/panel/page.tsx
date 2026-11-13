@@ -358,9 +358,11 @@ export default function GenelBakis() {
           </section>
 
           <section className={kart}>
-            <div className="mb-5 flex flex-wrap items-center justify-between gap-2">
-              <div><h2 className="font-bold">6 aylık finansal eğilim</h2><p className="mt-1 text-xs text-muted">Seçili ay ve önceki beş ayın gelir-gider karşılaştırması</p></div>
-              <span className="rounded-xl bg-accent/10 px-3 py-1.5 text-xs font-bold text-accent">6 ay</span>
+            <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+              <div><h2 className="font-bold">{trendDonem} aylık finansal eğilim</h2><p className="mt-1 text-xs text-muted">Seçili ay ve önceki {trendDonem - 1} ayın gelir-gider karşılaştırması</p></div>
+              <div className="flex rounded-xl border border-line bg-inner/70 p-1" role="group" aria-label="Grafik dönemi">
+                {([3, 6, 12] as const).map((period) => <button key={period} type="button" aria-pressed={trendDonem === period} onClick={() => setTrendDonem(period)} className={"rounded-lg px-3 py-1.5 text-xs font-bold transition " + (trendDonem === period ? "bg-accent text-white shadow-sm" : "text-muted hover:text-fg")}>{period} ay</button>)}
+              </div>
             </div>
             {trendHata && <p className="mb-3 text-xs text-muted">{trendHata}</p>}
             {guncelTrend && oncekiTrend && (
@@ -393,7 +395,7 @@ export default function GenelBakis() {
               return (
                 <div className="dashboard-chart overflow-hidden rounded-2xl border border-line bg-inner/35 p-3 sm:p-5">
                   <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-                    <div><p className="text-sm font-bold">Gelir ve gider rotası</p><p className="mt-1 text-[11px] text-muted">Son altı ayın gerçek işlem kayıtları · TRY hesapları</p></div>
+                    <div><p className="text-sm font-bold">Gelir ve gider rotası</p><p className="mt-1 text-[11px] text-muted">Son {trendDonem} ayın gerçek işlem kayıtları · TRY hesapları</p></div>
                     <div className="flex gap-3 text-[11px] font-semibold"><span className="flex items-center gap-1.5 text-up"><i className="h-2 w-2 rounded-full bg-up"/> Gelir</span><span className="flex items-center gap-1.5 text-down"><i className="h-2 w-2 rounded-full bg-down"/> Gider</span></div>
                   </div>
                   {aylikTrend.every((x) => x.gelir === 0 && x.gider === 0) ? (
@@ -408,8 +410,8 @@ export default function GenelBakis() {
                         {[36, 88, 141, 194].map((y) => <line key={y} x1="18" x2="702" y1={y} y2={y} className="dashboard-chart-grid" stroke="var(--line)" strokeDasharray="4 7" />)}
                         <path d={incomeArea} fill="url(#incomeFill)"/>
                         <path d={expenseArea} fill="url(#expenseFill)"/>
-                        <polyline points={incomePoints} fill="none" stroke="var(--up)" className="dashboard-income-line" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"/>
-                        <polyline points={expensePoints} fill="none" stroke="var(--down)" className="dashboard-expense-line" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"/>
+                        <polyline points={incomePoints} fill="none" stroke="var(--up)" className="dashboard-income-line" pathLength={1} strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"/>
+                        <polyline points={expensePoints} fill="none" stroke="var(--down)" className="dashboard-expense-line" pathLength={1} strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"/>
                         {aylikTrend.map((item, i) => <g key={i}>
                           <circle className="dashboard-chart-dot dashboard-chart-income-dot" cx={xAt(i)} cy={yAt(item.gelir)} r="6" fill="var(--up)" stroke="var(--card)" strokeWidth="3"><title>{item.ay} gelir: {tl(item.gelir)}</title></circle>
                           <circle className="dashboard-chart-dot dashboard-chart-expense-dot" cx={xAt(i)} cy={yAt(item.gider)} r="6" fill="var(--down)" stroke="var(--card)" strokeWidth="3"><title>{item.ay} gider: {tl(item.gider)}</title></circle>
