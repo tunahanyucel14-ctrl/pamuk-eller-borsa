@@ -9,7 +9,7 @@ import { supabase } from "../../lib/supabase";
 
 type Receipt = { merchant: string; date: string; total: number; currency: string; category: string; description: string; items: string[] };
 
-const normalizeReceipt=(value:string)=>value.toLocaleLowerCase("tr-TR").normalize("NFD").replace(/[\\u0300-\\u036f]/g,"").replace(/ı/g,"i").replace(/[^a-z0-9]+/g," ").trim();
+const normalizeReceipt=(value:string)=>value.toLocaleLowerCase("tr-TR").normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/ı/g,"i").replace(/[^a-z0-9]+/g," ").trim();
 function suggestReceiptCategory(receipt:Receipt,categories:{id:string;name:string}[]):string{
  const text=normalizeReceipt([receipt.category,receipt.merchant,receipt.description,...receipt.items].join(" "));
  const direct=categories.find(c=>{const name=normalizeReceipt(c.name);return name.length>2&&text.includes(name);});
