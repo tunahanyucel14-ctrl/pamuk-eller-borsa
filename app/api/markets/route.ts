@@ -11,7 +11,7 @@ const money = (value: number, currency = "TRY") =>
 async function yahoo(symbol: string, name: string): Promise<Quote | null> {
   try {
     const r = await fetch("https://query1.finance.yahoo.com/v8/finance/chart/" + encodeURIComponent(symbol) + "?range=1d&interval=5m", {
-      headers: { "User-Agent": "Mozilla/5.0 PamukEller/1.0" }, next: { revalidate: 60 },
+      headers: { "User-Agent": "Mozilla/5.0 PamukEller/1.0" }, next: { revalidate: 60 }, signal: AbortSignal.timeout(8000),
     });
     if (!r.ok) return null;
     const j = await r.json();
@@ -30,7 +30,7 @@ async function yahoo(symbol: string, name: string): Promise<Quote | null> {
 
 async function tcmbRates(): Promise<Quote[]> {
   try {
-    const r = await fetch("https://www.tcmb.gov.tr/kurlar/today.xml", { next: { revalidate: 900 } });
+    const r = await fetch("https://www.tcmb.gov.tr/kurlar/today.xml", { next: { revalidate: 900 }, signal: AbortSignal.timeout(8000) });
     if (!r.ok) return [];
     const xml = await r.text();
     const result: Quote[] = [];
@@ -48,7 +48,7 @@ async function tcmbRates(): Promise<Quote[]> {
 
 async function binanceBitcoin(): Promise<Quote | null> {
   try {
-    const r = await fetch("https://data-api.binance.vision/api/v3/ticker/24hr?symbol=BTCUSDT", { next: { revalidate: 30 } });
+    const r = await fetch("https://data-api.binance.vision/api/v3/ticker/24hr?symbol=BTCUSDT", { next: { revalidate: 30 }, signal: AbortSignal.timeout(8000) });
     if (!r.ok) return null;
     const j = await r.json();
     const price = Number(j.lastPrice), change = Number(j.priceChangePercent);
@@ -61,7 +61,7 @@ async function binanceBitcoin(): Promise<Quote | null> {
 
 async function coinGecko(): Promise<Quote[]> {
   try {
-    const r = await fetch("https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,solana&vs_currencies=try,usd&include_24hr_change=true", { next: { revalidate: 60 } });
+    const r = await fetch("https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,solana&vs_currencies=try,usd&include_24hr_change=true", { next: { revalidate: 60 }, signal: AbortSignal.timeout(8000) });
     if (!r.ok) return [];
     const j = await r.json();
     return [
