@@ -142,6 +142,24 @@ export default function NakitAkisiPage() {
       <div className={kart}><p className="text-xs text-muted">Aylık düzenli ödeme</p><b className="mt-2 block text-xl text-down">{tl(totalBills+totalDebt)}</b><p className="mt-1 text-xs text-muted">Fatura + borç taksitleri</p></div>
       <div className={kart}><p className="text-xs text-muted">6 ay içindeki en düşük tahmini bakiye</p><b className={"mt-2 block text-xl "+(lowest<0?"text-down":"text-up")}>{tl(lowest)}</b><p className="mt-1 text-xs text-muted">Senaryo sonucu</p></div>
     </div>
+    {!loading&&<section className={kart+" space-y-3"}>
+      <div className="flex items-center gap-2"><AlertTriangle size={18} className="text-accent"/><h2 className="font-bold">Finansal erken uyarılar</h2></div>
+      {[
+        ...(months.some(row=>row.closing<0)?[{tone:"danger",title:"Bakiye açığı riski",detail:months.filter(row=>row.closing<0).map(row=>row.label+" sonunda "+tl(Math.abs(row.closing))+" açık").join(" · ")}]:[]),
+        ...(months.some(row=>row.net<0)?[{tone:"warning",title:"Giderler gelirleri aşıyor",detail:months.filter(row=>row.net<0).map(row=>row.label+" döneminde "+tl(Math.abs(row.net))+" net açık").join(" · ")}]:[]),
+        ...(next&&next.events.length===0?[{tone:"info",title:"Planlı kayıt bulunamadı",detail:"Yaklaşan dönem için gelir veya ödeme planı girilmemiş. Tahmin eksik kalabilir."}]:[]),
+        ...(variableMonthlyEstimate===null?[{tone:"warning",title:"Değişken harcama verisi eksik",detail:"Günlük harcama tahmini oluşturulamadı; geçmiş işlemleri içe aktararak tahmini güçlendirebilirsin."}]:[]),
+        ...(variableMonthlyEstimate!==null&&variableMonthlyEstimate>0?[{tone:"info",title:"Günlük harcama bütçesi hesaba katıldı",detail:"Geçmiş harcama eğilimine göre yaklaşık "+tl(variableMonthlyEstimate)+" aylık değişken gider öngörülüyor."}]:[]),
+      ].length===0?<p className="rounded-xl bg-up/10 p-3 text-sm text-up">Şu an kayıtlı verilere göre belirgin bir nakit akışı riski görünmüyor. Tahmin, girdiğin kayıtların doğruluğuna bağlıdır.</p>:
+      <div className="space-y-2">{[
+        ...(months.some(row=>row.closing<0)?[{tone:"danger",title:"Bakiye açığı riski",detail:months.filter(row=>row.closing<0).map(row=>row.label+" sonunda "+tl(Math.abs(row.closing))+" açık").join(" · ")}]:[]),
+        ...(months.some(row=>row.net<0)?[{tone:"warning",title:"Giderler gelirleri aşıyor",detail:months.filter(row=>row.net<0).map(row=>row.label+" döneminde "+tl(Math.abs(row.net))+" net açık").join(" · ")}]:[]),
+        ...(next&&next.events.length===0?[{tone:"info",title:"Planlı kayıt bulunamadı",detail:"Yaklaşan dönem için gelir veya ödeme planı girilmemiş. Tahmin eksik kalabilir."}]:[]),
+        ...(variableMonthlyEstimate===null?[{tone:"warning",title:"Değişken harcama verisi eksik",detail:"Günlük harcama tahmini oluşturulamadı; geçmiş işlemleri içe aktararak tahmini güçlendirebilirsin."}]:[]),
+        ...(variableMonthlyEstimate!==null&&variableMonthlyEstimate>0?[{tone:"info",title:"Günlük harcama bütçesi hesaba katıldı",detail:"Geçmiş harcama eğilimine göre yaklaşık "+tl(variableMonthlyEstimate)+" aylık değişken gider öngörülüyor."}]:[]),
+      ].map((alert,index)=><div key={index} className={"rounded-xl border p-3 "+(alert.tone==="danger"?"border-down/30 bg-down/10":alert.tone==="warning"?"border-amber-500/30 bg-amber-500/10":"border-accent/20 bg-accent/5")}><p className="text-sm font-bold">{alert.title}</p><p className="mt-1 text-xs leading-5 text-muted">{alert.detail}</p></div>)}</div>}
+      <p className="text-[10px] leading-4 text-muted">Uyarılar yalnızca kayıtlı ve tahmin edilebilir verilerden üretilir; banka hesabına bağlanıp otomatik ödeme yapmaz.</p>
+    </section>}
     {loading?<div className={kart+" text-sm text-muted"}>Finansal kayıtlar yükleniyor...</div>:<section className={kart+" space-y-4"}>
       <div className="flex items-center gap-2"><CalendarDays className="text-accent" size={19}/><h2 className="font-bold">Aylık nakit akışı</h2></div>
       <div className="overflow-x-auto"><table className="w-full min-w-[620px] text-sm"><thead><tr className="border-b border-line text-left text-muted"><th className="p-2">Dönem</th><th className="p-2 text-right">Gelir</th><th className="p-2 text-right">Gider</th><th className="p-2 text-right">Net</th><th className="p-2 text-right">Dönem sonu bakiye</th></tr></thead><tbody>{months.map(row=><tr key={row.key} className="border-b border-line/60"><td className="p-2 font-semibold capitalize">{row.label}</td><td className="p-2 text-right text-up">{tl(row.income)}</td><td className="p-2 text-right text-down">{tl(row.expense)}</td><td className={"p-2 text-right font-semibold "+(row.net>=0?"text-up":"text-down")}>{tl(row.net)}</td><td className={"p-2 text-right font-bold "+(row.closing>=0?"":"text-down")}>{tl(row.closing)}</td></tr>)}</tbody></table></div>
