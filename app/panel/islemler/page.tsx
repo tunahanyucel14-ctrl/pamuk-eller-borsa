@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Download, Search } from "lucide-react";
+import { Download, Search, FileImage } from "lucide-react";
 import { supabase } from "../../../lib/supabase";
 import { useAile } from "../../../lib/aile-baglami";
 import { ayAraligi, bugun, bugunAy, sayiyaCevir, tarihTR, tl } from "../../../lib/finans";
@@ -17,7 +17,7 @@ const TURLER: { id: IslemTuru; ad: string }[] = [
 function para(amount:number,currency:string){try{return new Intl.NumberFormat("tr-TR",{style:"currency",currency,maximumFractionDigits:2}).format(amount);}catch{return amount.toLocaleString("tr-TR",{maximumFractionDigits:2})+" "+currency;}}
 
 export default function Islemler() {
-  const { aileId, yazabilir } = useAile();
+  const { aileId, yazabilir, kullaniciId } = useAile();
   const [ay, setAy] = useState(bugunAy());
   const [hesaplar, setHesaplar] = useState<Bakiye[]>([]);
   const [kategoriler, setKategoriler] = useState<Kategori[]>([]);
@@ -110,11 +110,17 @@ export default function Islemler() {
     setBekle(false);
   }
 
-  async function sil(id: string) {
+  async function sil(islem: Islem) {
     if (!window.confirm("Bu işlem silinsin mi?")) return;
-    const { error } = await supabase.rpc("delete_family_transaction",{p_transaction_id:id});
+    const { error } = await supabase.rpc("delete_family_transaction",{p_transaction_id:islem.id});
     if (error) setHata(error.message);
-    else await yukle();
+    else {
+      if(islem.receipt_path && islem.receipt_path.startsWith(kullaniciId+"/")){
+        const {error:archiveError}=await supabase.storage.from("receipts").remove([islem.receipt_path]);
+        if(archiveError)setHata("İşlem silindi ancak fiş dosyası arşivden kaldırılamadı: "+archiveError.message);
+      }
+      await yukle();
+    }
   }
 
   const hesapAdi = (id: string | null) => hesaplar.find((h) => h.account_id === id)?.name ?? "-";
@@ -270,7 +276,8 @@ export default function Islemler() {
                   {para(x.amount,hesapParaBirimi(x.account_id))}
                 </p>
                 {yazabilir && (
-                  <button onClick={() => sil(x.id)} className="text-xs text-muted hover:text-down">
+                  {x.receipt_path && kullaniciId && x.receipt_path.startsWith(kullaniciId+"/") && <button type="button" onClick={async()=>{const tab=window.open("about:blank","_blank");const {data,error}=await supabase.storage.from("receipts").createSignedUrl(x.receipt_path!,120);if(error||!data?.signedUrl){tab?.close();setHata("Fiş görüntülenemedi: "+(error?.message||"Bağlantı oluşturulamadı."));return;}if(tab)tab.location.href=data.signedUrl;else setHata("Fiş bağlantısı açılamadı; tarayıcı açılır pencere iznini kontrol et.");}} title="Fiş fotoğrafını görüntüle" aria-label="Fiş fotoğrafını görüntüle" className="text-accent hover:opacity-70"><FileImage size={16}/></button>}
+                  <button onClick={() => sil(x)} className="text-xs text-muted hover:text-down">
                     Sil
                   </button>
                 )}
