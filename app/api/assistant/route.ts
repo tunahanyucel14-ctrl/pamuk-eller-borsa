@@ -48,20 +48,19 @@ export async function POST(request: Request) {
     const [transactions, accounts, debts, bills, incomes, investments, categories] = await Promise.all([
       rest(`fin_transactions?family_id=eq.${q}&tx_date=gte.${startDate}&select=kind,amount,tx_date,category_id,description,account_id&order=tx_date.desc&limit=3000`),
       rest(`account_balances?family_id=eq.${q}&select=account_id,balance,currency`),
-      rest(`family_debts?family_id=eq.${q}&select=name,remaining_amount,monthly_payment,annual_interest_rate`),
+      rest(`family_debts?family_id=eq.${q}&remaining_amount=gt.0&select=name,remaining_amount,monthly_payment,annual_interest_rate`),
       rest(`family_bills?family_id=eq.${q}&active=eq.true&select=name,amount,category`),
       rest(`family_income_rules?family_id=eq.${q}&active=eq.true&select=name,expected_amount`),
       rest(`family_investments?family_id=eq.${q}&select=asset_name,quantity,current_price,currency`).catch(() => []),
       rest(`categories?family_id=eq.${q}&select=id,name`),
     ]);
-    const sum = (rows: Record<string, unknown>[], field: string) => rows.reduce((n, row) => n + (Number(row[field]) || 0), 0);
     const catNames = new Map(categories.map(c => [String(c.id), String(c.name)]));
-    const accountCurrency = new Map(accounts.map(a => [String(a.account_id), String(a.currency || "TRY").toUpperCase()]));
+    const accountCurrency = new Map(accounts.map(a => [String(a.account_id), String(a.currency || "UNKNOWN").toUpperCase()]));
     const months = new Map<string, { currency: string; income: number; expense: number }>();
     const categoryTotals = new Map<string, number>();
     for (const row of transactions) {
       const key = String(row.tx_date || "").slice(0, 7);
-      const currency = accountCurrency.get(String(row.account_id)) || "TRY";
+      const currency = accountCurrency.get(String(row.account_id)) || "UNKNOWN";
       const monthKey = `${currency}:${key}`;
       const month = months.get(monthKey) || { currency, income: 0, expense: 0 };
       const amount = Number(row.amount) || 0;
