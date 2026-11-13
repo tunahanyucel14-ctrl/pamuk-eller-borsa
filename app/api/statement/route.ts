@@ -36,7 +36,8 @@ function parseStatement(raw: string): { statement: ParsedStatement; skippedRows:
   const clean = raw.replace(/^\`\`\`json\s*/i, "").replace(/\s*\`\`\`$/, "");
   const parsed = JSON.parse(clean) as Partial<ParsedStatement>;
   if (!parsed || !Array.isArray(parsed.rows)) throw new Error("Invalid statement response");
-  const rows = parsed.rows.slice(0, 1000).flatMap((row: unknown) => {
+  if (parsed.rows.length > 1000) throw new Error("Statement contains more than 1000 rows");
+  const rows = parsed.rows.flatMap((row: unknown) => {
     if (!row || typeof row !== "object") return [];
     const r = row as Record<string, unknown>;
     const date = typeof r.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(r.date) ? r.date : "";
@@ -114,6 +115,8 @@ export async function POST(request: Request) {
   if (!files.length || files.length > 5) return NextResponse.json({ error: "En fazla 5 ekstre dosyası yükleyebilirsin." }, { status: 400 });
 
   const loaded: { bytes: Buffer; mime: string; path: string }[] = [];
+  try {
+  let totalBytes = 0;
   for (const item of files) {
     if (!item || typeof item !== "object") return NextResponse.json({ error: "Dosya bilgisi geçersiz." }, { status: 400 });
     const { path, mimeType } = item as { path?: unknown; mimeType?: unknown };
@@ -130,6 +133,8 @@ export async function POST(request: Request) {
     if (mime !== mimeType) return NextResponse.json({ error: "Dosya biçimi doğrulanamadı." }, { status: 400 });
     const bytes = Buffer.from(await stored.arrayBuffer());
     if (!bytes.length || bytes.length > MAX_FILE_BYTES || !validFile(bytes, mime)) return NextResponse.json({ error: "Dosya içeriği geçersiz veya 6 MB sınırını aşıyor." }, { status: 400 });
+    totalBytes += bytes.length;
+    if (totalBytes > 12 * 1024 * 1024) return NextResponse.json({ error: "Toplam yükleme boyutu 12 MB sınırını aşıyor." }, { status: 413 });
     loaded.push({ bytes, mime, path });
   }
 
@@ -141,7 +146,6 @@ export async function POST(request: Request) {
   const key = process.env.AI_GATEWAY_API_KEY;
   if (!key) return NextResponse.json({ error: "Ekstre okuma için AI_GATEWAY_API_KEY tanımlı olmalı." }, { status: 503 });
 
-  try {
     let response: Response;
     if (pdfs.length === 1) {
       const pdf = pdfs[0];
