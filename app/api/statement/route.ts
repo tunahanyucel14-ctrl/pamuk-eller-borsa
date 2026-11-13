@@ -109,12 +109,11 @@ const BANK_ALIASES: Record<string, string[]> = {
 
 function canonicalBankName(value: string | null): string | null {
   if (!value) return null;
-  const normalized = value.toLocaleLowerCase("tr-TR").normalize("NFD").replace(/[\\u0300-\\u036f]/g, "").replace(/ı/g, "i").replace(/[^a-z0-9]+/g, " ").trim();
-  for (const [canonical, aliases] of Object.entries(BANK_ALIASES)) {
-    if (aliases.some(alias => {
-      const candidate = alias.toLocaleLowerCase("tr-TR").normalize("NFD").replace(/[\\u0300-\\u036f]/g, "").replace(/ı/g, "i").replace(/[^a-z0-9]+/g, " ").trim();
-      return normalized === candidate || normalized.includes(candidate);
-    })) return canonical;
+  const normalized = value.toLocaleLowerCase("tr-TR").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/ı/g, "i").replace(/[^a-z0-9]+/g, " ").trim();
+  const entries = Object.entries(BANK_ALIASES).flatMap(([canonical, aliases]) => aliases.map(alias => ({ canonical, alias }))).sort((a, b) => b.alias.length - a.alias.length);
+  for (const { canonical, alias } of entries) {
+    const candidate = alias.toLocaleLowerCase("tr-TR").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/ı/g, "i").replace(/[^a-z0-9]+/g, " ").trim();
+    if (normalized === candidate || normalized.includes(candidate)) return canonical;
   }
   return value.trim().slice(0, 80);
 }
