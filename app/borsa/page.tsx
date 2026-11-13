@@ -262,13 +262,9 @@ export default function Home() {
       setArenaSeason(null);
       return;
     }
-    const response = await fetch("/api/arena", {
-      headers: { Authorization: "Bearer " + session.access_token },
-      cache: "no-store",
-    });
-    const data = await response.json().catch(() => ({}));
-    if (!response.ok) {
-      const message = typeof data.error === "string" ? data.error : "Çevrimiçi Arena bağlantısı kurulamadı.";
+    const { data, error } = await supabase.functions.invoke("arena", { method: "GET" });
+    if (error || !data) {
+      const message = error?.message || "Çevrimiçi Arena bağlantısı kurulamadı.";
       setArenaStatus("offline");
       setArenaError(message);
       setArenaBoard([]);
@@ -427,15 +423,11 @@ export default function Home() {
     if (!selectedStock) return;
     setArenaBusy(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.access_token) throw new Error("Oturumun sona ermiş. Yeniden giriş yap.");
-      const response = await fetch("/api/arena", {
+      const { data, error } = await supabase.functions.invoke("arena", {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: "Bearer " + session.access_token },
-        body: JSON.stringify({ symbol: selectedStock.symbol, side, quantity }),
+        body: { symbol: selectedStock.symbol, side, quantity },
       });
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(typeof data.error === "string" ? data.error : "Sanal işlem tamamlanamadı.");
+      if (error || !data?.success) throw new Error(error?.message || "Sanal işlem tamamlanamadı.");
       await refreshArena();
       setToast({ text: quantity + " adet " + selectedStock.symbol + (side === "BUY" ? " satın alındı." : " satıldı."), ok: true });
       closeTrade();
