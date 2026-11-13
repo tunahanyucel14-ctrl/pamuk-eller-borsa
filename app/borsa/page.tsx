@@ -222,6 +222,7 @@ export default function Home() {
   const [arenaStatus, setArenaStatus] = useState<"loading" | "online" | "guest" | "offline">("loading");
   const [arenaError, setArenaError] = useState("");
   const [arenaAccountId, setArenaAccountId] = useState("");
+  const [arenaMyRank, setArenaMyRank] = useState(0);
   const [arenaBoard, setArenaBoard] = useState<Array<{ account_id: string; username: string; total_value: number }>>([]);
   const [arenaSeason, setArenaSeason] = useState<{ id: number; name: string; start_date: string; end_date: string } | null>(null);
   const [arenaBusy, setArenaBusy] = useState(false);
@@ -258,6 +259,7 @@ export default function Home() {
       setArenaStatus("guest");
       setArenaError("");
       setArenaAccountId("");
+      setArenaMyRank(0);
       setArenaBoard([]);
       setArenaSeason(null);
       return;
@@ -268,6 +270,7 @@ export default function Home() {
       setArenaStatus("offline");
       setArenaError(message);
       setArenaBoard([]);
+      setArenaMyRank(0);
       throw new Error(message);
     }
     setBalance(Number(data.account?.cash_balance) || 0);
@@ -280,6 +283,7 @@ export default function Home() {
     setPortfolio(nextPortfolio);
     setTradeCount(Number(data.tradeCount) || 0);
     setArenaAccountId(String(data.account?.id || ""));
+    setArenaMyRank(Number(data.myRank) || 0);
     setArenaBoard(Array.isArray(data.leaderboard) ? data.leaderboard.map((row: { account_id: string; username: string; total_value: number }) => ({
       account_id: row.account_id, username: row.username, total_value: Number(row.total_value) || 0,
     })) : []);
@@ -391,7 +395,7 @@ export default function Home() {
     value: player.total_value,
     me: player.account_id === arenaAccountId,
   }));
-  const myRank = board.findIndex((player) => player.me) + 1;
+  const myRank = arenaMyRank;
   const seasonDay = arenaSeason
     ? Math.min(30, Math.max(1, Math.floor((Date.now() - new Date(arenaSeason.start_date).getTime()) / 86400000) + 1))
     : 0;
