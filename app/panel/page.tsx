@@ -44,7 +44,7 @@ function StatCard({
         : "text-accent bg-accent/10";
 
   return (
-    <article className={"group relative overflow-hidden rounded-[26px] border border-line bg-card p-5 shadow-[0_12px_35px_rgba(0,0,0,.07)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_20px_45px_rgba(0,0,0,.12)] sm:p-6"}>
+    <article className={"dashboard-stat group relative overflow-hidden rounded-[26px] border border-line bg-card p-5 shadow-[0_12px_35px_rgba(0,0,0,.07)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_20px_45px_rgba(0,0,0,.12)] sm:p-6"}>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-sm font-medium text-muted">{title}</p>
@@ -191,19 +191,19 @@ export default function GenelBakis() {
   }).format(new Date(Number(ay.slice(0, 4)), Number(ay.slice(5, 7)) - 1, 1));
 
   return (
-    <div className="flex flex-col gap-7">
-      <section className="relative isolate flex flex-col justify-between gap-5 overflow-hidden rounded-[30px] border border-emerald-300/15 bg-[#0b211d] p-6 text-white shadow-[0_24px_70px_rgba(4,30,24,.22)] sm:flex-row sm:items-end sm:p-9">
+    <div className="dashboard-page flex flex-col gap-7">
+      <section className="dashboard-hero relative isolate flex flex-col justify-between gap-5 overflow-hidden rounded-[30px] border p-6 shadow-[0_24px_70px_rgba(4,30,24,.16)] sm:flex-row sm:items-end sm:p-9">
         <div className="relative z-10">
-          <p className="mb-3 flex items-center gap-2 text-[10px] font-extrabold uppercase tracking-[0.24em] text-emerald-300">
+          <p className="mb-3 flex items-center gap-2 text-[10px] font-extrabold uppercase tracking-[0.24em] dashboard-kicker">
             <span className="h-2 w-2 rounded-full bg-accent" />
             PAMUK ELLER · FİNANSAL KONTROL MERKEZİ
           </p>
           <h1 className="max-w-2xl text-3xl font-black leading-tight tracking-tight sm:text-5xl">Paranın kontrolü <span className="text-emerald-300">sende.</span></h1>
-          <p className="mt-3 max-w-xl text-sm leading-6 text-emerald-50/65 sm:text-base">Gelirini, harcamalarını ve finansal hedeflerini tek bir akıllı merkezden yönet.</p>
-          <div className="mt-6 flex flex-wrap gap-2"><a href="/panel/islemler" className="rounded-xl bg-emerald-300 px-4 py-2.5 text-xs font-extrabold text-emerald-950 shadow-lg shadow-emerald-950/20 transition hover:-translate-y-0.5">+ Yeni işlem</a><a href="/panel/butce" className="rounded-xl border border-white/15 bg-white/5 px-4 py-2.5 text-xs font-bold text-white transition hover:bg-white/10">Bütçemi planla ↗</a></div>
+          <p className="mt-3 max-w-xl text-sm leading-6 dashboard-copy sm:text-base">Gelirini, harcamalarını ve finansal hedeflerini tek bir akıllı merkezden yönet.</p>
+          <div className="mt-6 flex flex-wrap gap-2"><a href="/panel/islemler" className="dashboard-primary-action rounded-xl px-4 py-2.5 text-xs font-extrabold shadow-lg transition hover:-translate-y-0.5">+ Yeni işlem</a><a href="/panel/butce" className="dashboard-secondary-action rounded-xl border px-4 py-2.5 text-xs font-bold transition">Bütçemi planla ↗</a></div>
         </div>
         <div className="pointer-events-none absolute -right-16 -top-28 -z-0 h-80 w-80 rounded-full border border-emerald-200/10 bg-emerald-300/10 blur-3xl"/><div className="pointer-events-none absolute right-1/4 top-0 -z-0 h-48 w-48 rounded-full bg-teal-300/10 blur-3xl"/>
-        <label className="relative z-10 flex items-center gap-2 rounded-2xl border border-white/15 bg-white/10 px-4 py-3 text-white shadow-xl backdrop-blur-xl">
+        <label className="relative z-10 flex items-center gap-2 rounded-2xl dashboard-month border px-4 py-3 shadow-xl backdrop-blur-xl">
           <CalendarDays size={17} className="text-accent" />
           <span className="sr-only">Rapor ayı</span>
           <input
