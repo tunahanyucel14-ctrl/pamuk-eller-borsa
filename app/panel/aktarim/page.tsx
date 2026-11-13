@@ -217,6 +217,24 @@ export default function AktarimPage(){
  const normalizeCurrency=(value:string)=>{const code=value.trim().toUpperCase();return code==="TL"||code==="₺"?"TRY":code;};
  const currencyMismatch=Boolean(statementMeta?.currency&&selectedAccount?.currency&&normalizeCurrency(statementMeta.currency)!==normalizeCurrency(selectedAccount.currency));
  const totalsMismatch=Boolean(statementMeta&&((statementMeta.statementIncome!==null&&Math.abs(statementMeta.statementIncome-statementMeta.extractedIncome)>0.02)||(statementMeta.statementExpense!==null&&Math.abs(statementMeta.statementExpense-statementMeta.extractedExpense)>0.02)));
+ const statementDiagnostics=useMemo(()=>{
+  if(!statementMeta)return null;
+  const inPeriod=finalRows.filter(row=>(!statementMeta.periodStart||row.tx_date>=statementMeta.periodStart)&&(!statementMeta.periodEnd||row.tx_date<=statementMeta.periodEnd));
+  const outsidePeriod=finalRows.length-inPeriod.length;
+  const signatures=new Map<string,number>();
+  for(const row of finalRows){const key=[row.tx_date,row.kind,row.amount.toFixed(2),normalize(row.description)].join("|");signatures.set(key,(signatures.get(key)||0)+1);}
+  const repeatedRows=Array.from(signatures.values()).reduce((sum,count)=>sum+Math.max(0,count-1),0);
+  const skippedRatio=statementMeta.skippedRows/Math.max(1,statementMeta.skippedRows+finalRows.length);
+  const score=Math.max(0,Math.min(100,Math.round(100-skippedRatio*40-(totalsMismatch?20:0)-(outsidePeriod?Math.min(20,outsidePeriod*5):0)-(repeatedRows?Math.min(15,repeatedRows*5):0)-(statementMeta.atLimit?15:0))));
+  const warnings:string[]=[];
+  if(statementMeta.skippedRows)warnings.push(statementMeta.skippedRows+" satır biçim doğrulamasından geçmedi.");
+  if(totalsMismatch)warnings.push("Ekstre toplamları ile okunan satır toplamları uyuşmuyor.");
+  if(outsidePeriod)warnings.push(outsidePeriod+" işlem ekstre tarih aralığının dışında.");
+  if(repeatedRows)warnings.push(repeatedRows+" satır başka bir işlemle tamamen aynı görünüyor; gerçek tekrar olup olmadığını kontrol et.");
+  if(statementMeta.atLimit)warnings.push("Okuma 1.000 işlem sınırına ulaştı; ekstrede başka hareketler olabilir.");
+  if(!statementMeta.periodStart||!statementMeta.periodEnd)warnings.push("Ekstre tarih aralığının tamamı belirlenemedi.");
+  return {score,outsidePeriod,repeatedRows,warnings};
+ },[statementMeta,finalRows,totalsMismatch]);
  const canImport=ready.length>0&&ready.length<=1000&&Boolean(accountId)&&!currencyMismatch&&(!totalsMismatch||acknowledgeReconciliation)&&yazabilir&&!busy;
 
  async function importRows(){
@@ -271,6 +289,11 @@ export default function AktarimPage(){
    <div className="flex flex-wrap gap-2 text-xs"><span className="rounded-full bg-up/10 px-3 py-1 font-semibold text-up">{ready.length} aktarılabilir</span><span className="rounded-full bg-amber-500/10 px-3 py-1 font-semibold text-amber-600">{invalidCount} geçersiz / atlanacak</span><span className="rounded-full bg-inner px-3 py-1 text-muted">Önizleme: {Math.min(ready.length,40)} satır</span></div>
    {statementMeta&&<div className="rounded-xl border border-line bg-inner/60 p-4">
     <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-xs font-bold uppercase tracking-wide text-muted">Ekstre tanıma özeti</p><h3 className="mt-1 text-base font-bold">{statementMeta.bankName||"Banka otomatik tanımlanamadı"}</h3><p className="text-xs text-muted">{statementMeta.periodStart||statementMeta.periodEnd?[statementMeta.periodStart,statementMeta.periodEnd].filter(Boolean).join(" – "):"Ekstre dönemi belirlenemedi"}{statementMeta.currency?" · "+statementMeta.currency:""}</p></div><span className="rounded-full bg-up/10 px-3 py-1 text-xs font-semibold text-up">{ready.length} doğrulanabilir işlem</span></div>
+    {statementDiagnostics&&<div className="mt-3 rounded-lg border border-line bg-card p-3">
+     <div className="flex flex-wrap items-center justify-between gap-2"><div><p className="text-xs font-bold uppercase tracking-wide text-muted">Ekstre doğruluk merkezi</p><p className="mt-1 text-xs text-muted">Bu puan otomatik kontrollerin sonucudur; bankanın doğruladığı resmî bir doğruluk oranı değildir.</p></div><div className={"rounded-xl px-4 py-2 text-center "+(statementDiagnostics.score>=85?"bg-up/10 text-up":statementDiagnostics.score>=65?"bg-amber-500/10 text-amber-600":"bg-down/10 text-down")}><b className="block text-2xl">{statementDiagnostics.score}/100</b><span className="text-[10px] font-semibold uppercase">{statementDiagnostics.score>=85?"İyi":statementDiagnostics.score>=65?"Kontrol gerekli":"Düşük güven"}</span></div></div>
+     <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4"><div className="rounded-lg bg-inner p-2"><b className="block text-lg">{ready.length}</b><span className="text-[11px] text-muted">Okunan işlem</span></div><div className="rounded-lg bg-inner p-2"><b className="block text-lg">{statementMeta.skippedRows}</b><span className="text-[11px] text-muted">Geçersiz satır</span></div><div className="rounded-lg bg-inner p-2"><b className="block text-lg">{statementDiagnostics.outsidePeriod}</b><span className="text-[11px] text-muted">Dönem dışı</span></div><div className="rounded-lg bg-inner p-2"><b className="block text-lg">{statementDiagnostics.repeatedRows}</b><span className="text-[11px] text-muted">Olası tekrar</span></div></div>
+     {statementDiagnostics.warnings.length>0?<ul className="mt-3 space-y-1.5 text-xs text-amber-600">{statementDiagnostics.warnings.map((warning,i)=><li key={i}><AlertTriangle size={13} className="mr-1 inline"/> {warning}</li>)}</ul>:<p className="mt-3 text-xs font-medium text-up"><CheckCircle2 size={13} className="mr-1 inline"/> Temel tutarlılık kontrollerinde uyarı bulunmadı.</p>}
+    </div>}
     <div className="mt-3 grid gap-3 sm:grid-cols-2"><div className="rounded-lg bg-card p-3"><p className="text-xs text-muted">Okunan gelir / gider toplamı</p><p className="mt-1 text-sm font-bold text-up">{para(statementMeta.extractedIncome,statementMeta.currency||selectedAccount?.currency||"TRY")}</p><p className="text-sm font-bold text-down">{para(statementMeta.extractedExpense,statementMeta.currency||selectedAccount?.currency||"TRY")}</p></div><div className="rounded-lg bg-card p-3"><p className="text-xs text-muted">Ekstrede yazan toplam</p><p className="mt-1 text-sm font-bold text-up">{statementMeta.statementIncome===null?"Belirlenemedi":para(statementMeta.statementIncome,statementMeta.currency||"TRY")}</p><p className="text-sm font-bold text-down">{statementMeta.statementExpense===null?"Belirlenemedi":para(statementMeta.statementExpense,statementMeta.currency||"TRY")}</p></div></div>
     {statementMeta.skippedRows>0&&<p className="mt-3 text-xs text-amber-600"><AlertTriangle size={14} className="mr-1 inline"/> {statementMeta.skippedRows} satır doğrulamadan geçmedi ve aktarılmayacak.</p>}
     {statementMeta.atLimit&&<p role="alert" className="mt-3 rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 text-xs text-amber-700"><AlertTriangle size={14} className="mr-1 inline"/> Okuma 1000 işlem sınırına ulaştı. Ekstrede daha fazla hareket varsa tümü alınmamış olabilir; eksiksiz aktarım için PDF’yi tarih aralıklarına bölerek yükle.</p>}
