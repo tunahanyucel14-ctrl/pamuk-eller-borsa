@@ -21,6 +21,15 @@ function extractText(data: any): string {
   return parts.map((part: any) => typeof part?.text === "string" ? part.text : "").filter(Boolean).join("\n");
 }
 
+function providerFailure(status: number, data: any): { code: string; message: string; httpStatus: number } {
+  const providerCode = typeof data?.error?.code === "string" ? data.error.code.toLowerCase() : "";
+  if (status === 401 || status === 403) return { code: "AI_AUTH", message: "Yapay zekâ servisi anahtarı geçersiz veya yetkisiz. Vercel ortam değişkenlerini kontrol etmek gerekiyor.", httpStatus: 503 };
+  if (status === 429 || providerCode.includes("quota") || providerCode.includes("rate")) return { code: "AI_LIMIT", message: "Yapay zekâ okuma kotası veya hız sınırı dolmuş. Bir süre sonra tekrar dene.", httpStatus: 503 };
+  if (status === 413 || providerCode.includes("too_large")) return { code: "PDF_TOO_LARGE", message: "PDF yapay zekâ servisi için çok büyük. Daha küçük sayfa aralıklarına bölerek yükle.", httpStatus: 413 };
+  if (status === 400 || status === 415) return { code: "PDF_UNSUPPORTED", message: "PDF biçimi yapay zekâ servisi tarafından kabul edilmedi. Dosyanın şifresiz, açılabilir ve gerçek PDF olduğundan emin ol.", httpStatus: 422 };
+  return { code: "AI_PROVIDER", message: "Yapay zekâ servisi geçici olarak hata verdi. Biraz sonra tekrar dene.", httpStatus: 502 };
+}
+
 type StatementRow = { date: string; description: string; amount: number; type: "gelir" | "gider" };
 type ParsedStatement = {
   bank_name: string | null;
@@ -131,6 +140,7 @@ export async function POST(request: Request) {
 
   const loaded: { bytes: Buffer; mime: string; path: string }[] = [];
   const cleanupPaths: string[] = [];
+  let stage = "dosya doğrulama";
   try {
   let totalBytes = 0;
   for (const item of files) {
@@ -161,19 +171,27 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "PDF dosyasını tek başına yükle. Birden fazla ekran görüntüsünü birlikte seçebilirsin." }, { status: 400 });
   }
 
-  const key = process.env.AI_GATEWAY_API_KEY;
-  if (!key) return NextResponse.json({ error: "Ekstre okuma için AI_GATEWAY_API_KEY tanımlı olmalı." }, { status: 503 });
+  const gatewayKey = process.env.AI_GATEWAY_API_KEY;
+  const openaiKey = process.env.OPENAI_API_KEY;
+  const key = gatewayKey || openaiKey;
+  const providerUrl = gatewayKey ? "https://ai-gateway.vercel.sh/v1/responses" : "https://api.openai.com/v1/responses";
+  const model = gatewayKey ? "openai/gpt-5.4" : "gpt-5.4";
+  if (!key) return NextResponse.json({
+    error: "PDF yüklemesi alındı ancak okuma servisi yapılandırılmamış. Vercel'de AI_GATEWAY_API_KEY veya OPENAI_API_KEY tanımlanmalı.",
+    code: "AI_KEY_MISSING"
+  }, { status: 503 });
 
+    stage = "yapay zekâ servisi";
     let response: Response;
     if (pdfs.length === 1) {
       const pdf = pdfs[0];
-      response = await fetch("https://ai-gateway.vercel.sh/v1/responses", {
+      response = await fetch(providerUrl, {
         method: "POST",
         headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
         signal: AbortSignal.timeout(50000),
         body: JSON.stringify({
-          model: "openai/gpt-5.4",
-          max_output_tokens: 14000,
+          model,
+          max_output_tokens: 20000,
           text: { format: { type: "json_schema", name: "bank_statement", strict: true, schema: statementSchema } },
           input: [{
             type: "message",
@@ -201,8 +219,15 @@ export async function POST(request: Request) {
       });
     }
 
-    const data = await response.json().catch(() => ({}));
-    if (!response.ok) return NextResponse.json({ error: "Ekstre okuma servisine şu anda ulaşılamıyor." }, { status: 502 });
+    const responseText = await response.text();
+    let data: any = {};
+    try { data = responseText ? JSON.parse(responseText) : {}; } catch { /* JSON dışı sağlayıcı hatası aşağıda güvenli biçimde ele alınır. */ }
+    if (!response.ok) {
+      const failure = providerFailure(response.status, data);
+      console.error("[statement-ocr] provider rejected request", { provider: gatewayKey ? "vercel-ai-gateway" : "openai", status: response.status, code: failure.code });
+      return NextResponse.json({ error: failure.message, code: failure.code }, { status: failure.httpStatus });
+    }
+    stage = "ekstre sonucunu doğrulama";
     const raw = pdfs.length ? extractText(data) : data?.choices?.[0]?.message?.content;
     if (data.status === "incomplete" || data.incomplete_details?.reason === "max_output_tokens") {
       return NextResponse.json({ error: "Ekstre çok uzun olduğu için okuma tamamlanamadı. PDF'yi daha küçük tarih aralıklarına bölerek tekrar yükle." }, { status: 422 });
@@ -225,8 +250,16 @@ export async function POST(request: Request) {
       extractedIncome: Math.round(parsed.statement.rows.filter(row => row.type === "gelir").reduce((sum, row) => sum + row.amount, 0) * 100) / 100,
       extractedExpense: Math.round(parsed.statement.rows.filter(row => row.type === "gider").reduce((sum, row) => sum + row.amount, 0) * 100) / 100
     } });
-  } catch {
-    return NextResponse.json({ error: "Ekstre okunamadı. PDF'nin şifresiz ve en fazla 6 MB olduğundan emin olup tekrar dene." }, { status: 422 });
+  } catch (error) {
+    const timedOut = error instanceof Error && (error.name === "TimeoutError" || error.name === "AbortError");
+    console.error("[statement-ocr] processing failed", { stage, errorName: error instanceof Error ? error.name : "UnknownError" });
+    if (timedOut && stage === "yapay zekâ servisi") {
+      return NextResponse.json({ error: "PDF okuma 50 saniyelik süreyi aştı. Ekstreyi daha küçük tarih aralıklarına bölerek tekrar yükle.", code: "AI_TIMEOUT" }, { status: 504 });
+    }
+    if (stage === "yapay zekâ servisi") {
+      return NextResponse.json({ error: "PDF yapay zekâ servisine gönderilemedi. Servis bağlantısı veya ortam ayarları kontrol edilmeli.", code: "AI_CONNECTION" }, { status: 502 });
+    }
+    return NextResponse.json({ error: "Ekstre işlenirken " + stage + " aşamasında hata oluştu. Dosyanın şifresiz ve en fazla 6 MB olduğundan emin olup tekrar dene.", code: "STATEMENT_PROCESSING" }, { status: 422 });
   } finally {
     await Promise.all(cleanupPaths.map(path => fetch(`${supabaseUrl}/storage/v1/object/receipts/${path.split("/").map(encodeURIComponent).join("/")}`, { method: "DELETE", headers: { apikey: supabaseKey, Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(8000) }).catch(() => null)));
   }
