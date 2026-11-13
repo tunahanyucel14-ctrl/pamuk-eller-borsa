@@ -7,7 +7,7 @@ import { useAile } from "../../../lib/aile-baglami";
 import { tl } from "../../../lib/finans";
 import { kart, baslik } from "../../../lib/ui";
 
-type Tx = { id:string; kind:"gelir"|"gider"|"transfer"; amount:number; tx_date:string; category_id:string|null; description:string|null };
+type Tx = { id:string; kind:"gelir"|"gider"|"transfer"; amount:number; tx_date:string; category_id:string|null; description:string|null; account_id:string };
 type Category = { id:string; name:string; kind:string };
 type Income = { id:string; name:string; expected_amount:number; active:boolean };
 type Bill = { id:string; name:string; amount:number; active:boolean; category:string };
@@ -28,6 +28,7 @@ export default function FinansalZekaPage(){
  const [bills,setBills]=useState<Bill[]>([]);
  const [debts,setDebts]=useState<Debt[]>([]);
  const [cash,setCash]=useState(0);
+ const [foreignBalances,setForeignBalances]=useState<Record<string,number>>({});
  const [loading,setLoading]=useState(true);
  const [error,setError]=useState("");
  const [aiBusy,setAiBusy]=useState(false);
@@ -43,22 +44,25 @@ export default function FinansalZekaPage(){
    const start=new Date(now.getFullYear(),now.getMonth()-6,1);
    const iso=(d:Date)=>d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
    const [transactions,cats,incomeRows,billRows,debtRows,balances]=await Promise.all([
-    supabase.from("fin_transactions").select("id,kind,amount,tx_date,category_id,description").eq("family_id",aileId).in("kind",["gelir","gider"]).gte("tx_date",iso(start)).lt("tx_date",iso(end)).order("tx_date").limit(3000),
+    supabase.from("fin_transactions").select("id,kind,amount,tx_date,category_id,description,account_id").eq("family_id",aileId).in("kind",["gelir","gider"]).gte("tx_date",iso(start)).lt("tx_date",iso(end)).order("tx_date").limit(3000),
     supabase.from("categories").select("id,name,kind").eq("family_id",aileId),
     supabase.from("family_income_rules").select("id,name,expected_amount,active").eq("family_id",aileId),
     supabase.from("family_bills").select("id,name,amount,active,category").eq("family_id",aileId).eq("active",true),
     supabase.from("family_debts").select("id,name,remaining_amount,monthly_payment").eq("family_id",aileId),
-    supabase.from("account_balances").select("balance").eq("family_id",aileId),
+    supabase.from("account_balances").select("account_id,balance,currency").eq("family_id",aileId),
    ]);
    if(cancelled)return;
    const failure=transactions.error||cats.error||incomeRows.error||billRows.error||debtRows.error||balances.error;
    if(failure)setError(failure.message);
-   setTx((transactions.data||[]).map((x:any)=>({...x,amount:Number(x.amount)||0})) as Tx[]);
+   const balanceRows=(balances.data||[]) as {account_id:string;balance:number;currency:string}[];
+   const currencyByAccount=new Map(balanceRows.map(x=>[x.account_id,String(x.currency||"TRY").toUpperCase()]));
+   setTx((transactions.data||[]).filter((x:any)=>currencyByAccount.get(x.account_id)==="TRY").map((x:any)=>({...x,amount:Number(x.amount)||0})) as Tx[]);
    setCategories((cats.data||[]) as Category[]);
    setIncomes((incomeRows.data||[]) as Income[]);
    setBills((billRows.data||[]) as Bill[]);
    setDebts((debtRows.data||[]) as Debt[]);
-   setCash((balances.data||[]).reduce((s:number,x:any)=>s+(Number(x.balance)||0),0));
+   setCash(balanceRows.filter(x=>String(x.currency||"TRY").toUpperCase()==="TRY").reduce((s,x)=>s+(Number(x.balance)||0),0));
+   setForeignBalances(balanceRows.filter(x=>String(x.currency||"TRY").toUpperCase()!=="TRY").reduce<Record<string,number>>((acc,x)=>{const cur=String(x.currency||"TRY").toUpperCase();acc[cur]=(acc[cur]||0)+(Number(x.balance)||0);return acc;},{}));
    setLoading(false);
   }
   void load();return()=>{cancelled=true};
@@ -133,6 +137,7 @@ export default function FinansalZekaPage(){
    <article className={kart}><p className="text-xs text-muted">Ortalama aylık net</p><b className={"mt-2 block text-xl "+(analysis.avgSaving>=0?"text-up":"text-down")}>{money(analysis.avgSaving)}</b><p className="mt-1 text-xs text-muted">Gelir eksi gider</p></article>
    <article className={kart}><p className="text-xs text-muted">Kayıtlı toplam kalan borç</p><b className="mt-2 block text-xl">{money(analysis.totalDebt)}</b><p className="mt-1 text-xs text-muted">Borç kayıtlarından</p></article>
   </section>
+  {Object.keys(foreignBalances).length>0&&<p role="status" className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-muted">Yabancı para hesapları kur dönüşümü yapılmadığı için TL finans analizine katılmadı: {Object.entries(foreignBalances).map(([cur,v])=>v.toLocaleString("tr-TR",{maximumFractionDigits:2})+" "+cur).join(" · ")}.</p>}
   <section className={kart+" space-y-4"}><div className="flex items-center gap-2"><Activity className="text-accent" size={19}/><h2 className="font-bold">Aylık gelir – gider eğilimi</h2></div><div className="grid grid-cols-6 gap-2 items-end h-52">{analysis.months.map(m=><div key={m.key} className="flex h-full flex-col items-center justify-end gap-2"><div className="flex h-40 w-full items-end justify-center gap-1"><div title={"Gelir "+money(m.income)} className="w-1/3 rounded-t-md bg-up/70" style={{height:Math.max(2,m.income/Math.max(maxExpense,...analysis.months.map(x=>x.income),1)*100)+"%"}}/><div title={"Gider "+money(m.expense)} className="w-1/3 rounded-t-md bg-down/70" style={{height:Math.max(2,m.expense/Math.max(maxExpense,...analysis.months.map(x=>x.income),1)*100)+"%"}}/></div><span className="text-[10px] text-muted capitalize">{m.label}</span></div>)}</div><div className="flex gap-4 text-xs text-muted"><span className="flex items-center gap-2"><i className="h-2 w-2 rounded-full bg-up"/>Gelir</span><span className="flex items-center gap-2"><i className="h-2 w-2 rounded-full bg-down"/>Gider</span></div><div className="grid gap-3 sm:grid-cols-2"><div className="rounded-xl bg-inner p-3"><p className="text-xs text-muted">Gider değişimi · son 3 ay / önceki 3 ay</p><b className={"mt-1 text-lg "+((analysis.expenseChange||0)>0?"text-down":"text-up")}>{analysis.expenseChange===null?"Yetersiz veri":(analysis.expenseChange>0?"+":"")+analysis.expenseChange.toFixed(1)+"%"}</b></div><div className="rounded-xl bg-inner p-3"><p className="text-xs text-muted">Gelir değişimi · son 3 ay / önceki 3 ay</p><b className={"mt-1 text-lg "+((analysis.incomeChange||0)>=0?"text-up":"text-down")}>{analysis.incomeChange===null?"Yetersiz veri":(analysis.incomeChange>0?"+":"")+analysis.incomeChange.toFixed(1)+"%"}</b></div></div></section>
   <section className="grid gap-4 lg:grid-cols-2"><article className={kart+" space-y-3"}><h2 className="font-bold">Harcama kategorileri</h2>{analysis.categorySpends.length?analysis.categorySpends.slice(0,8).map(x=><div key={x.id}><div className="flex justify-between gap-2 text-sm"><span>{x.name}</span><b>{money(x.amount)}</b></div><div className="mt-1 h-2 overflow-hidden rounded-full bg-inner"><div className="h-full rounded-full bg-accent" style={{width:Math.max(2,x.amount/Math.max(1,analysis.categorySpends[0].amount)*100)+"%"}}/></div><p className={"mt-1 text-[10px] "+(x.change>10?"text-down":"text-muted")}>Önceki 3 aya göre {x.previous>0?(x.change>0?"+":"")+x.change.toFixed(0)+"%":"karşılaştırma verisi yok"}</p></div>):<p className="text-sm text-muted">Henüz gider kaydı bulunmuyor.</p>}</article>
    <article className={kart+" space-y-3"}><h2 className="font-bold">Tasarruf fırsatları</h2>{analysis.insights.map((item,i)=><div key={i} className="flex gap-3 rounded-xl bg-inner p-3"><Lightbulb size={17} className="mt-0.5 shrink-0 text-accent"/><p className="text-sm leading-6">{item}</p></div>)}</article></section>
