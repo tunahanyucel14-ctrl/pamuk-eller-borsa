@@ -13,7 +13,7 @@ type FormState = { amount:string; direction:"deposit"|"withdrawal"; note:string 
 const emptyForm:FormState={amount:"",direction:"deposit",note:""};
 
 export default function HedeflerPage(){
- const {aileId,kullaniciId,yazabilir}=useAile();
+ const {aileId,kullaniciId,yazabilir,yonetebilir}=useAile();
  const [rows,setRows]=useState<Goal[]>([]);
  const [contributions,setContributions]=useState<Contribution[]>([]);
  const [names,setNames]=useState<Record<string,string>>({});
@@ -93,7 +93,7 @@ export default function HedeflerPage(){
     const form=forms[g.id]||emptyForm;
     const history=contributions.filter(x=>x.goal_id===g.id).slice(0,5);
     return <article key={g.id} className={kart+" space-y-4"}>
-     <div className="flex items-start justify-between gap-3"><div className="flex items-center gap-2"><span className="rounded-xl bg-accent/10 p-2 text-accent"><Target size={19}/></span><div><b>{g.name}</b><p className="text-xs text-muted">{g.target_date?"Hedef tarihi: "+g.target_date:"Tarih belirlenmedi"}</p></div></div>{yazabilir&&<button disabled={busy===g.id} onClick={()=>deleteGoal(g.id)} aria-label="Hedefi sil" className="text-muted hover:text-down"><Trash2 size={16}/></button>}</div>
+     <div className="flex items-start justify-between gap-3"><div className="flex items-center gap-2"><span className="rounded-xl bg-accent/10 p-2 text-accent"><Target size={19}/></span><div><b>{g.name}</b><p className="text-xs text-muted">{g.target_date?"Hedef tarihi: "+g.target_date:"Tarih belirlenmedi"}</p></div></div>{yonetebilir&&<button disabled={busy===g.id} onClick={()=>deleteGoal(g.id)} aria-label="Hedefi sil" className="text-muted hover:text-down"><Trash2 size={16}/></button>}</div>
      <div className="flex justify-between text-sm"><span>{tl(currentAmount)} birikti</span><b>{tl(targetAmount)}</b></div>
      <div className="h-3 overflow-hidden rounded-full bg-inner"><div className="h-full rounded-full bg-accent transition-all" style={{width:pct+"%"}}/></div>
      <div className="flex justify-between text-xs text-muted"><span>%{pct.toFixed(1)} tamamlandı</span><span>Kalan: {tl(remaining)}</span></div>
