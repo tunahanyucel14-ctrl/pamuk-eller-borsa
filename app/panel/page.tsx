@@ -162,6 +162,18 @@ export default function GenelBakis() {
     [islemler, kategoriler, bakiyeler]
   );
 
+  const guncelTrend = aylikTrend[aylikTrend.length - 1];
+  const oncekiTrend = aylikTrend[aylikTrend.length - 2];
+  const degisimMetni = (guncel: number, onceki: number) => {
+    if (!onceki && !guncel) return "Değişim yok";
+    if (!onceki && guncel) return "Bu ay başladı";
+    const oran = ((guncel - onceki) / onceki) * 100;
+    return (oran > 0 ? "+" : "") + "%" + oran.toFixed(1) + " önceki aya göre";
+  };
+  const gelirDegisimi = guncelTrend && oncekiTrend ? guncelTrend.gelir - oncekiTrend.gelir : 0;
+  const giderDegisimi = guncelTrend && oncekiTrend ? guncelTrend.gider - oncekiTrend.gider : 0;
+  const netDegisimi = gelirDegisimi - giderDegisimi;
+
   const ayEtiketi = new Intl.DateTimeFormat("tr-TR", {
     month: "long",
     year: "numeric",
@@ -320,6 +332,25 @@ export default function GenelBakis() {
               <span className="rounded-xl bg-accent/10 px-3 py-1.5 text-xs font-bold text-accent">6 ay</span>
             </div>
             {trendHata && <p className="mb-3 text-xs text-muted">{trendHata}</p>}
+            {guncelTrend && oncekiTrend && (
+              <div className="mb-5 grid gap-3 sm:grid-cols-3">
+                <article className="rounded-2xl border border-line bg-inner/60 p-4">
+                  <p className="text-xs font-semibold text-muted">Gelir değişimi</p>
+                  <p className={"mt-2 text-lg font-black " + (gelirDegisimi >= 0 ? "text-up" : "text-down")}>{gelirDegisimi > 0 ? "+" : ""}{tl(gelirDegisimi)}</p>
+                  <p className="mt-1 text-[11px] text-muted">{degisimMetni(guncelTrend.gelir, oncekiTrend.gelir)}</p>
+                </article>
+                <article className="rounded-2xl border border-line bg-inner/60 p-4">
+                  <p className="text-xs font-semibold text-muted">Gider değişimi</p>
+                  <p className={"mt-2 text-lg font-black " + (giderDegisimi <= 0 ? "text-up" : "text-down")}>{giderDegisimi > 0 ? "+" : ""}{tl(giderDegisimi)}</p>
+                  <p className="mt-1 text-[11px] text-muted">{degisimMetni(guncelTrend.gider, oncekiTrend.gider)}</p>
+                </article>
+                <article className="rounded-2xl border border-line bg-inner/60 p-4">
+                  <p className="text-xs font-semibold text-muted">Net gelir farkı</p>
+                  <p className={"mt-2 text-lg font-black " + (netDegisimi >= 0 ? "text-up" : "text-down")}>{netDegisimi > 0 ? "+" : ""}{tl(netDegisimi)}</p>
+                  <p className="mt-1 text-[11px] text-muted">Gelir artışı eksi gider artışı</p>
+                </article>
+              </div>
+            )}
             <div className="grid grid-cols-6 items-end gap-2 sm:gap-4">
               {aylikTrend.map((item) => {
                 const max = Math.max(1, ...aylikTrend.flatMap((x) => [x.gelir, x.gider]));
