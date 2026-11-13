@@ -27,7 +27,7 @@ export default function AboneliklerPage(){
  },[aileId]);
  useEffect(()=>{void load();},[load]);
  const allApps=useMemo(()=>ABONELIKLER.flatMap(g=>g.apps),[]);
- const total=rows.reduce((s,x)=>s+Number(x.amount),0);
+ const total=rows.reduce((s,x)=>s+Number(x.amount),0);\n const bySource=rows.reduce((acc,row)=>{const key=row.payment_source||"Ödeme kaynağı belirtilmedi";acc[key]=(acc[key]||0)+Number(row.amount);return acc;},{} as Record<string,number>);
  async function add(e:React.FormEvent){
   e.preventDefault();setError("");
   const parsed=Number(amount),due=Number(day),name=provider==="Diğer / listede yok"?custom.trim():provider;
@@ -46,7 +46,7 @@ export default function AboneliklerPage(){
   <header><p className="text-xs font-bold uppercase tracking-widest text-accent">Düzenli dijital ve hizmet giderleri</p><h1 className={baslik}>Aboneliklerim</h1><p className="text-sm text-muted">Türkiye'de yaygın kullanılan dijital platform, yazılım, oyun, alışveriş ve yaşam üyeliklerini seç; aylık maliyetlerini ve ödeme günlerini takip et.</p></header>
   <div className="grid gap-3 sm:grid-cols-3"><div className={kart}><p className="text-xs text-muted">Aktif abonelik</p><p className="mt-2 text-2xl font-black">{rows.length}</p></div><div className={kart}><p className="text-xs text-muted">Aylık toplam</p><p className="mt-2 text-2xl font-black">{tl(total)}</p></div><div className={kart}><p className="text-xs text-muted">Yıllık tahmini maliyet</p><p className="mt-2 text-2xl font-black">{tl(total*12)}</p></div></div>
   {error&&<p className="rounded-xl bg-down/10 p-3 text-sm text-down">{error}</p>}
-  <section className={kart+" space-y-3"}><h2 className="flex items-center gap-2 font-bold"><Repeat size={18} className="text-accent"/> Kayıtlı abonelikler</h2>
+  <section className={kart+" space-y-3"}><h2 className="flex items-center gap-2 font-bold"><Repeat size={18} className="text-accent"/> Kart / banka bazında aylık yük</h2><div className="grid gap-2 sm:grid-cols-2">{Object.entries(bySource).sort((a,b)=>b[1]-a[1]).map(([source,value])=><div key={source} className="flex items-center justify-between rounded-xl bg-inner p-3"><span className="text-sm font-medium">{source}</span><b>{tl(value)}/ay</b></div>)}{Object.keys(bySource).length===0&&<p className="text-sm text-muted">Ödeme kaynağı bilgisi olan abonelik eklenince burada görünecek.</p>}</div></section>\n  <section className={kart+" space-y-3"}><h2 className="flex items-center gap-2 font-bold"><Repeat size={18} className="text-accent"/> Kayıtlı abonelikler</h2>
    {rows.length===0?<p className="text-sm text-muted">Henüz abonelik eklemedin.</p>:<div className="space-y-2">{rows.map(row=><div key={row.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-inner p-3"><div className="flex items-center gap-3"><span className="rounded-xl bg-accent/10 p-2 text-accent"><CalendarClock size={17}/></span><div><p className="font-semibold">{row.name}</p><p className="text-xs text-muted">Her ayın {row.due_day}. günü · Abonelik · {row.payment_source||"Ödeme kaynağı belirtilmedi"}</p></div></div><div className="flex items-center gap-3"><b>{tl(Number(row.amount))}/ay</b>{yazabilir&&<button onClick={()=>void remove(row)} className="text-muted hover:text-down" aria-label="Aboneliği sil"><Trash2 size={16}/></button>}</div></div>)}</div>}
   </section>
   {yazabilir&&<form onSubmit={add} className={kart+" grid gap-3 md:grid-cols-2"}>
