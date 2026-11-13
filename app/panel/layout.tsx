@@ -22,7 +22,7 @@ const MENU = [
   { href: "/panel/nakit-akisi", ad: "Nakit Akışı", icon: Activity },
   { href: "/panel/kategoriler", ad: "Kategoriler", icon: Tags },
   { href: "/panel/aile", ad: "Aile", icon: Users },
-  { href: "/panel/aile-analiz", ad: "Aile Finans Analizi", icon: UsersRound },
+  { href: "/panel/aile-analiz", ad: "Aile Finans Analizi", icon: Users },
   { href: "/panel/butce", ad: "Bütçe Tablosu", icon: Table2 },
   { href: "/panel/butce-limitleri", ad: "Kategori Bütçeleri", icon: Gauge },
   { href: "/panel/borclar", ad: "Borçlarım", icon: CreditCard },
