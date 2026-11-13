@@ -60,7 +60,7 @@ export default function ButceLimitleriPage(){
   if(!Number.isFinite(amount)||amount<=0){setError("Bütçe limiti sıfırdan büyük olmalı.");return;}
   setBusy(categoryId);
   const {error}=await supabase.from("family_category_budgets").upsert({family_id:aileId,category_id:categoryId,budget_month:firstDay(month),limit_amount:amount,created_by:kullaniciId},{onConflict:"family_id,category_id,budget_month"});
-  if(error)setError(error.message);else{setNotice("Kategori bütçesi kaydedildi.");await load();}
+  if(error)setError(error.message);else{await load();setNotice("Kategori bütçesi kaydedildi.");}
   setBusy("");
  }
 
@@ -68,7 +68,7 @@ export default function ButceLimitleriPage(){
   if(!window.confirm("Bu ay için kategori bütçe limiti silinsin mi?"))return;
   setBusy(categoryId);
   const {error}=await supabase.from("family_category_budgets").delete().eq("id",id).eq("family_id",aileId);
-  if(error)setError(error.message);else{setNotice("Bütçe limiti kaldırıldı.");await load();}
+  if(error)setError(error.message);else{await load();setNotice("Bütçe limiti kaldırıldı.");}
   setBusy("");
  }
 
