@@ -12,7 +12,7 @@ function hasValidSignature(bytes: Buffer, mimeType: string) {
 }
 
 export async function POST(request: Request) {
-  const token = request.headers.get("authorization")?.replace(/^Bearer\\s+/i, "");
+  const token = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
   if (!token || token.length > 4096) return NextResponse.json({ error: "Giriş yapman gerekiyor." }, { status: 401 });
 
   const contentLength = Number(request.headers.get("content-length") || 0);
@@ -63,12 +63,12 @@ export async function POST(request: Request) {
     const data = await response.json().catch(() => ({}));
     if (!response.ok) return NextResponse.json({ error: "Fiş okuma servisine şu anda ulaşılamıyor." }, { status: 502 });
     const raw = data?.choices?.[0]?.message?.content;
-    const clean = String(raw || "").replace(/^```json\\s*/i, "").replace(/\\s*```$/, "");
+    const clean = String(raw || "").replace(/^```json\s*/i, "").replace(/\s*```$/, "");
     const parsed: unknown = JSON.parse(clean);
     if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) throw new Error("Invalid receipt");
     const receipt = parsed as Record<string, unknown>;
     const total = Number(receipt.total);
-    const date = typeof receipt.date === "string" && /^\\d{4}-\\d{2}-\\d{2}$/.test(receipt.date) ? receipt.date : "";
+    const date = typeof receipt.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(receipt.date) ? receipt.date : "";
     const result = {
       merchant: typeof receipt.merchant === "string" ? receipt.merchant.slice(0, 160) : "",
       date,
