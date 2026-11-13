@@ -61,7 +61,7 @@ export default function OdemelerPage() {
     setPermission("Notification" in window ? Notification.permission : "unsupported");
   }, []);
 
-  const total = rows.reduce((sum, row) => sum + Number(row.amount), 0) + debts.reduce((sum, row) => sum + Number(row.monthly_payment), 0);
+  const total = rows.reduce((sum, row) => sum + Number(row.amount), 0) + debts.filter(row=>Number(row.remaining_amount)>0).reduce((sum, row) => sum + Number(row.monthly_payment), 0);
   const billEvents = rows.map(row => ({ title: row.name, detail: tl(Number(row.amount)), date: dateForDay(row.due_day), kind: "bill" as const }));
   const debtEvents = debts.filter(row => Number(row.monthly_payment) > 0 && Number(row.remaining_amount) > 0 && row.due_day).map(row => ({
     title: row.name + " taksiti", detail: tl(Number(row.monthly_payment)), date: dateForDay(Number(row.due_day)), kind: "debt" as const,
