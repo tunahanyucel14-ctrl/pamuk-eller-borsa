@@ -11,7 +11,7 @@ type Tx = { id:string; kind:"gelir"|"gider"|"transfer"; amount:number; tx_date:s
 type Category = { id:string; name:string; kind:string };
 type Income = { id:string; name:string; expected_amount:number; active:boolean };
 type Bill = { id:string; name:string; amount:number; active:boolean; category:string };
-type Debt = { id:string; name:string; remaining_amount:number; monthly_payment:number };
+type Debt = { id:string; name:string; remaining_amount:number; monthly_payment:number };\ntype Goal = { id:string; name:string; target_amount:number; current_amount:number; target_date:string|null };
 type Month = { key:string; label:string; income:number; expense:number };
 type CategorySpend = { id:string; name:string; amount:number; previous:number; change:number };
 
@@ -25,7 +25,7 @@ export default function FinansalZekaPage(){
  const [categories,setCategories]=useState<Category[]>([]);
  const [incomes,setIncomes]=useState<Income[]>([]);
  const [bills,setBills]=useState<Bill[]>([]);
- const [debts,setDebts]=useState<Debt[]>([]);
+ const [debts,setDebts]=useState<Debt[]>([]);\n const [goals,setGoals]=useState<Goal[]>([]);
  const [cash,setCash]=useState(0);
  const [foreignBalances,setForeignBalances]=useState<Record<string,number>>({});
  const [loading,setLoading]=useState(true);
@@ -42,7 +42,7 @@ export default function FinansalZekaPage(){
    const end=new Date(now.getFullYear(),now.getMonth(),1);
    const start=new Date(now.getFullYear(),now.getMonth()-6,1);
    const iso=(d:Date)=>d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
-   const [transactions,cats,incomeRows,billRows,debtRows,balances]=await Promise.all([
+   const [transactions,cats,incomeRows,billRows,debtRows,balances,goalRows]=await Promise.all([
     supabase.from("fin_transactions").select("id,kind,amount,tx_date,category_id,description,account_id").eq("family_id",aileId).in("kind",["gelir","gider"]).gte("tx_date",iso(start)).lt("tx_date",iso(end)).order("tx_date").limit(3000),
     supabase.from("categories").select("id,name,kind").eq("family_id",aileId),
     supabase.from("family_income_rules").select("id,name,expected_amount,active").eq("family_id",aileId),
@@ -51,7 +51,7 @@ export default function FinansalZekaPage(){
     supabase.from("account_balances").select("account_id,balance,currency").eq("family_id",aileId),
    ]);
    if(cancelled)return;
-   const failure=transactions.error||cats.error||incomeRows.error||billRows.error||debtRows.error||balances.error;
+   const failure=transactions.error||cats.error||incomeRows.error||billRows.error||debtRows.error||balances.error||goalRows.error;
    if(failure)setError(failure.message);
    const balanceRows=(balances.data||[]) as {account_id:string;balance:number;currency:string}[];
    const currencyByAccount=new Map(balanceRows.map(x=>[x.account_id,String(x.currency||"TRY").toUpperCase()]));
@@ -59,7 +59,7 @@ export default function FinansalZekaPage(){
    setCategories((cats.data||[]) as Category[]);
    setIncomes((incomeRows.data||[]) as Income[]);
    setBills((billRows.data||[]) as Bill[]);
-   setDebts((debtRows.data||[]) as Debt[]);
+   setDebts((debtRows.data||[]) as Debt[]);\n   setGoals((goalRows.data||[]) as Goal[]);
    setCash(balanceRows.filter(x=>String(x.currency||"TRY").toUpperCase()==="TRY").reduce((s,x)=>s+(Number(x.balance)||0),0));
    setForeignBalances(balanceRows.filter(x=>String(x.currency||"TRY").toUpperCase()!=="TRY").reduce<Record<string,number>>((acc,x)=>{const cur=String(x.currency||"TRY").toUpperCase();acc[cur]=(acc[cur]||0)+(Number(x.balance)||0);return acc;},{}));
    setLoading(false);
@@ -127,6 +127,26 @@ export default function FinansalZekaPage(){
   finally{setAiBusy(false);}
  }
 
+ const recommendations=useMemo(()=>{
+  const items:{priority:"Yüksek"|"Orta"|"Fırsat";title:string;detail:string;amount?:number;action:string}[]=[];
+  if(analysis.avgIncome>0&&analysis.avgSaving<0)items.push({priority:"Yüksek",title:"Aylık bütçede açık var",detail:"Son üç ay ortalamasında giderler gelirleri aşıyor. Önce zorunlu olmayan harcamaları azaltıp yeni borçlanmayı sınırlamayı değerlendir.",amount:Math.abs(analysis.avgSaving),action:"Bütçe ve nakit akışını incele"});
+  for(const c of analysis.categorySpends.filter(x=>x.previous>0&&x.change>=20&&x.amount>0).slice(0,2)){
+   items.push({priority:"Orta",title:c.name+" harcaması yükseliyor",detail:"Son üç aylık harcama önceki üç aya göre %"+c.change.toFixed(0)+" arttı. Son işlemleri gözden geçir; artışın tek seferlik mi kalıcı mı olduğunu kontrol et.",amount:c.amount/3,action:"Harcama kategorilerini incele"});
+  }
+  const subs=bills.filter(x=>x.category.toLocaleLowerCase("tr-TR").includes("abonelik"));
+  const subTotal=subs.reduce((sum,x)=>sum+Number(x.amount||0),0);
+  if(subTotal>0)items.push({priority:"Fırsat",title:"Abonelik giderlerini gözden geçir",detail:subs.length+" aktif abonelik kaydı bulunuyor. Kullanmadığın veya benzer hizmet sunduğu için birleştirebileceğin abonelikleri kendin değerlendir; otomatik iptal yapılmaz.",amount:subTotal,action:"Abonelikler sayfasını aç"});
+  for(const g of goals.filter(x=>Number(x.target_amount)>Number(x.current_amount))){
+   const remaining=Math.max(0,Number(g.target_amount)-Number(g.current_amount));
+   let monthly:number|undefined;
+   if(g.target_date){const end=new Date(g.target_date+"T00:00:00");const now=new Date();const months=Math.max(1,(end.getFullYear()-now.getFullYear())*12+end.getMonth()-now.getMonth());monthly=remaining/months;}
+   items.push({priority:"Fırsat",title:g.name+" hedefi için birikim planı",detail:monthly? "Hedef tarihine yetişmek için yaklaşık aylık katkı: "+money(monthly)+".":"Kalan tutarı ve aylık ayırabileceğin miktarı belirleyerek hedef tarihini netleştir.",amount:remaining,action:"Finansal hedeflere git"});
+  }
+  if(analysis.totalDebt>0&&analysis.debtPayments>0)items.push({priority:"Orta",title:"Borç ödeme yükünü takip et",detail:"Kayıtlı açık borç bakiyesi "+money(analysis.totalDebt)+", aylık taksit toplamı "+money(analysis.debtPayments)+". Faiz oranı ve erken kapama koşullarını karşılaştırmadan yeni ödeme kararı verme.",amount:analysis.debtPayments,action:"Borçlarını incele"});
+  if(!items.length)items.push({priority:"Fırsat",title:"Finansal verilerini zenginleştir",detail:"Daha isabetli öneriler için düzenli gelirleri, faturaları, abonelikleri ve günlük harcamaları eksiksiz kaydet.",action:"Kayıtlarını güncelle"});
+  const rank={Yüksek:0,Orta:1,Fırsat:2};
+  return items.sort((a,b)=>rank[a.priority]-rank[b.priority]).slice(0,7);
+ },[analysis,bills,goals]);
  const maxExpense=Math.max(1,...analysis.months.map(x=>x.expense));
  if(loading)return <div className={kart+" animate-pulse"}>Finansal alışkanlıkların analiz ediliyor…</div>;
  return <div className="space-y-6">
@@ -142,6 +162,7 @@ export default function FinansalZekaPage(){
   <section className={kart+" space-y-4"}><div className="flex items-center gap-2"><Activity className="text-accent" size={19}/><h2 className="font-bold">Aylık gelir – gider eğilimi</h2></div><div className="grid grid-cols-6 gap-2 items-end h-52">{analysis.months.map(m=><div key={m.key} className="flex h-full flex-col items-center justify-end gap-2"><div className="flex h-40 w-full items-end justify-center gap-1"><div title={"Gelir "+money(m.income)} className="w-1/3 rounded-t-md bg-up/70" style={{height:Math.max(2,m.income/Math.max(maxExpense,...analysis.months.map(x=>x.income),1)*100)+"%"}}/><div title={"Gider "+money(m.expense)} className="w-1/3 rounded-t-md bg-down/70" style={{height:Math.max(2,m.expense/Math.max(maxExpense,...analysis.months.map(x=>x.income),1)*100)+"%"}}/></div><span className="text-[10px] text-muted capitalize">{m.label}</span></div>)}</div><div className="flex gap-4 text-xs text-muted"><span className="flex items-center gap-2"><i className="h-2 w-2 rounded-full bg-up"/>Gelir</span><span className="flex items-center gap-2"><i className="h-2 w-2 rounded-full bg-down"/>Gider</span></div><div className="grid gap-3 sm:grid-cols-2"><div className="rounded-xl bg-inner p-3"><p className="text-xs text-muted">Gider değişimi · son 3 ay / önceki 3 ay</p><b className={"mt-1 text-lg "+((analysis.expenseChange||0)>0?"text-down":"text-up")}>{analysis.expenseChange===null?"Yetersiz veri":(analysis.expenseChange>0?"+":"")+analysis.expenseChange.toFixed(1)+"%"}</b></div><div className="rounded-xl bg-inner p-3"><p className="text-xs text-muted">Gelir değişimi · son 3 ay / önceki 3 ay</p><b className={"mt-1 text-lg "+((analysis.incomeChange||0)>=0?"text-up":"text-down")}>{analysis.incomeChange===null?"Yetersiz veri":(analysis.incomeChange>0?"+":"")+analysis.incomeChange.toFixed(1)+"%"}</b></div></div></section>
   <section className="grid gap-4 lg:grid-cols-2"><article className={kart+" space-y-3"}><h2 className="font-bold">Harcama kategorileri</h2>{analysis.categorySpends.length?analysis.categorySpends.slice(0,8).map(x=><div key={x.id}><div className="flex justify-between gap-2 text-sm"><span>{x.name}</span><b>{money(x.amount)}</b></div><div className="mt-1 h-2 overflow-hidden rounded-full bg-inner"><div className="h-full rounded-full bg-accent" style={{width:Math.max(2,x.amount/Math.max(1,analysis.categorySpends[0].amount)*100)+"%"}}/></div><p className={"mt-1 text-[10px] "+(x.change>10?"text-down":"text-muted")}>Önceki 3 aya göre {x.previous>0?(x.change>0?"+":"")+x.change.toFixed(0)+"%":"karşılaştırma verisi yok"}</p></div>):<p className="text-sm text-muted">Henüz gider kaydı bulunmuyor.</p>}</article>
    <article className={kart+" space-y-3"}><h2 className="font-bold">Tasarruf fırsatları</h2>{analysis.insights.map((item,i)=><div key={i} className="flex gap-3 rounded-xl bg-inner p-3"><Lightbulb size={17} className="mt-0.5 shrink-0 text-accent"/><p className="text-sm leading-6">{item}</p></div>)}</article></section>
+  <section className={kart+" space-y-4"}><div className="flex items-center gap-2"><Lightbulb className="text-accent" size={19}/><h2 className="font-bold">Akıllı finansal öneriler</h2></div><p className="text-xs text-muted">Kayıtlı gelir, gider, abonelik, borç ve hedeflerinden otomatik üretilir. Tutarlar tahmindir; hiçbir abonelik iptal edilmez ve ödeme yapılmaz.</p><div className="grid gap-3 md:grid-cols-2">{recommendations.map((item,i)=><article key={i} className="rounded-xl border border-line bg-inner p-4"><div className="flex items-center justify-between gap-2"><span className={"rounded-full px-2 py-1 text-[10px] font-bold "+(item.priority==="Yüksek"?"bg-down/10 text-down":item.priority==="Orta"?"bg-amber-500/10 text-amber-600":"bg-accent/10 text-accent")}>{item.priority} öncelik</span>{item.amount!==undefined&&<b className="text-sm">{money(item.amount)}</b>}</div><h3 className="mt-3 font-bold">{item.title}</h3><p className="mt-1 text-sm leading-6 text-muted">{item.detail}</p><p className="mt-3 text-xs font-semibold text-accent">{item.action} →</p></article>)}</div></section>
   <section className={kart+" space-y-3"}><div className="flex items-center gap-2"><BrainCircuit className="text-accent" size={19}/><h2 className="font-bold">Gelecek ay için bütçe sinyali</h2></div><div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4"><div className="rounded-xl bg-inner p-3"><p className="text-xs text-muted">Aylık gelir varsayımı</p><b>{money(analysis.monthlyIncome)}</b><p className="mt-1 text-[10px] text-muted">{analysis.incomeSource}</p></div><div className="rounded-xl bg-inner p-3"><p className="text-xs text-muted">Düzenli faturalar / abonelikler</p><b>{money(analysis.fixedBills)}</b></div><div className="rounded-xl bg-inner p-3"><p className="text-xs text-muted">Borç taksitleri</p><b>{money(analysis.debtPayments)}</b></div><div className="rounded-xl bg-inner p-3"><p className="text-xs text-muted">Değişken gider tahmini</p><b>{money(analysis.variableMonthly)}</b></div></div><div className={"rounded-xl p-4 "+(analysis.estimatedFree>=0?"bg-up/10":"bg-down/10")}><p className="text-xs text-muted">Tahmini serbest tutar · aylık</p><b className={"mt-1 block text-2xl "+(analysis.estimatedFree>=0?"text-up":"text-down")}>{money(analysis.estimatedFree)}</b><p className="mt-1 text-xs text-muted">Gelir varsayımı − son 3 ayın ortalama değişken gideri − kayıtlı düzenli ödemeler − açık borç taksitleri. Gelir planı yoksa geçmiş üç ay ortalaması kullanılır.</p></div><p className="text-xs leading-5 text-muted">Bu bir öngörüdür, kesin bakiye değildir. Gelir ve ödeme planlarının tam girilmiş olması gerekir. Değişken gider ortalaması geçmiş işlemlerden hesaplanır; kategorisi fatura, abonelik, kredi, borç, taksit veya sigorta olarak işaretlenenler dışarıda bırakılır. Geçmiş veride yanlış kategorilendirme varsa tahmin etkilenebilir.</p></section>
   {aiText&&<section className={kart+" space-y-3"}><div className="flex items-center gap-2"><Sparkles className="text-accent" size={19}/><h2 className="font-bold">Yapay zekâ finans koçun</h2></div><div className="whitespace-pre-wrap text-sm leading-7">{aiText}</div><p className="text-xs text-muted">Yapay zekâ önerileri eğitim ve planlama amaçlıdır; banka teyidi veya yatırım tavsiyesi değildir.</p></section>}
   {aiError&&<p role="alert" className="rounded-xl bg-down/10 p-3 text-sm text-down">{aiError}</p>}
