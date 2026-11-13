@@ -6,10 +6,15 @@ on:
   pull_request:
     branches: [main]
 
+concurrency:
+  group: quality-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   typecheck:
-    name: TypeScript ve proje kontrolü
+    name: TypeScript ve üretim derlemesi
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - name: Depoyu indir
         uses: actions/checkout@v4
@@ -17,9 +22,10 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: npm
       - name: Bağımlılıkları kur
         run: npm install
       - name: TypeScript kontrolü
-        run: npx tsc --noEmit
+        run: npm run typecheck
       - name: Üretim derlemesi
         run: npm run build
