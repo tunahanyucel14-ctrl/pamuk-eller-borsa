@@ -134,20 +134,20 @@ export default function AktarimPage(){
  },[aileId]);
  useEffect(()=>{void load();},[load]);
 
- async function imagesSelected(files?:FileList|null){
+ async function statementFilesSelected(files?:FileList|null){
   setError("");setMessage("");setResult(null);
   const selected=Array.from(files||[]);
   if(!selected.length)return;
   if(selected.length>5){setError("En fazla 5 ekstre ekran görüntüsü yükleyebilirsin.");return;}
-  if(selected.some(file=>file.size>6*1024*1024)){setError("Her görsel en fazla 6 MB olabilir.");return;}
-  if(selected.some(file=>!["image/jpeg","image/png","image/webp"].includes(file.type))){setError("JPG, PNG veya WEBP görselleri destekleniyor.");return;}
+  if(selected.some(file=>file.size>6*1024*1024)){setError("Her dosya en fazla 6 MB olabilir.");return;}
+  if(selected.some(file=>!["image/jpeg","image/png","image/webp","application/pdf"].includes(file.type))){setError("PDF, JPG, PNG veya WEBP dosyaları destekleniyor.");return;}\n  const pdfCount=selected.filter(file=>file.type==="application/pdf").length;\n  if(pdfCount>1||(pdfCount&&selected.length>1)){setError("PDF dosyasını tek başına seç. Birden fazla ekran görüntüsünü birlikte yükleyebilirsin.");return;}
   setOcrBusy(true);
   try{
    const {data:sessionData,error:sessionError}=await supabase.auth.getSession();
    if(sessionError||!sessionData.session?.access_token)throw new Error("Oturumun doğrulanamadı. Yeniden giriş yap.");
    const uploaded:{path:string;mimeType:string}[]=[];
    for(const file of selected){
-    const safeName=file.name.replace(/[^A-Za-z0-9._-]/g,"-").slice(-100)||"ekstre.png";
+    const safeName=file.name.replace(/[^A-Za-z0-9._-]/g,"-").slice(-100)||(file.type==="application/pdf"?"ekstre.pdf":"ekstre.png");
     const path=sessionData.session.user.id+"/"+Date.now()+"-"+crypto.randomUUID().slice(0,8)+"-"+safeName;
     const {error:uploadError}=await supabase.storage.from("receipts").upload(path,file,{contentType:file.type,upsert:false});
     if(uploadError)throw new Error("Görsel güvenli alana yüklenemedi: "+uploadError.message);
@@ -158,12 +158,12 @@ export default function AktarimPage(){
    if(!response.ok)throw new Error(data.error||"Görselden ekstre okunamadı.");
    const extracted=Array.isArray(data.rows)?data.rows as {date:string;description:string;amount:number;type:"gelir"|"gider"}[]:[];
    if(!extracted.length)throw new Error("Görsellerde aktarılabilir işlem bulunamadı.");
-   setFileName(selected.length+" görselden okunan banka ekstresi");
+   setFileName(selected.length===1?selected[0].name:selected.length+" görselden okunan banka ekstresi");
    setHeaders(["İşlem tarihi","Açıklama","Tutar","İşlem türü"]);
    setRows(extracted.map((r,i)=>({line:i+2,cells:[r.date,r.description,String(r.amount),r.type]})));
    setMapping({date:"0",description:"1",amount:"2",kind:"3"});
    setCategoryOverrides({});
-   setMessage(extracted.length+" işlem görsellerden okundu. Aktarmadan önce satırları kontrol et.");
+   setMessage(extracted.length+" işlem dosyadan okundu. Aktarmadan önce satırları kontrol et.");
   }catch(e){setError(e instanceof Error?e.message:"Görsel işlenirken hata oluştu.");}
   finally{setOcrBusy(false);}
  }
@@ -234,9 +234,9 @@ export default function AktarimPage(){
    <div className="flex items-center gap-3"><span className="rounded-xl bg-accent/10 p-3 text-accent"><FileUp size={22}/></span><div><h2 className="font-bold">1. Banka ekstresi dosyanı seç</h2><p className="text-xs text-muted">Maksimum 8 MB · En fazla 1000 işlem · CSV veya XLSX</p></div></div>
    <label className="flex cursor-pointer flex-col items-center gap-2 rounded-2xl border-2 border-dashed border-line bg-inner/60 p-8 text-center transition hover:border-accent"><FileSpreadsheet size={30} className="text-accent"/><b>{fileName||"CSV veya Excel dosyasını seçmek için tıkla"}</b><span className="text-xs text-muted">İşlem tarihi, açıklama ve tutar sütunları bulunmalı. Excel dosyalarında ilk sayfa okunur.</span><input type="file" accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" className="sr-only" onChange={e=>void fileSelected(e.target.files?.[0])}/></label>
    <div className="rounded-2xl border border-line bg-inner/50 p-4">
-    <div className="mb-3 flex items-center gap-3"><span className="rounded-xl bg-accent/10 p-2 text-accent"><FileImage size={20}/></span><div><h3 className="text-sm font-bold">Banka ekstresini fotoğraf / ekran görüntüsüyle aktar</h3><p className="text-xs text-muted">JPG, PNG veya WEBP · En fazla 5 görsel · Her biri 6 MB</p></div></div>
-    <label className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-accent/40 bg-card px-4 py-4 text-sm font-semibold transition hover:border-accent">{ocrBusy?"Görseller okunuyor…":"Ekstre görsellerini seç"} <FileImage size={17}/><input type="file" accept="image/jpeg,image/png,image/webp" multiple className="sr-only" disabled={ocrBusy||!yazabilir} onChange={e=>{void imagesSelected(e.target.files);e.currentTarget.value="";}}/></label>
-    <p className="mt-2 text-[11px] leading-5 text-muted">Yazma yetkin varsa yapay zekâ tarih, açıklama, tutar ve gelir/gider türünü çıkarmaya çalışır. Aktarım öncesinde tüm satırları kontrol et; bulanık veya kesilmiş satırlar atlanabilir.</p>
+    <div className="mb-3 flex items-center gap-3"><span className="rounded-xl bg-accent/10 p-2 text-accent"><FileImage size={20}/></span><div><h3 className="text-sm font-bold">Banka ekstresini PDF veya görselle aktar</h3><p className="text-xs text-muted">PDF tek dosya · JPG, PNG veya WEBP en fazla 5 görsel · Her dosya 6 MB</p></div></div>
+    <label className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-accent/40 bg-card px-4 py-4 text-sm font-semibold transition hover:border-accent">{ocrBusy?"Ekstre okunuyor…":"PDF veya görsel seç"} <FileImage size={17}/><input type="file" accept="application/pdf,image/jpeg,image/png,image/webp" multiple className="sr-only" disabled={ocrBusy||!yazabilir} onChange={e=>{void statementFilesSelected(e.target.files);e.currentTarget.value="";}}/></label>
+    <p className="mt-2 text-[11px] leading-5 text-muted">Yazma yetkin varsa yapay zekâ PDF metnini ve sayfa görüntülerini veya görselleri okuyarak tarih, açıklama, tutar ve gelir/gider türünü çıkarır. Aktarım öncesinde tüm satırları kontrol et; şifreli PDF ve bulanık görüntüler okunamayabilir.</p>
    </div>
    <div className="rounded-xl bg-accent/5 p-3 text-xs leading-5 text-muted"><ShieldCheck size={15} className="mr-1 inline text-accent"/> Dosya tarayıcıda okunur; sunucuya dosyanın tamamı yüklenmez. Yalnızca onayladığın işlem alanları hesabına kaydedilir. Önce küçük bir CSV ile deneme yapmanı öneririz.</div>
   </section>
@@ -254,6 +254,6 @@ export default function AktarimPage(){
    <button type="button" disabled={!canImport||busy||Boolean(result)} onClick={()=>void importRows()} className={dugme+" w-full"}>{busy?"İşlemler güvenli şekilde aktarılıyor…":result?"Aktarım tamamlandı":"Onayla ve "+ready.length+" işlemi aktar"} <ArrowRight size={16} className="ml-1 inline"/></button>
    {result&&<div className="rounded-xl border border-up/20 bg-up/5 p-4"><CheckCircle2 size={18} className="mr-2 inline text-up"/><b>Aktarım özeti</b><div className="mt-2 grid grid-cols-3 gap-2 text-center text-xs"><div><b className="block text-lg">{result.inserted}</b>Yeni kayıt</div><div><b className="block text-lg">{result.duplicates}</b>Mükerrer</div><div><b className="block text-lg">{result.checked}</b>Kontrol edilen</div></div><p className="mt-3 text-xs text-muted">Aynı dosyayı tekrar aktardığında aynı satırlar ikinci kez eklenmez. İşlemler sayfasında kayıtları kontrol edebilirsin.</p></div>}
   </section>}
-  <section className="rounded-2xl border border-line bg-inner/60 p-4"><h3 className="text-sm font-bold">Güvenli aktarım notları</h3><ul className="mt-2 list-disc space-y-1 pl-5 text-xs leading-5 text-muted"><li>CSV ve XLSX dosyaları ile JPG, PNG ve WEBP ekstre görselleri desteklenir. Excel dosyalarında ilk çalışma sayfası okunur; eski XLS ve PDF biçimi henüz desteklenmez.</li><li>Dosyadaki sütun eşleştirmesini aktarım öncesi kontrol et. Hatalı eşleştirme gelir ve giderleri ters kaydedebilir.</li><li>Yalnızca gelir ve gider aktarılır; transfer kayıtları otomatik aktarılmaz.</li><li>Mevcut işlemlerin silinmez veya değiştirilmez. Mükerrer kontrolü aynı hesap, tarih, tutar, açıklama ve satır sırasına dayanır.</li><li>Bu özellik banka bağlantısı değildir; hesap hareketlerini senin indirdiğin dosyadan içe aktarır.</li></ul></section>
+  <section className="rounded-2xl border border-line bg-inner/60 p-4"><h3 className="text-sm font-bold">Güvenli aktarım notları</h3><ul className="mt-2 list-disc space-y-1 pl-5 text-xs leading-5 text-muted"><li>CSV ve XLSX dosyaları, PDF banka ekstreleri ve JPG, PNG, WEBP görselleri desteklenir. PDF tek başına yüklenir; birden fazla görsel birlikte seçilebilir. Excel dosyalarında ilk çalışma sayfası okunur; eski XLS biçimi desteklenmez.</li><li>Dosyadaki sütun eşleştirmesini aktarım öncesi kontrol et. Hatalı eşleştirme gelir ve giderleri ters kaydedebilir.</li><li>Yalnızca gelir ve gider aktarılır; transfer kayıtları otomatik aktarılmaz.</li><li>Mevcut işlemlerin silinmez veya değiştirilmez. Mükerrer kontrolü aynı hesap, tarih, tutar, açıklama ve satır sırasına dayanır.</li><li>Bu özellik banka bağlantısı değildir; hesap hareketlerini senin indirdiğin dosyadan içe aktarır.</li></ul></section>
  </div>;
 }
