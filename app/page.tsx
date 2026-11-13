@@ -56,6 +56,7 @@ const THEMES = [
   { id: "altin", name: "Altın Lüks", colors: ["#0b0a08", "#fbbf24"] },
   { id: "mor", name: "Mor Neon", colors: ["#0d0a1a", "#a78bfa"] },
   { id: "gunisigi", name: "Gün Işığı", colors: ["#f3f6fb", "#059669"] },
+  { id: "retro", name: "Kaset Kulübü", colors: ["#f4ecd9", "#d95743"] },
 ];
 
 const MENU: { name: Tab; short: string; icon: LucideIcon }[] = [
