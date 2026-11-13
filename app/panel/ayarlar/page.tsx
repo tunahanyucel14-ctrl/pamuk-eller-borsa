@@ -92,7 +92,7 @@ export default function AyarlarSayfasi() {
     setSaved(true); window.setTimeout(() => setSaved(false), 1800);
   }
   function reset() {
-    applyTheme("retro"); applyFont("modern");
+    applyTheme("retro"); applyFont("modern");\n    setPhoto("none"); localStorage.setItem("pamuk-photo","none"); document.documentElement.setAttribute("data-photo","none");\n    setMotion("full"); localStorage.setItem("pamuk-motion","full"); document.documentElement.setAttribute("data-motion","full");\n    setDensity("comfortable"); localStorage.setItem("pamuk-density","comfortable"); document.documentElement.setAttribute("data-density","comfortable");
     const next = MENU_ITEMS.map((x) => x[1]);
     setOrder(next); localStorage.setItem(ORDER_KEY, JSON.stringify(next));
     window.dispatchEvent(new Event("pamuk-settings-changed"));
