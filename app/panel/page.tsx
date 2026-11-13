@@ -293,6 +293,10 @@ export default function GenelBakis() {
             </div>
           </section>
 
+          <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            {[["Borçlarım","/panel/borclar","Kredi ve kart borçlarını izle"],["Ödemeler","/panel/odemeler","Yaklaşan taksit ve faturalar"],["Hedefler","/panel/hedefler","Birikim hedeflerini takip et"],["Yatırımlar","/panel/yatirim","Varlık portföyünü yönet"],["Ekonomi","/panel/ekonomi","Piyasa göstergelerine bak"],["Gelecek Planı","/panel/gelecek","Gelir ve gider senaryoları"],["Finans Akademisi","/panel/akademi","Finansal okuryazarlık dersleri"],["Fiş Tara","/tarama","Fotoğraftan gider oluştur"]].map(([title,href,desc])=><a key={href} href={href} className={kart+" transition hover:-translate-y-0.5 hover:border-accent/50"}><p className="font-bold">{title} <span className="text-accent">↗</span></p><p className="mt-1 text-xs text-muted">{desc}</p></a>)}
+          </section>
+
           <section className="grid gap-4 xl:grid-cols-2">
             <div className={kart}>
               <div className="mb-4 flex items-center gap-2">
