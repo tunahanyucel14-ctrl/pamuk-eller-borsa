@@ -54,7 +54,9 @@ export async function POST(request: Request) {
 
   let financeContext = "Kullanıcının aile finans verilerine şu anda erişilemedi; rakam uydurma.";
   try {
-    const requestedFamilyId = typeof body.familyId === "string" && /^[0-9a-f-]{36}$/i.test(body.familyId) ? body.familyId : "";\n    const familyFilter = requestedFamilyId ? `&family_id=eq.${encodeURIComponent(requestedFamilyId)}` : "";\n    const memberships = await rest(`family_members?user_id=eq.${encodeURIComponent(user.id)}${familyFilter}&select=family_id&limit=1`);
+    const requestedFamilyId = typeof body.familyId === "string" && /^[0-9a-f-]{36}$/i.test(body.familyId) ? body.familyId : "";
+    const familyFilter = requestedFamilyId ? `&family_id=eq.${encodeURIComponent(requestedFamilyId)}` : "";
+    const memberships = await rest(`family_members?user_id=eq.${encodeURIComponent(user.id)}${familyFilter}&select=family_id&limit=1`);
     const familyId = (memberships[0] as { family_id?: string } | undefined)?.family_id;
     if (familyId) {
       const monthStart = new Date();
