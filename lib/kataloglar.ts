@@ -6,8 +6,8 @@ export const BANKALAR: { name: string; group: BankGroup }[] = [
   {name:"Birleşik Fon Bankası", group:"TMSF"},
 ];
 export const ABONELIKLER: { category: string; apps: string[] }[] = [
- {category:"Film, dizi ve TV",apps:["Netflix","Amazon Prime Video","Disney+","HBO Max","MUBI","Exxen","GAİN","TOD","S Sport Plus","TV+","Tivibu Go","D-Smart GO","Tabii Premium","Apple TV+","Crunchyroll","BluTV"]},
- {category:"Müzik ve ses",apps:["Spotify Premium","YouTube Music Premium","Apple Music","Deezer","Fizy","Muud","YouTube Premium","Storytel","Audible","Podimo"]},
+ {category:"Film, dizi ve TV",apps:["Netflix","Amazon Prime Video","Disney+","HBO Max","MUBI","Exxen","GAİN","TOD","beIN CONNECT","S Sport Plus","TV+","Tivibu Go","D-Smart GO","Tabii Premium","Apple TV+","Crunchyroll"]},
+ {category:"Müzik ve ses",apps:["Spotify Premium","YouTube Music Premium","Apple Music","Deezer","Fizy","Muud","YouTube Premium","Storytel","Audible","Kindle Unlimited","Podimo"]},
  {category:"Bulut, depolama ve üretkenlik",apps:["Google One","iCloud+","Microsoft 365","Dropbox","Adobe Creative Cloud","Canva Pro","Notion Plus","Evernote","1Password","NordVPN","ExpressVPN"]},
  {category:"Yapay zekâ ve yazılım",apps:["ChatGPT Plus","ChatGPT Pro","Claude Pro","Google AI Pro / Gemini","Perplexity Pro","Midjourney","GitHub Copilot","Cursor Pro","JetBrains AI","Grammarly Pro"]},
  {category:"Alışveriş ve teslimat",apps:["Amazon Prime","Trendyol Plus","Hepsiburada Premium","Migros Sanal Market üyeliği","Yemeksepeti Plus","Getir üyeliği","A101 Kapıda üyeliği"]},
