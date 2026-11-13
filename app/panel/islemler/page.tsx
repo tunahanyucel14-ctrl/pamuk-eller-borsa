@@ -37,28 +37,37 @@ export default function Islemler() {
 
   const yukle = useCallback(async () => {
     const { bas, sonraki } = ayAraligi(ay);
-    const [h, k, i] = await Promise.all([
-      supabase.from("account_balances").select("*").eq("family_id", aileId).order("name"),
-      supabase.from("categories").select("*").eq("family_id", aileId).order("name"),
-      supabase
-        .from("fin_transactions")
-        .select("*")
-        .eq("family_id", aileId)
-        .gte("tx_date", bas)
-        .lt("tx_date", sonraki)
-        .order("tx_date", { ascending: false })
-        .order("created_at", { ascending: false }),
-    ]);
-    const e = h.error || k.error || i.error;
-    if (e) {
-      setHata(e.message);
-      return;
+    try {
+      const [h, k] = await Promise.all([
+        supabase.from("account_balances").select("*").eq("family_id", aileId).order("name"),
+        supabase.from("categories").select("*").eq("family_id", aileId).order("name"),
+      ]);
+      if (h.error || k.error) throw h.error || k.error;
+      const ilkSayfa = await supabase
+        .from("fin_transactions").select("*").eq("family_id", aileId)
+        .gte("tx_date", bas).lt("tx_date", sonraki)
+        .order("tx_date", { ascending: false }).order("created_at", { ascending: false }).order("id", { ascending: false })
+        .range(0, 999);
+      if (ilkSayfa.error) throw ilkSayfa.error;
+      let rows = ilkSayfa.data ?? [];
+      for (let offset = 1000; rows.length % 1000 === 0 && rows.length > 0; offset += 1000) {
+        const page = await supabase.from("fin_transactions").select("*").eq("family_id", aileId)
+          .gte("tx_date", bas).lt("tx_date", sonraki)
+          .order("tx_date", { ascending: false }).order("created_at", { ascending: false }).order("id", { ascending: false })
+          .range(offset, offset + 999);
+        if (page.error) throw page.error;
+        rows = rows.concat(page.data ?? []);
+        if ((page.data ?? []).length < 1000) break;
+      }
+      const hs = (h.data ?? []) as Bakiye[];
+      setHesaplar(hs);
+      setKategoriler((k.data ?? []) as Kategori[]);
+      setIslemler((rows as Islem[]).map((x) => ({ ...x, amount: Number(x.amount) })));
+      setHesapId((onceki) => onceki || hs[0]?.account_id || "");
+      setHata("");
+    } catch (error) {
+      setHata(error instanceof Error ? error.message : "İşlem kayıtları yüklenemedi.");
     }
-    const hs = (h.data ?? []) as Bakiye[];
-    setHesaplar(hs);
-    setKategoriler((k.data ?? []) as Kategori[]);
-    setIslemler(((i.data ?? []) as Islem[]).map((x) => ({ ...x, amount: Number(x.amount) })));
-    setHesapId((onceki) => onceki || hs[0]?.account_id || "");
   }, [aileId, ay]);
 
   useEffect(() => {
