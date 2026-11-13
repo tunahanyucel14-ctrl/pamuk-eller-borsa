@@ -58,7 +58,7 @@ export async function POST(request: Request) {
   for (const item of files) {
     if (!item || typeof item !== "object") return NextResponse.json({ error: "Dosya bilgisi geçersiz." }, { status: 400 });
     const { path, mimeType } = item as { path?: unknown; mimeType?: unknown };
-    if (typeof path !== "string" || path.length > 320 || !path.startsWith(user.id + "/") || path.includes("..") || path.includes("\\\\") ||
+    if (typeof path !== "string" || path.length > 320 || !path.startsWith(user.id + "/") || path.includes("..") || path.includes("\\") ||
       !/^([0-9a-f-]{36})\/[0-9]{10,}-[A-Za-z0-9._-]{1,200}$/i.test(path) || !FILE_TYPES.includes(String(mimeType))) {
       return NextResponse.json({ error: "Dosya yolu veya biçimi geçersiz." }, { status: 400 });
     }
@@ -127,5 +127,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ rows });
   } catch {
     return NextResponse.json({ error: "Ekstre okunamadı. PDF'nin şifresiz ve en fazla 6 MB olduğundan emin olup tekrar dene." }, { status: 422 });
+  } finally {
+    await Promise.all(loaded.map(file => fetch(`${supabaseUrl}/storage/v1/object/receipts/${file.path.split("/").map(encodeURIComponent).join("/")}`, { method: "DELETE", headers: { apikey: supabaseKey, Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(8000) }).catch(() => null)));
   }
 }
