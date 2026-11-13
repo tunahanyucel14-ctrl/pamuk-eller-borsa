@@ -176,7 +176,7 @@ export default function AktarimPage(){
   if(file.size>8*1024*1024){setError("Dosya en fazla 8 MB olabilir.");return;}
   const isExcel=/\.xlsx$/i.test(file.name);
   const isCsv=/\.csv$/i.test(file.name)||["text/csv","text/plain"].includes(file.type);
-  if(!isExcel&&!isCsv){setError("CSV, Excel (.xlsx) veya banka ekstresi ekran görüntüsü kullanabilirsin. PDF dosyası henüz desteklenmiyor.");return;}
+  if(!isExcel&&!isCsv){setError("Bu alanda CSV veya Excel (.xlsx) dosyası kullan. PDF ve banka ekstresi görsellerini aşağıdaki ayrı alandan yükleyebilirsin.");return;}
   let parsed:string[][];
   try{parsed=isExcel?await parseExcel(file):parseCsv((await file.text()).replace(/^\uFEFF/,""));}
   catch{setError("Dosya okunamadı. Excel dosyasının bozuk olmadığını ve ilk sayfada sütun başlıkları bulunduğunu kontrol et.");return;}
@@ -211,8 +211,12 @@ export default function AktarimPage(){
   setBusy(true);
   try{
    const payload=[];
+   const occurrences=new Map<string,number>();
    for(const row of finalRows){
-    const material=[row.account_id,row.tx_date,row.kind,row.amount.toFixed(2),normalize(row.description),row.line].join("|");
+    const base=[row.account_id,row.tx_date,row.kind,row.amount.toFixed(2),normalize(row.description)].join("|");
+    const occurrence=(occurrences.get(base)||0)+1;
+    occurrences.set(base,occurrence);
+    const material=[base,occurrence].join("|");
     const digest=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(material));
     const fingerprint=Array.from(new Uint8Array(digest)).map(x=>x.toString(16).padStart(2,"0")).join("");
     payload.push({...row,fingerprint});
