@@ -58,7 +58,7 @@ export default function GirisSayfasi() {
       if (error) {
         setHata(hataCevir(error.message));
       } else {
-        router.push("/panel");
+        router.push("/");
       }
     }
     setYukleniyor(false);
