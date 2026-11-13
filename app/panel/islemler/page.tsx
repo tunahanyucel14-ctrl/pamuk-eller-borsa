@@ -98,25 +98,32 @@ export default function Islemler() {
         return;
       }
     }
+    if (bekle) return;
+    if (!tarih || !/^\\d{4}-\\d{2}-\\d{2}$/.test(tarih) || Number.isNaN(Date.parse(tarih + "T00:00:00"))) {
+      setHata("Geçerli bir işlem tarihi seç.");
+      return;
+    }
     setBekle(true);
-    const { error } = await supabase.from("fin_transactions").insert({
-      family_id: aileId,
-      account_id: hesapId,
-      to_account_id: tur === "transfer" ? hedefId : null,
-      category_id: tur === "transfer" ? null : kategoriId || null,
-      kind: tur,
-      amount: Math.round(t * 100) / 100,
-      description: aciklama.trim() || null,
-      tx_date: tarih,
-    });
-    if (error) {
-      setHata(error.message);
-    } else {
+    try {
+      const { error } = await supabase.from("fin_transactions").insert({
+        family_id: aileId,
+        account_id: hesapId,
+        to_account_id: tur === "transfer" ? hedefId : null,
+        category_id: tur === "transfer" ? null : kategoriId || null,
+        kind: tur,
+        amount: Math.round(t * 100) / 100,
+        description: aciklama.trim() || null,
+        tx_date: tarih,
+      });
+      if (error) throw error;
       setTutar("");
       setAciklama("");
       await yukle();
+    } catch (error) {
+      setHata(error instanceof Error ? error.message : "İşlem kaydedilemedi. Bağlantını kontrol edip tekrar dene.");
+    } finally {
+      setBekle(false);
     }
-    setBekle(false);
   }
 
   async function sil(islem: Islem) {
