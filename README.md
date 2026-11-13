@@ -24,6 +24,9 @@ npm run build
 ```
 Her GitHub push ve pull request işleminde `.github/workflows/quality.yml` TypeScript kontrolünü ve üretim derlemesini çalıştırır.
 
+## Vercel derleme sınırı
+`supabase/functions/**` altındaki dosyalar Deno tabanlı Supabase Edge Function kodudur; Next.js uygulamasının TypeScript derlemesine dahil edilmemelidir. Bu nedenle `tsconfig.json` içindeki `exclude` listesinde tutulur. Edge Function kodu Supabase/Deno araçlarıyla ayrı doğrulanır.
+
 ## Ortam değişkenleri
 Aşağıdaki değerleri Vercel veya yerel `.env.local` ortamında tanımla:
 - `NEXT_PUBLIC_SUPABASE_URL`
