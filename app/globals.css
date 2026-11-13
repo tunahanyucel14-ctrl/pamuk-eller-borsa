@@ -126,3 +126,128 @@ input[type="number"]::-webkit-outer-spin-button {
 input[type="number"] {
   -moz-appearance: textfield;
 }
+
+
+
+/* TEMA 6: Kaset Kulübü — sıcak analog retro, modern okunabilirlik */
+[data-theme="retro"] {
+  color-scheme: light;
+  --bg: #f4ecd9;
+  --side: #e9ddc5;
+  --card: #fff9ed;
+  --inner: #efe4d0;
+  --line: rgba(67, 48, 53, 0.17);
+  --fg: #302733;
+  --muted: #786c6c;
+  --accent: #d95743;
+  --accent-fg: #fff9ed;
+  --up: #287a63;
+  --down: #c34848;
+}
+
+html[data-theme="retro"] body {
+  font-family: "Trebuchet MS", "Segoe UI", sans-serif;
+  background-image:
+    radial-gradient(ellipse at 8% 4%, rgba(217, 87, 67, 0.11), transparent 32rem),
+    radial-gradient(ellipse at 92% 88%, rgba(42, 112, 105, 0.10), transparent 30rem);
+}
+
+html[data-theme="retro"] body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.22;
+  background-image:
+    repeating-linear-gradient(0deg, transparent 0 5px, rgba(73, 54, 49, 0.035) 5px 6px),
+    radial-gradient(rgba(73, 54, 49, 0.12) 0.55px, transparent 0.7px);
+  background-size: auto, 7px 7px;
+}
+
+html[data-theme="retro"] body > * {
+  position: relative;
+  z-index: 1;
+}
+
+html[data-theme="retro"] .rounded-2xl.border,
+html[data-theme="retro"] .rounded-xl.border {
+  border-color: rgba(67, 48, 53, 0.19);
+  box-shadow: 0 5px 0 rgba(67, 48, 53, 0.045), 0 12px 28px rgba(67, 48, 53, 0.055);
+}
+
+html[data-theme="retro"] button.bg-accent,
+html[data-theme="retro"] a.bg-accent {
+  box-shadow: 0 3px 0 #a83e32;
+}
+
+html[data-theme="retro"] button.bg-accent:hover,
+html[data-theme="retro"] a.bg-accent:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 0 #a83e32;
+}
+
+html[data-theme="retro"] ::selection {
+  color: #fff9ed;
+  background: #287a63;
+}
+
+/* Küçük kalite dokunuşları: mevcut tema ve renk sistemi korunur. */
+html {
+  scroll-behavior: smooth;
+  scrollbar-gutter: stable;
+}
+
+::selection {
+  color: var(--accent-fg);
+  background: var(--accent);
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+button,
+a,
+input,
+select {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button,
+a {
+  transition-property: color, background-color, border-color, opacity, box-shadow, transform;
+  transition-duration: 160ms;
+  transition-timing-function: ease;
+}
+
+button:not(:disabled):active {
+  transform: translateY(1px);
+}
+
+table {
+  border-collapse: collapse;
+}
+
+@media (max-width: 640px) {
+  table {
+    font-size: 0.8125rem;
+  }
+
+  th,
+  td {
+    padding-right: 0.5rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

@@ -1,11 +1,64 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import {
+  Activity,
+  ArrowDownLeft,
+  ArrowRight,
+  ArrowUpRight,
+  CalendarDays,
+  CircleDollarSign,
+  CreditCard,
+  PiggyBank,
+  ReceiptText,
+  TrendingDown,
+  TrendingUp,
+  Wallet,
+} from "lucide-react";
 import { supabase } from "../../lib/supabase";
 import { useAile } from "../../lib/aile-baglami";
 import { ayAraligi, bugunAy, tarihTR, tl } from "../../lib/finans";
 import type { Bakiye, Islem, Kategori } from "../../lib/tipler";
 import { kart, girdi, baslik } from "../../lib/ui";
+
+function StatCard({
+  title,
+  value,
+  note,
+  icon: Icon,
+  tone = "neutral",
+}: {
+  title: string;
+  value: string;
+  note: string;
+  icon: typeof Wallet;
+  tone?: "positive" | "negative" | "neutral";
+}) {
+  const toneClass =
+    tone === "positive"
+      ? "text-up bg-up/10"
+      : tone === "negative"
+        ? "text-down bg-down/10"
+        : "text-accent bg-accent/10";
+
+  return (
+    <article className={kart + " relative overflow-hidden"}>
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-sm font-medium text-muted">{title}</p>
+          <p className="mt-3 break-words text-xl font-black tracking-tight text-fg sm:text-2xl">
+            {value}
+          </p>
+          <p className="mt-2 text-xs text-muted">{note}</p>
+        </div>
+        <div className={"rounded-2xl p-3 " + toneClass}>
+          <Icon size={21} />
+        </div>
+      </div>
+      <div className="pointer-events-none absolute -bottom-8 -right-5 h-24 w-24 rounded-full bg-accent/5 blur-2xl" />
+    </article>
+  );
+}
 
 export default function GenelBakis() {
   const { aileId } = useAile();
@@ -20,6 +73,7 @@ export default function GenelBakis() {
     let iptal = false;
     async function yukle() {
       setYukleniyor(true);
+      setHata("");
       const { bas, sonraki } = ayAraligi(ay);
       const [b, i, k] = await Promise.all([
         supabase.from("account_balances").select("*").eq("family_id", aileId),
@@ -38,7 +92,6 @@ export default function GenelBakis() {
       if (h) {
         setHata(h.message);
       } else {
-        setHata("");
         setBakiyeler(
           ((b.data ?? []) as Bakiye[]).map((x) => ({
             ...x,
@@ -59,135 +112,261 @@ export default function GenelBakis() {
     };
   }, [aileId, ay]);
 
-  const gelir = islemler.filter((x) => x.kind === "gelir").reduce((t, x) => t + x.amount, 0);
-  const gider = islemler.filter((x) => x.kind === "gider").reduce((t, x) => t + x.amount, 0);
+  const gelir = islemler
+    .filter((x) => x.kind === "gelir")
+    .reduce((t, x) => t + x.amount, 0);
+  const gider = islemler
+    .filter((x) => x.kind === "gider")
+    .reduce((t, x) => t + x.amount, 0);
   const net = gelir - gider;
   const toplamVarlik = bakiyeler.reduce((t, x) => t + x.balance, 0);
+  const tasarrufOrani = gelir > 0 ? (net / gelir) * 100 : 0;
 
   const kategoriAdi = (id: string | null) =>
     kategoriler.find((k) => k.id === id)?.name ?? "Kategorisiz";
-  const hesapAdi = (id: string | null) => bakiyeler.find((h) => h.account_id === id)?.name ?? "-";
+  const hesapAdi = (id: string | null) =>
+    bakiyeler.find((h) => h.account_id === id)?.name ?? "-";
 
-  const giderDagilimi = Object.entries(
-    islemler
-      .filter((x) => x.kind === "gider")
-      .reduce<Record<string, number>>((acc, x) => {
-        const ad = kategoriAdi(x.category_id);
-        acc[ad] = (acc[ad] ?? 0) + x.amount;
-        return acc;
-      }, {})
-  ).sort((a, b) => b[1] - a[1]);
+  const giderDagilimi = useMemo(
+    () =>
+      Object.entries(
+        islemler
+          .filter((x) => x.kind === "gider")
+          .reduce<Record<string, number>>((acc, x) => {
+            const ad = kategoriAdi(x.category_id);
+            acc[ad] = (acc[ad] ?? 0) + x.amount;
+            return acc;
+          }, {})
+      ).sort((a, b) => b[1] - a[1]),
+    [islemler, kategoriler, bakiyeler]
+  );
+
+  const ayEtiketi = new Intl.DateTimeFormat("tr-TR", {
+    month: "long",
+    year: "numeric",
+  }).format(new Date(Number(ay.slice(0, 4)), Number(ay.slice(5, 7)) - 1, 1));
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className={baslik}>Genel Bakış</h1>
-        <input
-          type="month"
-          value={ay}
-          onChange={(e) => e.target.value && setAy(e.target.value)}
-          className={girdi + " !w-auto"}
-        />
-      </div>
-
-      {hata && <p className="text-sm text-down">{hata}</p>}
-      {yukleniyor && <p className="text-sm text-muted">Yükleniyor...</p>}
-
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        <div className={kart}>
-          <p className="text-xs text-muted">Toplam varlık</p>
-          <p className="mt-1 text-lg font-bold">{tl(toplamVarlik)}</p>
-        </div>
-        <div className={kart}>
-          <p className="text-xs text-muted">Aylık gelir</p>
-          <p className="mt-1 text-lg font-bold text-up">{tl(gelir)}</p>
-        </div>
-        <div className={kart}>
-          <p className="text-xs text-muted">Aylık gider</p>
-          <p className="mt-1 text-lg font-bold text-down">{tl(gider)}</p>
-        </div>
-        <div className={kart}>
-          <p className="text-xs text-muted">Net nakit akışı</p>
-          <p className={"mt-1 text-lg font-bold " + (net >= 0 ? "text-up" : "text-down")}>
-            {tl(net)}
+    <div className="flex flex-col gap-6">
+      <section className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+        <div>
+          <p className="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-[0.18em] text-accent">
+            <span className="h-2 w-2 rounded-full bg-accent" />
+            Finansal kontrol merkezi
+          </p>
+          <h1 className={baslik + " text-2xl sm:text-3xl"}>Genel Bakış</h1>
+          <p className="mt-1 text-sm text-muted">
+            Gelirini, harcamalarını ve toplam varlığını tek yerden takip et.
           </p>
         </div>
-      </div>
+        <label className="flex items-center gap-2 rounded-2xl border border-line bg-card px-3 py-2.5 shadow-sm">
+          <CalendarDays size={17} className="text-accent" />
+          <span className="sr-only">Rapor ayı</span>
+          <input
+            type="month"
+            value={ay}
+            onChange={(e) => e.target.value && setAy(e.target.value)}
+            className="w-auto border-0 bg-transparent text-sm font-semibold text-fg outline-none"
+          />
+        </label>
+      </section>
 
-      <div className="grid gap-4 md:grid-cols-2">
-        <div className={kart}>
-          <h2 className="mb-3 font-semibold">Hesap bakiyeleri</h2>
-          {bakiyeler.length === 0 && (
-            <p className="text-sm text-muted">Henüz hesap yok. Hesaplarım sayfasından ekle.</p>
-          )}
-          <div className="flex flex-col gap-2">
-            {bakiyeler.map((h) => (
-              <div key={h.account_id} className="flex justify-between rounded-xl bg-inner px-4 py-3">
-                <span>{h.name}</span>
-                <span className="font-semibold">{tl(h.balance)}</span>
-              </div>
-            ))}
-          </div>
+      {hata && (
+        <div role="alert" className="rounded-2xl border border-down/30 bg-down/5 px-4 py-3 text-sm text-down">
+          Veriler yüklenirken bir sorun oluştu: {hata}
         </div>
+      )}
 
-        <div className={kart}>
-          <h2 className="mb-3 font-semibold">Gider dağılımı</h2>
-          {giderDagilimi.length === 0 && (
-            <p className="text-sm text-muted">Bu ay gider kaydı yok.</p>
-          )}
-          <div className="flex flex-col gap-3">
-            {giderDagilimi.map(([ad, tutar]) => (
-              <div key={ad}>
-                <div className="mb-1 flex justify-between text-sm">
-                  <span>{ad}</span>
-                  <span className="text-muted">
-                    {tl(tutar)} · %{gider > 0 ? Math.round((tutar / gider) * 100) : 0}
-                  </span>
-                </div>
-                <div className="h-2 rounded-full bg-inner">
-                  <div
-                    className="h-2 rounded-full bg-accent"
-                    style={{ width: `${gider > 0 ? (tutar / gider) * 100 : 0}%` }}
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      <div className={kart}>
-        <h2 className="mb-3 font-semibold">Son işlemler</h2>
-        {islemler.length === 0 && (
-          <p className="text-sm text-muted">Bu ay işlem yok. İşlemler sayfasından ilkini ekle.</p>
-        )}
-        <div className="flex flex-col gap-2">
-          {islemler.slice(0, 8).map((x) => (
-            <div key={x.id} className="flex items-center justify-between rounded-xl bg-inner px-4 py-3">
-              <div>
-                <p className="text-sm font-medium">
-                  {x.description ||
-                    (x.kind === "transfer"
-                      ? `Transfer: ${hesapAdi(x.account_id)} → ${hesapAdi(x.to_account_id)}`
-                      : kategoriAdi(x.category_id))}
-                </p>
-                <p className="text-xs text-muted">
-                  {tarihTR(x.tx_date)} · {hesapAdi(x.account_id)}
-                </p>
-              </div>
-              <p
-                className={
-                  "font-semibold " +
-                  (x.kind === "gelir" ? "text-up" : x.kind === "gider" ? "text-down" : "text-muted")
-                }
-              >
-                {x.kind === "gelir" ? "+" : x.kind === "gider" ? "-" : ""}
-                {tl(x.amount)}
-              </p>
+      {yukleniyor ? (
+        <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+          {[0, 1, 2, 3].map((n) => (
+            <div key={n} className={kart + " h-32 animate-pulse"}>
+              <div className="h-3 w-24 rounded bg-inner" />
+              <div className="mt-5 h-7 w-32 rounded bg-inner" />
+              <div className="mt-3 h-3 w-20 rounded bg-inner" />
             </div>
           ))}
         </div>
-      </div>
+      ) : (
+        <>
+          <section className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+            <StatCard
+              title="Toplam varlık"
+              value={tl(toplamVarlik)}
+              note={`${bakiyeler.length} aktif hesap`}
+              icon={CircleDollarSign}
+            />
+            <StatCard
+              title="Aylık gelir"
+              value={tl(gelir)}
+              note={`${islemler.filter((x) => x.kind === "gelir").length} gelir kaydı`}
+              icon={ArrowDownLeft}
+              tone="positive"
+            />
+            <StatCard
+              title="Aylık gider"
+              value={tl(gider)}
+              note={`${islemler.filter((x) => x.kind === "gider").length} gider kaydı`}
+              icon={ArrowUpRight}
+              tone="negative"
+            />
+            <StatCard
+              title="Net nakit akışı"
+              value={tl(net)}
+              note={net >= 0 ? "Gelirin giderinden yüksek" : "Giderin gelirini aşmış"}
+              icon={Activity}
+              tone={net >= 0 ? "positive" : "negative"}
+            />
+          </section>
+
+          <section className="grid gap-4 xl:grid-cols-[1.15fr_0.85fr]">
+            <div className={kart}>
+              <div className="mb-5 flex items-center justify-between gap-3">
+                <div>
+                  <h2 className="font-bold text-fg">Aylık nakit akışı</h2>
+                  <p className="mt-1 text-xs text-muted">{ayEtiketi} özeti</p>
+                </div>
+                <span className="rounded-xl bg-accent/10 px-3 py-1.5 text-xs font-bold text-accent">
+                  {islemler.length} işlem
+                </span>
+              </div>
+              <div className="grid gap-5 sm:grid-cols-2">
+                <div className="rounded-2xl bg-inner/70 p-4">
+                  <div className="mb-3 flex items-center gap-2 text-sm text-muted">
+                    <TrendingUp size={16} className="text-up" /> Gelir
+                  </div>
+                  <p className="text-xl font-black text-up">{tl(gelir)}</p>
+                  <div className="mt-4 h-2 overflow-hidden rounded-full bg-line">
+                    <div className="h-full rounded-full bg-up" style={{ width: `${gelir + gider > 0 ? (gelir / (gelir + gider)) * 100 : 0}%` }} />
+                  </div>
+                </div>
+                <div className="rounded-2xl bg-inner/70 p-4">
+                  <div className="mb-3 flex items-center gap-2 text-sm text-muted">
+                    <TrendingDown size={16} className="text-down" /> Gider
+                  </div>
+                  <p className="text-xl font-black text-down">{tl(gider)}</p>
+                  <div className="mt-4 h-2 overflow-hidden rounded-full bg-line">
+                    <div className="h-full rounded-full bg-down" style={{ width: `${gelir + gider > 0 ? (gider / (gelir + gider)) * 100 : 0}%` }} />
+                  </div>
+                </div>
+              </div>
+              <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-line pt-4">
+                <div>
+                  <p className="text-xs text-muted">Bu ay elinde kalan</p>
+                  <p className={"mt-1 text-2xl font-black " + (net >= 0 ? "text-up" : "text-down")}>{tl(net)}</p>
+                </div>
+                <div className="rounded-xl bg-accent/10 px-3 py-2 text-right">
+                  <p className="text-[11px] text-muted">Tasarruf oranı</p>
+                  <p className="font-bold text-accent">{gelir > 0 ? `%${tasarrufOrani.toFixed(1)}` : "—"}</p>
+                </div>
+              </div>
+            </div>
+
+            <div className={kart}>
+              <div className="mb-4 flex items-center gap-2">
+                <Wallet size={18} className="text-accent" />
+                <h2 className="font-bold text-fg">Hesap bakiyeleri</h2>
+              </div>
+              {bakiyeler.length === 0 ? (
+                <div className="rounded-2xl border border-dashed border-line px-4 py-8 text-center">
+                  <CreditCard size={25} className="mx-auto mb-2 text-muted" />
+                  <p className="text-sm font-semibold">Henüz hesap eklenmemiş</p>
+                  <p className="mt-1 text-xs text-muted">Hesaplarım bölümünden ilk hesabını oluştur.</p>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  {bakiyeler.map((h) => (
+                    <div key={h.account_id} className="flex items-center justify-between gap-3 rounded-xl bg-inner/70 px-3 py-3">
+                      <div className="flex min-w-0 items-center gap-3">
+                        <span className="rounded-xl bg-accent/10 p-2 text-accent"><Wallet size={16} /></span>
+                        <span className="truncate text-sm font-medium">{h.name}</span>
+                      </div>
+                      <span className="shrink-0 text-sm font-bold">{tl(h.balance)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div className="mt-4 flex items-center justify-between border-t border-line pt-3 text-sm">
+                <span className="text-muted">Toplam bakiye</span>
+                <span className="font-black">{tl(toplamVarlik)}</span>
+              </div>
+            </div>
+          </section>
+
+          <section className="grid gap-4 xl:grid-cols-2">
+            <div className={kart}>
+              <div className="mb-4 flex items-center gap-2">
+                <PiggyBank size={18} className="text-accent" />
+                <h2 className="font-bold text-fg">Gider dağılımı</h2>
+              </div>
+              {giderDagilimi.length === 0 ? (
+                <p className="py-8 text-center text-sm text-muted">Bu ay henüz gider kaydı yok.</p>
+              ) : (
+                <div className="flex flex-col gap-4">
+                  {giderDagilimi.slice(0, 6).map(([ad, tutar]) => {
+                    const oran = gider > 0 ? (tutar / gider) * 100 : 0;
+                    return (
+                      <div key={ad}>
+                        <div className="mb-1.5 flex items-center justify-between gap-3 text-sm">
+                          <span className="truncate font-medium">{ad}</span>
+                          <span className="shrink-0 text-muted">{tl(tutar)} · %{oran.toFixed(0)}</span>
+                        </div>
+                        <div className="h-2 overflow-hidden rounded-full bg-inner">
+                          <div className="h-full rounded-full bg-accent" style={{ width: `${oran}%` }} />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+              {giderDagilimi.length > 6 && (
+                <p className="mt-3 text-xs text-muted">En yüksek 6 kategori gösteriliyor.</p>
+              )}
+            </div>
+
+            <div className={kart}>
+              <div className="mb-4 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <ReceiptText size={18} className="text-accent" />
+                  <h2 className="font-bold text-fg">Son işlemler</h2>
+                </div>
+                <span className="text-xs text-muted">En yeni 8 kayıt</span>
+              </div>
+              {islemler.length === 0 ? (
+                <div className="rounded-2xl border border-dashed border-line px-4 py-8 text-center">
+                  <ReceiptText size={25} className="mx-auto mb-2 text-muted" />
+                  <p className="text-sm font-semibold">Henüz işlem yok</p>
+                  <p className="mt-1 text-xs text-muted">İşlemler bölümünden gelir veya gider ekleyebilirsin.</p>
+                </div>
+              ) : (
+                <div className="flex flex-col">
+                  {islemler.slice(0, 8).map((x) => (
+                    <div key={x.id} className="flex items-center justify-between gap-3 border-b border-line/70 py-3 last:border-0">
+                      <div className="flex min-w-0 items-center gap-3">
+                        <span className={"rounded-xl p-2 " + (x.kind === "gelir" ? "bg-up/10 text-up" : x.kind === "gider" ? "bg-down/10 text-down" : "bg-accent/10 text-accent")}>
+                          {x.kind === "gelir" ? <ArrowDownLeft size={16} /> : x.kind === "gider" ? <ArrowUpRight size={16} /> : <ArrowRight size={16} />}
+                        </span>
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-semibold">
+                            {x.description ||
+                              (x.kind === "transfer"
+                                ? `Transfer: ${hesapAdi(x.account_id)} → ${hesapAdi(x.to_account_id)}`
+                                : kategoriAdi(x.category_id))}
+                          </p>
+                          <p className="mt-0.5 text-xs text-muted">{tarihTR(x.tx_date)} · {hesapAdi(x.account_id)}</p>
+                        </div>
+                      </div>
+                      <p className={"shrink-0 text-sm font-bold " + (x.kind === "gelir" ? "text-up" : x.kind === "gider" ? "text-down" : "text-muted")}>
+                        {x.kind === "gelir" ? "+" : x.kind === "gider" ? "−" : ""}{tl(x.amount)}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </section>
+        </>
+      )}
     </div>
   );
 }
