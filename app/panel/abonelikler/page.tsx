@@ -9,7 +9,7 @@ import { kart, girdi, dugme, etiket, baslik } from "../../../lib/ui";
 
 type Subscription = { id:string; name:string; amount:number; due_day:number; category:string; active:boolean };
 export default function AboneliklerPage(){
- const {aileId,yazabilir}=useAile();
+ const {aileId,kullaniciId,yazabilir}=useAile();
  const [rows,setRows]=useState<Subscription[]>([]);
  const [provider,setProvider]=useState("Netflix");
  const [custom,setCustom]=useState("");
@@ -29,7 +29,7 @@ export default function AboneliklerPage(){
   const parsed=Number(amount),due=Number(day),name=provider==="Diğer / listede yok"?custom.trim():provider;
   if(!name||!Number.isFinite(parsed)||parsed<=0||!Number.isInteger(due)||due<1||due>31){setError("Uygulama adı, aylık ücret ve 1–31 arasında ödeme günü gir.");return;}
   setBusy(true);
-  const {error}=await supabase.from("family_bills").insert({family_id:aileId,name,amount:parsed,due_day:due,category:"Abonelik",active:true});
+  const {error}=await supabase.from("family_bills").insert({family_id:aileId,created_by:kullaniciId,name,amount:parsed,due_day:due,category:"Abonelik",active:true});
   if(error)setError(error.message);else{setAmount("");setCustom("");await load();}
   setBusy(false);
  }
