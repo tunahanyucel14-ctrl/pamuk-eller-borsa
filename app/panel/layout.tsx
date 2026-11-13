@@ -21,7 +21,7 @@ const MENU = [
   { href: "/panel/gelirler", ad: "Gelir Planlama", icon: WalletCards },
   { href: "/panel/nakit-akisi", ad: "Nakit Akışı", icon: Activity },
   { href: "/panel/kategoriler", ad: "Kategoriler", icon: Tags },
-  { href: "/panel/aile", ad: "Aile", icon: Users },
+  { href: "/panel/aile", ad: "Aile", icon: Users },\n  { href: "/panel/aile-analiz", ad: "Aile Finans Analizi", icon: UsersRound },
   { href: "/panel/butce", ad: "Bütçe Tablosu", icon: Table2 },
   { href: "/panel/borclar", ad: "Borçlarım", icon: CreditCard },
   { href: "/panel/odemeler", ad: "Ödemeler", icon: Receipt },
