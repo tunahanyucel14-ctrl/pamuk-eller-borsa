@@ -127,6 +127,7 @@ export default function AktarimPage(){
  const [statementMeta,setStatementMeta]=useState<StatementMeta|null>(null);
  const [showAllPreview,setShowAllPreview]=useState(false);
  const [acknowledgeReconciliation,setAcknowledgeReconciliation]=useState(false);
+ const [allowAnonymousSample,setAllowAnonymousSample]=useState(false);
 
  const load=useCallback(async()=>{
   const [a,c]=await Promise.all([
@@ -262,7 +263,21 @@ export default function AktarimPage(){
   finally{setBusy(false);}
  }
 
- function reset(){setFileName("");setHeaders([]);setRows([]);setCategoryOverrides({});setResult(null);setStatementMeta(null);setShowAllPreview(false);setAcknowledgeReconciliation(false);setError("");setMessage("");}
+ function downloadAnonymousSample(){
+  if(!allowAnonymousSample||!finalRows.length)return;
+  const amountBand=(value:number)=>{const n=Math.abs(value);return n<100?"0-99":n<500?"100-499":n<1000?"500-999":n<5000?"1000-4999":n<10000?"5000-9999":n<50000?"10000-49999":"50000+";};
+  const sample=finalRows.slice(0,1000).map(row=>({
+   month:/^\\d{4}-(0[1-9]|1[0-2])-\\d{2}$/.test(row.tx_date)?row.tx_date.slice(5,7):"unknown",
+   kind:row.kind,
+   amount_band:amountBand(row.amount),
+   description_length:!row.description.trim()?"empty":row.description.length<=12?"1-12":row.description.length<=32?"13-32":row.description.length<=64?"33-64":"65+"
+  }));
+  const blob=new Blob([JSON.stringify({schema:"pamuk-eller-anon-test-v1",generatedAt:new Date().toISOString(),records:sample},null,2)],{type:"application/json"});
+  const url=URL.createObjectURL(blob);const anchor=document.createElement("a");anchor.href=url;anchor.download="pamuk-eller-anonim-ekstre-test.json";anchor.click();URL.revokeObjectURL(url);
+  setMessage("Anonim test örneği cihazında oluşturuldu. Sunucuya veya başka bir yere gönderilmedi.");
+ }
+
+ function reset(){setAllowAnonymousSample(false);setFileName("");setHeaders([]);setRows([]);setCategoryOverrides({});setResult(null);setStatementMeta(null);setShowAllPreview(false);setAcknowledgeReconciliation(false);setError("");setMessage("");}
  const setMap=(key:MapKey,value:string)=>setMapping(old=>({...old,[key]:value}));
  return <div className="mx-auto flex max-w-6xl flex-col gap-5">
   <header><p className="text-xs font-black uppercase tracking-[.2em] text-accent">Pamuk Eller · Veri aktarımı</p><h1 className={baslik}>Banka Ekstresi İçe Aktar</h1><p className="mt-2 max-w-3xl text-sm text-muted">Bankandan indirdiğin CSV ekstresini yükle. Sütunları kontrol et, işlemleri ön izle ve tek seferde hesabına aktar. Banka şifresi veya kart bilgisi istemiyoruz.</p></header>
@@ -294,6 +309,7 @@ export default function AktarimPage(){
      <div className="flex flex-wrap items-center justify-between gap-2"><div><p className="text-xs font-bold uppercase tracking-wide text-muted">Ekstre doğruluk merkezi</p><p className="mt-1 text-xs text-muted">Bu puan otomatik kontrollerin sonucudur; bankanın doğruladığı resmî bir doğruluk oranı değildir.</p></div><div className={"rounded-xl px-4 py-2 text-center "+(statementDiagnostics.score>=85?"bg-up/10 text-up":statementDiagnostics.score>=65?"bg-amber-500/10 text-amber-600":"bg-down/10 text-down")}><b className="block text-2xl">{statementDiagnostics.score}/100</b><span className="text-[10px] font-semibold uppercase">{statementDiagnostics.score>=85?"İyi":statementDiagnostics.score>=65?"Kontrol gerekli":"Düşük güven"}</span></div></div>
      <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4"><div className="rounded-lg bg-inner p-2"><b className="block text-lg">{ready.length}</b><span className="text-[11px] text-muted">Okunan işlem</span></div><div className="rounded-lg bg-inner p-2"><b className="block text-lg">{statementMeta.skippedRows}</b><span className="text-[11px] text-muted">Geçersiz satır</span></div><div className="rounded-lg bg-inner p-2"><b className="block text-lg">{statementDiagnostics.outsidePeriod}</b><span className="text-[11px] text-muted">Dönem dışı</span></div><div className="rounded-lg bg-inner p-2"><b className="block text-lg">{statementDiagnostics.repeatedRows}</b><span className="text-[11px] text-muted">Olası tekrar</span></div></div>
      {statementDiagnostics.warnings.length>0?<ul className="mt-3 space-y-1.5 text-xs text-amber-600">{statementDiagnostics.warnings.map((warning,i)=><li key={i}><AlertTriangle size={13} className="mr-1 inline"/> {warning}</li>)}</ul>:<p className="mt-3 text-xs font-medium text-up"><CheckCircle2 size={13} className="mr-1 inline"/> Temel tutarlılık kontrollerinde uyarı bulunmadı.</p>}
+     <div className="mt-4 rounded-lg border border-line p-3"><p className="text-sm font-semibold">Anonim test örneği oluştur</p><p className="mt-1 text-xs text-muted">Yalnızca ay, gelir/gider türü, geniş tutar aralığı ve açıklama uzunluğu dışa aktarılır. İşlem açıklaması, tam tarih, kesin tutar, banka ve hesap bilgisi eklenmez.</p><label className="mt-3 flex cursor-pointer items-start gap-2 text-xs"><input type="checkbox" checked={allowAnonymousSample} onChange={e=>setAllowAnonymousSample(e.target.checked)} className="mt-0.5"/> Bu verilerin anonim test dosyası olarak cihazıma indirilmesini onaylıyorum. Dosyayı paylaşmak benim tercihimdir.</label><button type="button" disabled={!allowAnonymousSample||!finalRows.length} onClick={downloadAnonymousSample} className={dugme+" mt-3 w-full sm:w-auto"}>Anonim test dosyasını oluştur</button><p className="mt-2 text-[11px] text-muted">Dosya yalnızca cihazında oluşturulur; otomatik olarak yüklenmez veya paylaşılmaz.</p></div>
     </div>}
     <div className="mt-3 grid gap-3 sm:grid-cols-2"><div className="rounded-lg bg-card p-3"><p className="text-xs text-muted">Okunan gelir / gider toplamı</p><p className="mt-1 text-sm font-bold text-up">{para(statementMeta.extractedIncome,statementMeta.currency||selectedAccount?.currency||"TRY")}</p><p className="text-sm font-bold text-down">{para(statementMeta.extractedExpense,statementMeta.currency||selectedAccount?.currency||"TRY")}</p></div><div className="rounded-lg bg-card p-3"><p className="text-xs text-muted">Ekstrede yazan toplam</p><p className="mt-1 text-sm font-bold text-up">{statementMeta.statementIncome===null?"Belirlenemedi":para(statementMeta.statementIncome,statementMeta.currency||"TRY")}</p><p className="text-sm font-bold text-down">{statementMeta.statementExpense===null?"Belirlenemedi":para(statementMeta.statementExpense,statementMeta.currency||"TRY")}</p></div></div>
     {statementMeta.skippedRows>0&&<p className="mt-3 text-xs text-amber-600"><AlertTriangle size={14} className="mr-1 inline"/> {statementMeta.skippedRows} satır doğrulamadan geçmedi ve aktarılmayacak.</p>}
