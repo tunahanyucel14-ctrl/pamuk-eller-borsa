@@ -151,6 +151,8 @@ export default function Hesaplar() {
             </select>
           </div>
           <div>
+            <label className={etiket}>Para birimi</label>
+            <select className={girdi} value={currency} onChange={(e)=>setCurrency(e.target.value)}><option value="TRY">TRY · Türk lirası</option><option value="USD">USD · ABD doları</option><option value="EUR">EUR · Euro</option><option value="GBP">GBP · İngiliz sterlini</option></select>
             <label className={etiket}>Açılış bakiyesi ({currency})</label>
             <input className={girdi} inputMode="decimal" value={acilis} onChange={(e) => setAcilis(e.target.value)} placeholder="0" />
           </div>
