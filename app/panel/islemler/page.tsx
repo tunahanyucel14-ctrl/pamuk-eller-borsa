@@ -277,8 +277,8 @@ export default function Islemler() {
                   {x.kind === "gelir" ? "+" : x.kind === "gider" ? "-" : ""}
                   {para(x.amount,hesapParaBirimi(x.account_id))}
                 </p>
+                {x.receipt_path && kullaniciId && x.receipt_path.startsWith(kullaniciId+"/") && <button type="button" onClick={async()=>{const tab=window.open("about:blank","_blank");const {data,error}=await supabase.storage.from("receipts").createSignedUrl(x.receipt_path!,120);if(error||!data?.signedUrl){tab?.close();setHata("Fiş görüntülenemedi: "+(error?.message||"Bağlantı oluşturulamadı."));return;}if(tab)tab.location.href=data.signedUrl;else setHata("Fiş bağlantısı açılamadı; tarayıcı açılır pencere iznini kontrol et.");}} title="Fiş fotoğrafını görüntüle" aria-label="Fiş fotoğrafını görüntüle" className="text-accent hover:opacity-70"><FileImage size={16}/></button>}
                 {yazabilir && (
-                  {x.receipt_path && kullaniciId && x.receipt_path.startsWith(kullaniciId+"/") && <button type="button" onClick={async()=>{const tab=window.open("about:blank","_blank");const {data,error}=await supabase.storage.from("receipts").createSignedUrl(x.receipt_path!,120);if(error||!data?.signedUrl){tab?.close();setHata("Fiş görüntülenemedi: "+(error?.message||"Bağlantı oluşturulamadı."));return;}if(tab)tab.location.href=data.signedUrl;else setHata("Fiş bağlantısı açılamadı; tarayıcı açılır pencere iznini kontrol et.");}} title="Fiş fotoğrafını görüntüle" aria-label="Fiş fotoğrafını görüntüle" className="text-accent hover:opacity-70"><FileImage size={16}/></button>}
                   <button onClick={() => sil(x)} className="text-xs text-muted hover:text-down">
                     Sil
                   </button>
