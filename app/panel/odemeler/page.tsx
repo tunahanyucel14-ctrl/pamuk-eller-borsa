@@ -37,6 +37,7 @@ export default function OdemelerPage() {
   const [settings, setSettings] = useState<ReminderSettings>({ salaryDay: "", leadDays: 3 });
   const [permission, setPermission] = useState<NotificationPermission | "unsupported">("default");
   const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [upcoming, setUpcoming] = useState<{ title: string; detail: string; date: Date; kind: "salary" | "bill" | "debt" }[]>([]);
 
   const load = useCallback(async () => {
@@ -113,18 +114,28 @@ export default function OdemelerPage() {
   }
 
   async function add(e: React.FormEvent) {
-    e.preventDefault(); setError("");
+    e.preventDefault();
+    if (saving) return;
+    setError("");
     const parsedAmount = Number(amount);
     const parsedDay = Number(day);
     if (!name.trim() || !Number.isFinite(parsedAmount) || parsedAmount <= 0 || !Number.isInteger(parsedDay) || parsedDay < 1 || parsedDay > 31) {
       setError("Ödeme adı, pozitif tutar ve 1–31 arasında geçerli bir gün gir.");
       return;
     }
-    const { error } = await supabase.from("family_bills").insert({
-      family_id: aileId, created_by: kullaniciId, name: name.trim(), amount: parsedAmount, due_day: parsedDay, category: category.trim() || "Diğer",
-    });
-    if (error) setError(error.message);
-    else { setName(""); setAmount(""); await load(); }
+    setSaving(true);
+    try {
+      const { error } = await supabase.from("family_bills").insert({
+        family_id: aileId, created_by: kullaniciId, name: name.trim(), amount: Math.round(parsedAmount * 100) / 100, due_day: parsedDay, category: category.trim() || "Diğer",
+      });
+      if (error) throw error;
+      setName(""); setAmount("");
+      await load();
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Ödeme kaydedilemedi. Bağlantını kontrol edip tekrar dene.");
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
