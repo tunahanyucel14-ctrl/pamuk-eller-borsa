@@ -92,7 +92,7 @@ async function parseExcel(file:File):Promise<string[][]>{
  const sheet=workbook.worksheets[0];
  if(!sheet)return [];
  const parsed:string[][]=[];
- sheet.eachRow({includeEmpty:false},row=>{
+ sheet.eachRow({includeEmpty:false},(row:any)=>{
   const cells:string[]=[];
   for(let i=1;i<=sheet.columnCount;i++){
    const cell=row.getCell(i);const value=cell.value;
