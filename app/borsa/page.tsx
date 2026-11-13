@@ -222,6 +222,7 @@ export default function Home() {
   const [arenaStatus, setArenaStatus] = useState<"loading" | "online" | "guest" | "offline">("loading");
   const [arenaError, setArenaError] = useState("");
   const [arenaAccountId, setArenaAccountId] = useState("");
+  const [arenaUserId, setArenaUserId] = useState("");
   const [arenaMyRank, setArenaMyRank] = useState(0);
   const [arenaBoard, setArenaBoard] = useState<Array<{ account_id: string; username: string; total_value: number }>>([]);
   const [arenaSeason, setArenaSeason] = useState<{ id: number; name: string; start_date: string; end_date: string } | null>(null);
@@ -259,10 +260,23 @@ export default function Home() {
       setArenaStatus("guest");
       setArenaError("");
       setArenaAccountId("");
+      setArenaUserId("");
       setArenaMyRank(0);
       setArenaBoard([]);
       setArenaSeason(null);
       return;
+    }
+    if (arenaUserId !== session.user.id) {
+      // Aynı tarayıcıdaki önceki hesaba ait oyun verileri yeni kullanıcıya gösterilmesin.
+      try {
+        window.localStorage.removeItem("pamuk-borsa-balance-v1");
+        window.localStorage.removeItem("pamuk-borsa-portfolio-v1");
+        window.localStorage.removeItem("pamuk-borsa-trade-count-v1");
+      } catch { /* Depolama kapalıysa devam et. */ }
+      setBalance(START_BALANCE);
+      setPortfolio({});
+      setTradeCount(0);
+      setArenaUserId(session.user.id);
     }
     const { data, error } = await supabase.functions.invoke("arena", { method: "GET" });
     if (error || !data) {
@@ -290,7 +304,7 @@ export default function Home() {
     setArenaSeason(data.season || null);
     setArenaError("");
     setArenaStatus("online");
-  }, [setBalance, setPortfolio, setTradeCount]);
+  }, [arenaUserId, setBalance, setPortfolio, setTradeCount]);
 
   useEffect(() => {
     if (!balanceReady || !portfolioReady || !tradeCountReady || stocks.length === 0) return;
