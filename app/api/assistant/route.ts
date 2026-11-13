@@ -5,7 +5,7 @@ export const runtime = "nodejs";
 type ChatLine = { role: "user" | "assistant"; content: string };
 
 export async function POST(request: Request) {
-  const token = request.headers.get("authorization")?.replace(/^Bearer\\s+/i, "");
+  const token = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "").trim();
   if (!token || token.length > 4096) return NextResponse.json({ error: "Giriş yapman gerekiyor." }, { status: 401 });
   const contentLength = Number(request.headers.get("content-length") || 0);
   if (contentLength > 24_000) return NextResponse.json({ error: "Mesaj çok uzun." }, { status: 413 });
@@ -41,13 +41,13 @@ export async function POST(request: Request) {
 
   const start = new Date();
   start.setMonth(start.getMonth() - 6, 1);
-  const startDate = start.toISOString().slice(0, 10);
+  const startDate = `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, "0")}-${String(start.getDate()).padStart(2, "0")}`;
   let financeContext = "Finans verisi bulunamadı; rakam uydurma.";
   try {
     const q = encodeURIComponent(familyId);
     const [transactions, accounts, debts, bills, incomes, investments, categories] = await Promise.all([
-      rest(`fin_transactions?family_id=eq.${q}&tx_date=gte.${startDate}&select=kind,amount,tx_date,category_id,description&order=tx_date.desc&limit=3000`),
-      rest(`account_balances?family_id=eq.${q}&select=balance`),
+      rest(`fin_transactions?family_id=eq.${q}&tx_date=gte.${startDate}&select=kind,amount,tx_date,category_id,description,account_id&order=tx_date.desc&limit=3000`),
+      rest(`account_balances?family_id=eq.${q}&select=account_id,balance,currency`),
       rest(`family_debts?family_id=eq.${q}&select=name,remaining_amount,monthly_payment,annual_interest_rate`),
       rest(`family_bills?family_id=eq.${q}&active=eq.true&select=name,amount,category`),
       rest(`family_income_rules?family_id=eq.${q}&active=eq.true&select=name,expected_amount`),
@@ -56,34 +56,38 @@ export async function POST(request: Request) {
     ]);
     const sum = (rows: Record<string, unknown>[], field: string) => rows.reduce((n, row) => n + (Number(row[field]) || 0), 0);
     const catNames = new Map(categories.map(c => [String(c.id), String(c.name)]));
-    const months = new Map<string, { income: number; expense: number }>();
+    const accountCurrency = new Map(accounts.map(a => [String(a.account_id), String(a.currency || "TRY").toUpperCase()]));
+    const months = new Map<string, { currency: string; income: number; expense: number }>();
     const categoryTotals = new Map<string, number>();
     for (const row of transactions) {
       const key = String(row.tx_date || "").slice(0, 7);
-      const month = months.get(key) || { income: 0, expense: 0 };
+      const currency = accountCurrency.get(String(row.account_id)) || "TRY";
+      const monthKey = `${currency}:${key}`;
+      const month = months.get(monthKey) || { currency, income: 0, expense: 0 };
       const amount = Number(row.amount) || 0;
       if (row.kind === "gelir") month.income += amount;
       if (row.kind === "gider") {
         month.expense += amount;
-        const category = catNames.get(String(row.category_id)) || "Kategorisiz";
+        const category = `${currency} · ${catNames.get(String(row.category_id)) || "Kategorisiz"}`;
         categoryTotals.set(category, (categoryTotals.get(category) || 0) + amount);
       }
-      months.set(key, month);
+      months.set(monthKey, month);
     }
     const monthSummary = Array.from(months.entries()).sort(([a], [b]) => a.localeCompare(b)).map(([month, v]) => ({ month, ...v, net: v.income - v.expense }));
-    const portfolio = investments.reduce((n, row) => n + (Number(row.quantity) || 0) * (Number(row.current_price) || 0), 0);
+    const balancesByCurrency = Object.entries(accounts.reduce<Record<string, number>>((acc, row) => { const currency = String(row.currency || "TRY").toUpperCase(); acc[currency] = (acc[currency] || 0) + (Number(row.balance) || 0); return acc; }, {}));
+    const investmentsByCurrency = Object.entries(investments.reduce<Record<string, number>>((acc, row) => { const currency = String(row.currency || "TRY").toUpperCase(); acc[currency] = (acc[currency] || 0) + (Number(row.quantity) || 0) * (Number(row.current_price) || 0); return acc; }, {}));
     financeContext = JSON.stringify({
-      currency: "TL (yatırım varlıklarında kayıtlı para birimi farklı olabilir; kur dönüşümü yapılmadı)",
+      currency: "Her tutar kendi hesap/varlık para biriminde; farklı para birimleri birbirine eklenmedi.",
       periodStart: startDate,
       monthlyTransactions: monthSummary,
       topExpenseCategories: Array.from(categoryTotals.entries()).map(([category, amount]) => ({ category, amount })).sort((a,b) => b.amount-a.amount).slice(0,8),
-      accountBalancesTotal: sum(accounts, "balance"),
+      accountBalancesByCurrency: balancesByCurrency.map(([currency, amount]) => ({ currency, amount })),
       debts: debts.map(d => ({ name: d.name, remaining: d.remaining_amount, monthlyPayment: d.monthly_payment, annualInterestRate: d.annual_interest_rate })),
       activeMonthlyBills: bills,
       plannedMonthlyIncome: incomes,
       investments: investments.map(i => ({ asset: i.asset_name, quantity: i.quantity, currentPrice: i.current_price, currency: i.currency })),
-      investmentValueWithoutCurrencyConversion: portfolio,
-      limitations: ["Yalnızca uygulamaya girilmiş kayıtlar dahil.", "Yatırım varlıkları farklı para birimindeyse toplam TL kabul edilemez.", "Gelir ve giderler eksik veya gecikmeli girilmiş olabilir."]
+      investmentValueByCurrency: investmentsByCurrency.map(([currency, amount]) => ({ currency, amount })),
+      limitations: ["Yalnızca uygulamaya girilmiş kayıtlar dahil.", "Farklı para birimleri birbirine eklenmemiştir; her toplam kendi para birimindedir.", "Gelir ve giderler eksik veya gecikmeli girilmiş olabilir."]
     });
   } catch {
     financeContext = "Finans verileri geçici olarak okunamadı. Rakam veya kişisel durum uydurma; kullanıcıdan daha sonra tekrar denemesini iste.";
