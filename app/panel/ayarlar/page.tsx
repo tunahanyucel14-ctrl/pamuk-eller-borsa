@@ -37,6 +37,7 @@ export default function AyarlarSayfasi() {
   const [font, setFont] = useState("modern");
   const [order, setOrder] = useState<string[]>(MENU_ITEMS.map((x) => x[1]));
   const [saved, setSaved] = useState(false);
+  const [dragged, setDragged] = useState<string | null>(null);
 
   useEffect(() => {
     setTheme(localStorage.getItem("pamuk-tema") || "retro");
@@ -57,6 +58,19 @@ export default function AyarlarSayfasi() {
     setFont(id); localStorage.setItem("pamuk-font", id);
     document.documentElement.setAttribute("data-font", id);
     setSaved(true); window.setTimeout(() => setSaved(false), 1800);
+  }
+  function persistOrder(next: string[]) {
+    setOrder(next); localStorage.setItem(ORDER_KEY, JSON.stringify(next));
+    window.dispatchEvent(new Event("pamuk-settings-changed"));
+    setSaved(true); window.setTimeout(() => setSaved(false), 1800);
+  }
+  function dropOn(targetHref: string) {
+    if (!dragged || dragged === targetHref) return;
+    const next = [...order];
+    const from = next.indexOf(dragged); const to = next.indexOf(targetHref);
+    if (from < 0 || to < 0) return;
+    next.splice(from, 1); next.splice(to, 0, dragged);
+    persistOrder(next); setDragged(null);
   }
   function move(index: number, direction: -1 | 1) {
     const next = [...order]; const target = index + direction;
@@ -104,9 +118,9 @@ export default function AyarlarSayfasi() {
     </section>
 
     <section className="rounded-3xl border border-line bg-card p-5 shadow-sm sm:p-7">
-      <div className="mb-5 flex flex-wrap items-center justify-between gap-3"><div className="flex items-center gap-3"><span className="rounded-2xl bg-accent/10 p-3 text-accent"><GripVertical size={21}/></span><div><h2 className="text-lg font-bold">Menü sıralaması</h2><p className="text-xs text-muted">Bölümlerin yerini yukarı/aşağı oklarıyla değiştir.</p></div></div><span className="rounded-full bg-inner px-3 py-1.5 text-[11px] font-semibold text-muted">Sadece bu cihazda saklanır</span></div>
+      <div className="mb-5 flex flex-wrap items-center justify-between gap-3"><div className="flex items-center gap-3"><span className="rounded-2xl bg-accent/10 p-3 text-accent"><GripVertical size={21}/></span><div><h2 className="text-lg font-bold">Menü sıralaması</h2><p className="text-xs text-muted">Sekmeleri tutup sürükleyerek istediğin yere bırak. Okları da kullanabilirsin.</p></div></div><span className="rounded-full bg-inner px-3 py-1.5 text-[11px] font-semibold text-muted">Sadece bu cihazda saklanır</span></div>
       <div className="grid gap-2 sm:grid-cols-2">
-        {order.map((href, index) => { const item = MENU_ITEMS.find((x) => x[1] === href); if (!item) return null; return <div key={href} className="flex items-center gap-3 rounded-xl border border-line bg-inner/60 p-3"><span className="w-6 text-center text-xs font-bold text-muted">{String(index + 1).padStart(2,"0")}</span><span className="min-w-0 flex-1 truncate text-sm font-semibold">{item[0]}</span><button onClick={() => move(index,-1)} disabled={index === 0} className="rounded-lg border border-line p-2 text-muted hover:text-accent disabled:opacity-25" aria-label={item[0] + " yukarı taşı"}><ArrowUp size={15}/></button><button onClick={() => move(index,1)} disabled={index === order.length-1} className="rounded-lg border border-line p-2 text-muted hover:text-accent disabled:opacity-25" aria-label={item[0] + " aşağı taşı"}><ArrowDown size={15}/></button></div>; })}
+        {order.map((href, index) => { const item = MENU_ITEMS.find((x) => x[1] === href); if (!item) return null; return <div key={href} draggable onDragStart={() => setDragged(href)} onDragEnd={() => setDragged(null)} onDragOver={(e) => e.preventDefault()} onDrop={() => dropOn(href)} className={"flex cursor-grab items-center gap-3 rounded-xl border bg-inner/60 p-3 transition " + (dragged === href ? "border-accent opacity-40" : "border-line hover:border-accent/50")}><GripVertical size={17} className="shrink-0 text-muted"/><span className="w-6 text-center text-xs font-bold text-muted">{String(index + 1).padStart(2,"0")}</span><span className="min-w-0 flex-1 truncate text-sm font-semibold">{item[0]}</span><button onClick={() => move(index,-1)} disabled={index === 0} className="rounded-lg border border-line p-2 text-muted hover:text-accent disabled:opacity-25" aria-label={item[0] + " yukarı taşı"}><ArrowUp size={15}/></button><button onClick={() => move(index,1)} disabled={index === order.length-1} className="rounded-lg border border-line p-2 text-muted hover:text-accent disabled:opacity-25" aria-label={item[0] + " aşağı taşı"}><ArrowDown size={15}/></button></div>; })}
       </div>
     </section>
 
