@@ -76,16 +76,6 @@ const SUBTITLES: Record<Tab, string> = {
   Başarımlar: "İşlem yaptıkça rozetleri topla.",
 };
 
-const initialStocks: Stock[] = [
-  { symbol: "THYAO", name: "Türk Hava Yolları", price: 312.4, change: 2.45 },
-  { symbol: "ASELS", name: "Aselsan", price: 186.7, change: 4.82 },
-  { symbol: "TUPRS", name: "Tüpraş", price: 198.3, change: -1.24 },
-  { symbol: "BIMAS", name: "BİM Mağazalar", price: 524.5, change: 1.65 },
-  { symbol: "AKBNK", name: "Akbank", price: 72.8, change: -0.85 },
-  { symbol: "EREGL", name: "Ereğli Demir Çelik", price: 28.64, change: 3.12 },
-  { symbol: "SISE", name: "Şişecam", price: 42.18, change: 0.92 },
-];
-
 const DEMO_PLAYERS = [
   { name: "Ayşe Y.", value: 127450 },
   { name: "Mehmet K.", value: 118900 },
@@ -248,7 +238,9 @@ function StockTable({
 
 export default function Home() {
   const [balance, setBalance] = usePersistentState("pamuk-borsa-balance-v1", START_BALANCE);
-  const [stocks, setStocks] = useState<Stock[]>(initialStocks);
+  const [stocks, setStocks] = useState<Stock[]>([]);
+  const [marketStamp, setMarketStamp] = useState(\"\");
+  const [marketError, setMarketError] = useState(\"\");
   const [portfolio, setPortfolio] = usePersistentState<Record<string, Holding>>("pamuk-borsa-portfolio-v1", {});
   const [tradeCount, setTradeCount] = usePersistentState("pamuk-borsa-trade-count-v1", 0);
   const [history, setHistory] = useState<number[]>([START_BALANCE]);
@@ -292,19 +284,26 @@ export default function Home() {
     setThemeOpen(false);
   }
 
-  /* DEMO: fiyatlar 4 saniyede bir çok küçük oynar */
+  /* Piyasa fiyatlarını sunucu tarafındaki Yahoo Finance beslemesinden al. */
   useEffect(() => {
-    const timer = setInterval(() => {
-      setStocks((prev) =>
-        prev.map((s) => {
-          const move = (Math.random() - 0.5) * 0.006;
-          const price = Math.max(0.01, Math.round(s.price * (1 + move) * 100) / 100);
-          const change = Math.round((s.change + move * 100) * 100) / 100;
-          return { ...s, price, change };
-        })
-      );
-    }, 4000);
-    return () => clearInterval(timer);
+    let cancelled = false;
+    async function loadMarket() {
+      try {
+        const response = await fetch("/api/stocks", { cache: "no-store" });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || "Hisse verileri alınamadı.");
+        if (!cancelled) {
+          setStocks(Array.isArray(data.stocks) ? data.stocks : []);
+          setMarketStamp(data.updatedAt || new Date().toISOString());
+          setMarketError("");
+        }
+      } catch (error) {
+        if (!cancelled) setMarketError(error instanceof Error ? error.message : "Piyasa verisi alınamadı.");
+      }
+    }
+    void loadMarket();
+    const timer = setInterval(loadMarket, 60000);
+    return () => { cancelled = true; clearInterval(timer); };
   }, []);
 
   /* Bildirim 3,5 saniye sonra kaybolsun */
@@ -501,7 +500,7 @@ export default function Home() {
                 <span className="rounded-md border border-accent/30 bg-accent/10 px-2 py-1 text-[10px] font-black tracking-wide text-accent">DEMO VERİ</span>
               </div>
               <h2 className="text-2xl font-black md:text-3xl">{activeTab}</h2>
-              <p className="mt-1 text-sm text-muted">{SUBTITLES[activeTab]}</p>
+              <p className="mt-1 text-sm text-muted">{SUBTITLES[activeTab]}</p>\n              {activeTab === "Piyasalar" && <p className="mt-2 text-xs text-muted">{marketError || (marketStamp ? "Kaynak: Yahoo Finance · Son güncelleme: " + new Date(marketStamp).toLocaleTimeString("tr-TR") + " · Fiyatlar gecikmeli olabilir." : "BIST verileri yükleniyor…")}</p>}
             </div>
 
             <div className="relative flex shrink-0 items-center gap-2">
