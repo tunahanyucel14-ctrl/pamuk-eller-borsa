@@ -381,21 +381,48 @@ export default function GenelBakis() {
                 </article>
               </div>
             )}
-            <div className="grid grid-cols-6 items-end gap-2 sm:gap-4">
-              {aylikTrend.map((item) => {
-                const max = Math.max(1, ...aylikTrend.flatMap((x) => [x.gelir, x.gider]));
-                const gelirYukseklik = Math.max(item.gelir > 0 ? 5 : 0, (item.gelir / max) * 100);
-                const giderYukseklik = Math.max(item.gider > 0 ? 5 : 0, (item.gider / max) * 100);
-                return <div key={item.ay} className="flex min-w-0 flex-col items-center gap-2">
-                  <div className="flex h-36 w-full items-end justify-center gap-1 rounded-xl bg-inner/60 px-1 pt-2">
-                    <div title={"Gelir: " + tl(item.gelir)} className="w-1/3 rounded-t-md bg-up transition-all" style={{ height: gelirYukseklik + "%" }}/>
-                    <div title={"Gider: " + tl(item.gider)} className="w-1/3 rounded-t-md bg-down transition-all" style={{ height: giderYukseklik + "%" }}/>
+            {(() => {
+              const maxValue = Math.max(1, ...aylikTrend.flatMap((x) => [x.gelir, x.gider]));
+              const xAt = (index: number) => 28 + (index * 664) / Math.max(1, aylikTrend.length - 1);
+              const yAt = (value: number) => 194 - (value / maxValue) * 158;
+              const incomePoints = aylikTrend.map((x, i) => `${xAt(i)},${yAt(x.gelir)}`).join(" ");
+              const expensePoints = aylikTrend.map((x, i) => `${xAt(i)},${yAt(x.gider)}`).join(" ");
+              const incomeArea = aylikTrend.length ? `M ${xAt(0)} 194 L ${aylikTrend.map((x, i) => `${xAt(i)} ${yAt(x.gelir)}`).join(" L ")} L ${xAt(aylikTrend.length - 1)} 194 Z` : "";
+              const expenseArea = aylikTrend.length ? `M ${xAt(0)} 194 L ${aylikTrend.map((x, i) => `${xAt(i)} ${yAt(x.gider)}`).join(" L ")} L ${xAt(aylikTrend.length - 1)} 194 Z` : "";
+              return (
+                <div className="overflow-hidden rounded-2xl border border-line bg-inner/35 p-3 sm:p-5">
+                  <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+                    <div><p className="text-sm font-bold">Gelir ve gider rotası</p><p className="mt-1 text-[11px] text-muted">Son altı ayın gerçek işlem kayıtları · TRY hesapları</p></div>
+                    <div className="flex gap-3 text-[11px] font-semibold"><span className="flex items-center gap-1.5 text-up"><i className="h-2 w-2 rounded-full bg-up"/> Gelir</span><span className="flex items-center gap-1.5 text-down"><i className="h-2 w-2 rounded-full bg-down"/> Gider</span></div>
                   </div>
-                  <span className="text-[10px] font-semibold capitalize text-muted sm:text-xs">{item.ay}</span>
-                </div>;
-              })}
-            </div>
-            <div className="mt-4 flex flex-wrap gap-4 text-xs text-muted"><span className="flex items-center gap-2"><i className="h-2.5 w-2.5 rounded-sm bg-up"/> Gelir</span><span className="flex items-center gap-2"><i className="h-2.5 w-2.5 rounded-sm bg-down"/> Gider</span></div>
+                  {aylikTrend.every((x) => x.gelir === 0 && x.gider === 0) ? (
+                    <div className="flex h-52 items-center justify-center rounded-xl border border-dashed border-line text-center text-sm text-muted">Grafiği oluşturmak için henüz yeterli işlem kaydı yok.</div>
+                  ) : (
+                    <>
+                      <svg viewBox="0 0 720 224" role="img" aria-label="Son altı ayın gelir ve gider çizgi grafiği" className="h-48 w-full overflow-visible sm:h-64">
+                        <defs>
+                          <linearGradient id="incomeFill" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stopColor="var(--up)" stopOpacity=".28"/><stop offset="100%" stopColor="var(--up)" stopOpacity="0"/></linearGradient>
+                          <linearGradient id="expenseFill" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stopColor="var(--down)" stopOpacity=".2"/><stop offset="100%" stopColor="var(--down)" stopOpacity="0"/></linearGradient>
+                        </defs>
+                        {[36, 88, 141, 194].map((y) => <line key={y} x1="18" x2="702" y1={y} y2={y} stroke="var(--line)" strokeDasharray="4 7" />)}
+                        <path d={incomeArea} fill="url(#incomeFill)"/>
+                        <path d={expenseArea} fill="url(#expenseFill)"/>
+                        <polyline points={incomePoints} fill="none" stroke="var(--up)" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"/>
+                        <polyline points={expensePoints} fill="none" stroke="var(--down)" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"/>
+                        {aylikTrend.map((item, i) => <g key={i}>
+                          <circle cx={xAt(i)} cy={yAt(item.gelir)} r="6" fill="var(--up)" stroke="var(--card)" strokeWidth="3"><title>{item.ay} gelir: {tl(item.gelir)}</title></circle>
+                          <circle cx={xAt(i)} cy={yAt(item.gider)} r="6" fill="var(--down)" stroke="var(--card)" strokeWidth="3"><title>{item.ay} gider: {tl(item.gider)}</title></circle>
+                        </g>)}
+                      </svg>
+                      <div className="grid grid-cols-6 gap-1">
+                        {aylikTrend.map((item, i) => <div key={i} className="min-w-0 text-center"><p className="truncate text-[10px] font-semibold capitalize text-muted sm:text-xs">{item.ay}</p><p className="mt-1 truncate text-[9px] text-up sm:text-[10px]">{tl(item.gelir)}</p><p className="truncate text-[9px] text-down sm:text-[10px]">{tl(item.gider)}</p></div>)}
+                      </div>
+                    </>
+                  )}
+                </div>
+              );
+            })()}
+            <p className="mt-3 text-[10px] text-muted">Noktaların üzerine gelerek ilgili ayın tutarını görebilirsin. Grafik, işlem kayıtlarından hesaplanır; örnek veri kullanılmaz.</p>
           </section>
 
           {yabanciBakiyeler.length>0&&<p role="status" className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-muted">Yabancı para hesapları TL toplamına katılmadı; kur dönüşümü yapılmıyor. {Object.entries(yabanciBakiyeler.reduce<Record<string,number>>((acc,x)=>{const cur=String(x.currency||"TRY").toUpperCase();acc[cur]=(acc[cur]||0)+x.balance;return acc;},{})).map(([cur,v])=>v.toLocaleString("tr-TR",{maximumFractionDigits:2})+" "+cur).join(" · ")}</p>}
