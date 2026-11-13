@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { Bot, Send, X, Sparkles } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Bot, Send, X, Sparkles, RotateCcw } from "lucide-react";
 import { supabase } from "../../lib/supabase";
 
 type ChatLine = { role: "user" | "assistant"; text: string };
@@ -10,6 +10,17 @@ export default function AssistantBubble() {
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+  }, [lines, busy, open]);
+
+  function resetChat() {
+    if (busy) return;
+    setLines([{ role: "assistant", text: "Merhaba! Ben Pamuk Eller finans asistanıyım. Bütçe, gelir-gider, tasarruf ve yatırım kavramlarında yardımcı olabilirim. Ne öğrenmek istersin?" }]);
+    setInput("");
+  }
   const [lines, setLines] = useState<ChatLine[]>([
     { role: "assistant", text: "Merhaba! Ben Pamuk Eller finans asistanıyım. Bütçe, gelir-gider, tasarruf ve yatırım kavramlarında yardımcı olabilirim. Ne öğrenmek istersin?" }
   ]);
@@ -48,14 +59,15 @@ export default function AssistantBubble() {
       {open && <section className="fixed bottom-20 right-4 z-50 flex h-[min(620px,75vh)] w-[min(390px,calc(100vw-2rem))] flex-col overflow-hidden rounded-2xl border border-line bg-card shadow-2xl">
         <header className="flex items-center justify-between bg-side px-4 py-3">
           <div className="flex items-center gap-2"><span className="rounded-xl bg-accent/15 p-2 text-accent"><Bot size={20}/></span><div><b className="text-sm">Pamuk Eller AI</b><p className="text-xs text-muted">Finans yol arkadaşın</p></div></div>
-          <button onClick={() => setOpen(false)} aria-label="Kapat" className="rounded-lg p-2 text-muted hover:bg-inner"><X size={18}/></button>
+          <div className="flex items-center gap-1"><button onClick={resetChat} disabled={busy} aria-label="Sohbeti temizle" title="Sohbeti temizle" className="rounded-lg p-2 text-muted hover:bg-inner disabled:opacity-40"><RotateCcw size={16}/></button><button onClick={() => setOpen(false)} aria-label="Kapat" className="rounded-lg p-2 text-muted hover:bg-inner"><X size={18}/></button></div>
         </header>
         <div className="flex-1 space-y-3 overflow-y-auto p-3">
           {lines.map((line, i) => <div key={i} className={`max-w-[88%] whitespace-pre-wrap rounded-2xl px-3 py-2 text-sm ${line.role === "user" ? "ml-auto bg-accent text-accent-fg" : "bg-inner text-fg"}`}>{line.text}</div>)}
-          {busy && <p className="text-xs text-muted">Asistan düşünüyor...</p>}
+          {busy && <p className="text-xs text-muted" role="status">Asistan düşünüyor...</p>}
+          <div ref={messagesEndRef} />
         </div>
         <form onSubmit={send} className="flex gap-2 border-t border-line p-3">
-          <input value={input} onChange={(e) => setInput(e.target.value)} placeholder="Bir şey sor..." className="min-w-0 flex-1 rounded-xl border border-line bg-inner px-3 py-2 text-sm text-fg outline-none" />
+          <input value={input} maxLength={1500} onChange={(e) => setInput(e.target.value)} placeholder="Bir şey sor..." aria-label="Finans asistanına mesaj" className="min-w-0 flex-1 rounded-xl border border-line bg-inner px-3 py-2 text-sm text-fg outline-none" />
           <button disabled={busy || !input.trim()} className="rounded-xl bg-accent p-3 text-accent-fg disabled:opacity-40" aria-label="Gönder"><Send size={17}/></button>
         </form>
       </section>}
