@@ -68,7 +68,9 @@ export async function POST(request: Request) {
     if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) throw new Error("Invalid receipt");
     const receipt = parsed as Record<string, unknown>;
     const total = Number(receipt.total);
-    const date = typeof receipt.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(receipt.date) ? receipt.date : "";
+    const dateCandidate = typeof receipt.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(receipt.date) ? receipt.date : "";
+    const parsedDate = dateCandidate ? new Date(dateCandidate + "T00:00:00Z") : null;
+    const date = parsedDate && Number.isFinite(parsedDate.getTime()) && parsedDate.toISOString().slice(0, 10) === dateCandidate ? dateCandidate : "";
     const result = {
       merchant: typeof receipt.merchant === "string" ? receipt.merchant.slice(0, 160) : "",
       date,
