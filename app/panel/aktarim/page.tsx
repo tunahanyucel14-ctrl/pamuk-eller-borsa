@@ -139,6 +139,19 @@ export default function AktarimPage(){
  },[aileId]);
  useEffect(()=>{void load();},[load]);
 
+ function statementMime(file:File):string{
+  const type=file.type.toLowerCase();
+  if(type==="application/pdf"||type==="application/x-pdf"||(type==="application/octet-stream"&&/\.pdf$/i.test(file.name)))return "application/pdf";
+  if(["image/jpeg","image/png","image/webp"].includes(type))return type;
+  if(!type){
+   if(/\.pdf$/i.test(file.name))return "application/pdf";
+   if(/\.jpe?g$/i.test(file.name))return "image/jpeg";
+   if(/\.png$/i.test(file.name))return "image/png";
+   if(/\.webp$/i.test(file.name))return "image/webp";
+  }
+  return "";
+ }
+
  async function statementFilesSelected(files?:FileList|null){
   setError("");setMessage("");setResult(null);setStatementMeta(null);setShowAllPreview(false);setAcknowledgeReconciliation(false);setFileName("");setHeaders([]);setRows([]);setCategoryOverrides({});
   const selected=Array.from(files||[]);
@@ -147,8 +160,8 @@ export default function AktarimPage(){
   if(selected.length>5){setError("En fazla 5 dosya yükleyebilirsin.");return;}
   if(selected.some(file=>file.size>6*1024*1024)){setError("Her dosya en fazla 6 MB olabilir.");return;}
   if(selected.reduce((total,file)=>total+file.size,0)>12*1024*1024){setError("Seçilen dosyaların toplamı en fazla 12 MB olabilir.");return;}
-  if(selected.some(file=>!["image/jpeg","image/png","image/webp","application/pdf"].includes(file.type))){setError("PDF, JPG, PNG veya WEBP dosyaları destekleniyor.");return;}
-  const pdfCount=selected.filter(file=>file.type==="application/pdf").length;
+  if(selected.some(file=>!statementMime(file))){setError("PDF, JPG, PNG veya WEBP dosyaları destekleniyor.");return;}
+  const pdfCount=selected.filter(file=>statementMime(file)==="application/pdf").length;
   if(pdfCount>1||(pdfCount&&selected.length>1)){setError("PDF dosyasını tek başına seç. Birden fazla ekran görüntüsünü birlikte yükleyebilirsin.");return;}
   setOcrBusy(true);
   const uploaded:{path:string;mimeType:string}[]=[];
@@ -158,9 +171,10 @@ export default function AktarimPage(){
    for(const file of selected){
     const safeName=file.name.replace(/[^A-Za-z0-9._-]/g,"-").slice(-100)||(file.type==="application/pdf"?"ekstre.pdf":"ekstre.png");
     const path=sessionData.session.user.id+"/"+Date.now()+"-"+crypto.randomUUID().slice(0,8)+"-"+safeName;
-    const {error:uploadError}=await supabase.storage.from("receipts").upload(path,file,{contentType:file.type,upsert:false});
+    const mimeType=statementMime(file);
+    const {error:uploadError}=await supabase.storage.from("receipts").upload(path,file,{contentType:mimeType,upsert:false});
     if(uploadError)throw new Error("Dosya güvenli alana yüklenemedi: "+uploadError.message);
-    uploaded.push({path,mimeType:file.type});
+    uploaded.push({path,mimeType});
    }
    const response=await fetch("/api/statement",{method:"POST",headers:{"Content-Type":"application/json",Authorization:"Bearer "+sessionData.session.access_token},body:JSON.stringify({files:uploaded})});
    const data=await response.json().catch(()=>({}));
