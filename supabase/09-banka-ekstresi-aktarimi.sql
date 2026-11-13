@@ -12,6 +12,7 @@ create table if not exists public.family_imported_transactions (
 );
 create index if not exists idx_family_imported_transactions_family_date on public.family_imported_transactions(family_id,imported_at desc);
 create index if not exists idx_family_imported_transactions_transaction on public.family_imported_transactions(transaction_id);
+create index if not exists idx_family_imported_transactions_imported_by on public.family_imported_transactions(imported_by);
 alter table public.family_imported_transactions enable row level security;
 grant select,insert,update on public.family_imported_transactions to authenticated;
 create policy imported_transactions_select on public.family_imported_transactions for select to authenticated using(private.is_family_member(family_id));
