@@ -65,7 +65,7 @@ export async function POST(request: Request) {
         rest(`account_balances?family_id=eq.${encodeURIComponent(familyId)}&select=balance`),
         rest(`family_debts?family_id=eq.${encodeURIComponent(familyId)}&select=remaining_amount,monthly_payment`),
       ]);
-      const sum = (items: unknown[], field: string) => items.reduce((total, item) => {
+      const sum = (items: unknown[], field: string) => items.reduce<number>((total, item) => {
         if (!item || typeof item !== "object") return total;
         const value = Number((item as Record<string, unknown>)[field]);
         return total + (Number.isFinite(value) ? value : 0);
