@@ -7,11 +7,13 @@ const root = path.join(__dirname, "..");
 const edge = fs.readFileSync(path.join(root, "supabase/functions/arena/index.ts"), "utf8");
 const migration = fs.readFileSync(path.join(root, "supabase/17-borsa-arenasi-online.sql"), "utf8");
 const page = fs.readFileSync(path.join(root, "app/borsa/page.tsx"), "utf8");
+const config = fs.readFileSync(path.join(root, "supabase/config.toml"), "utf8");
 
 test("Arena Edge Function validates signed-in users with Supabase server auth", () => {
   assert.match(edge, /withSupabase\(\{\s*auth:\s*"user"\s*\}/);
   assert.match(edge, /ctx\.userClaims/);
   assert.match(edge, /ctx\.supabaseAdmin/);
+  assert.match(config, /\[functions\.arena\]\s*verify_jwt\s*=\s*false/);
 });
 
 test("privileged database access is isolated inside the Edge Function", () => {
