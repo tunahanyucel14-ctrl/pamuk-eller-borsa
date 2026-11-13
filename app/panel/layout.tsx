@@ -22,6 +22,7 @@ const MENU = [
   { href: "/panel/hesaplar", ad: "Hesaplarım" },
   { href: "/panel/kategoriler", ad: "Kategoriler" },
   { href: "/panel/aile", ad: "Aile" },
+  { href: "/panel/butce", ad: "Bütçe Tablosu" },
   { href: "/tarama", ad: "Fiş Tara" },
 ];
 
