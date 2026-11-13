@@ -57,23 +57,30 @@ export default function Hesaplar() {
       setHata("Açılış bakiyesi geçerli bir sayı olmalı.");
       return;
     }
+    if (bekle) return;
+    if (!Number.isFinite(tutar)) {
+      setHata("Açılış bakiyesi geçerli bir sayı olmalı.");
+      return;
+    }
     setBekle(true);
-    const { error } = await supabase.from("accounts").insert({
-      family_id: aileId,
-      name: tur === "banka" ? banka + " · " + ad.trim() : ad.trim(),
-      type: tur,
-      currency,
-      opening_balance: tutar,
-    });
-    if (error) {
-      setHata(error.message);
-    } else {
+    try {
+      const { error } = await supabase.from("accounts").insert({
+        family_id: aileId,
+        name: tur === "banka" ? banka + " · " + ad.trim() : ad.trim(),
+        type: tur,
+        currency,
+        opening_balance: tutar,
+      });
+      if (error) throw error;
       setAd("");
       setAcilis("");
       setCurrency("TRY");
       await yukle();
+    } catch (error) {
+      setHata(error instanceof Error ? error.message : "Hesap eklenemedi. Bağlantını kontrol edip tekrar dene.");
+    } finally {
+      setBekle(false);
     }
-    setBekle(false);
   }
 
   async function sil(id: string, isim: string) {
