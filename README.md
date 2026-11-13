@@ -14,14 +14,14 @@ Türkiye'deki bireyler ve aileler için gelir-gider, hesap, borç, abonelik, yat
 ```bash
 npm install
 npm run dev
-``
+```
 Tarayıcıda http://localhost:3000 adresini aç.
 
 ## Kalite kontrolü
 ```bash
 npm run typecheck
 npm run build
-``
+```
 Her GitHub push ve pull request işleminde `.github/workflows/quality.yml` TypeScript kontrolünü ve üretim derlemesini çalıştırır.
 
 ## Ortam değişkenleri
@@ -34,6 +34,19 @@ Supabase anahtarları yalnızca public/publishable türünde olmalıdır. Servic
 
 ## Veritabanı
 SQL dosyaları `supabase/` altında sıralıdır. Şema değişikliklerini mümkün olduğunda Supabase migration sistemiyle uygula ve canlı veritabanında doğrula. Mevcut finans kayıtlarını silen veya yeniden oluşturan komutları kullanıcı onayı olmadan çalıştırma.
+
+## Para birimi ve hesap doğruluğu
+- Banka hesapları TRY, USD, EUR veya GBP olarak açılabilir; yatırım varlıkları TRY, USD, EUR, GBP veya USDT cinsinden tutulabilir.
+- İşlemler seçilen hesabın para biriminde kaydedilir. Farklı para birimlerindeki hesaplar arasında doğrudan transfer veritabanı tarafından engellenir.
+- TL bütçe, nakit akışı ve aile analizleri yalnızca TRY kayıtlarını toplar. Döviz ve yabancı yatırım tutarları ayrı gösterilir; kur dönüşümü olmadan farklı para birimleri toplanmaz.
+- Borç, düzenli gelir ve fatura planları ilk sürümde TL bazlıdır.
+
+## Güvenli dosya aktarımı
+- Banka ekstresi dosyaları tarayıcıda okunur; yalnızca kullanıcı onayından sonra doğrulanmış işlem satırları Supabase'e gönderilir.
+- Fiş görselleri özel Supabase Storage alanına doğrudan yüklenir; Vercel API'ye yalnızca dosya yolu gönderilir. API kullanıcı oturumunu, dosya sahipliğini, MIME türünü ve gerçek dosya imzasını doğrular.
+- Fiş dosyası yolu işlem kaydına bağlanır. Fişi yükleyen kullanıcı, İşlemler ekranından süreli özel bağlantıyla görüntüleyebilir.
+- Bir işlem silindiğinde ilişkili banka ekstresi mükerrer kayıt izi de atomik olarak silinir; aynı ekstre yeniden içe aktarılabilir.
+- Toplu finans temizliği tek bir veritabanı işlemiyle yürütülür; hesap kayıtları korunur ve açılış bakiyeleri sıfırlanır. Fiş görselleri özel arşivde korunur.
 
 ## Ürün güvenliği ve doğruluk ilkeleri
 - Aile verileri Supabase RLS ile korunur; istemci tarafındaki rol kontrolü tek başına güvenlik sınırı değildir.
