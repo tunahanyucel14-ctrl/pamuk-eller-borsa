@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { CalendarDays, TrendingDown, TrendingUp, Wallet, AlertTriangle } from "lucide-react";
+import { CalendarDays, TrendingDown, TrendingUp, AlertTriangle } from "lucide-react";
 import { supabase } from "../../../lib/supabase";
 import { useAile } from "../../../lib/aile-baglami";
 import { tl } from "../../../lib/finans";
