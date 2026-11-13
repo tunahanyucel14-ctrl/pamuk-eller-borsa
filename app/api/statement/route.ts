@@ -205,6 +205,7 @@ export async function POST(request: Request) {
       statementIncome: parsed.statement.statement_income,
       statementExpense: parsed.statement.statement_expense,
       skippedRows: parsed.skippedRows,
+      atLimit: parsed.statement.rows.length >= 1000,
       extractedIncome: Math.round(parsed.statement.rows.filter(row => row.type === "gelir").reduce((sum, row) => sum + row.amount, 0) * 100) / 100,
       extractedExpense: Math.round(parsed.statement.rows.filter(row => row.type === "gider").reduce((sum, row) => sum + row.amount, 0) * 100) / 100
     } });
