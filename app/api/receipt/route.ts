@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-export const maxDuration = 45;
+export const maxDuration = 55;
 
 export const runtime = "nodejs";
 
@@ -17,7 +17,7 @@ export async function POST(request: Request) {
   if (!token || token.length > 4096) return NextResponse.json({ error: "Giriş yapman gerekiyor." }, { status: 401 });
 
   const contentLength = Number(request.headers.get("content-length") || 0);
-  if (contentLength > 8_500_000) return NextResponse.json({ error: "Fotoğraf en fazla 6 MB olabilir." }, { status: 413 });
+  if (contentLength > 32_000) return NextResponse.json({ error: "İstek çok büyük veya geçersiz." }, { status: 413 });
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://tdwoqankjznioxnupsvn.supabase.co";
   const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "sb_publishable_wFIqSF7Jg2pW2Wu_n_od9g_DrHCTtRj";
@@ -27,19 +27,34 @@ export async function POST(request: Request) {
     signal: AbortSignal.timeout(8000),
   }).catch(() => null);
   if (!auth?.ok) return NextResponse.json({ error: "Oturum doğrulanamadı." }, { status: 401 });
+  const user = await auth.json().catch(() => null) as { id?: string } | null;
+  if (!user?.id) return NextResponse.json({ error: "Kullanıcı doğrulanamadı." }, { status: 401 });
 
   const payload = await request.json().catch(() => null);
   if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
     return NextResponse.json({ error: "İstek gövdesi geçersiz." }, { status: 400 });
   }
-  const { image, mimeType } = payload as { image?: unknown; mimeType?: unknown };
-  if (typeof image !== "string" || image.length === 0 || image.length > 8_500_000 ||
-      !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(image) ||
+  const { path, mimeType } = payload as { path?: unknown; mimeType?: unknown };
+  if (typeof path !== "string" || path.length > 320 ||
+      !path.startsWith(user.id + "/") || path.includes("..") || path.includes("\\\\") ||
+      !/^([0-9a-f-]{36})\\/[0-9]{10,}-[A-Za-z0-9._-]{1,200}$/i.test(path) ||
       !["image/jpeg", "image/png", "image/webp"].includes(String(mimeType))) {
-    return NextResponse.json({ error: "JPG, PNG veya WEBP biçiminde en fazla 6 MB fotoğraf yükle." }, { status: 400 });
+    return NextResponse.json({ error: "Fiş dosyası yolu veya biçimi geçersiz." }, { status: 400 });
   }
-  const bytes = Buffer.from(image, "base64");
-  if (bytes.length === 0 || bytes.length > MAX_IMAGE_BYTES || !hasValidSignature(bytes, String(mimeType))) {
+
+  // Fotoğraf önce özel Supabase Storage alanına doğrudan yüklenir.
+  // Böylece Vercel Functions'ın 4.5 MB istek gövdesi sınırına takılmaz.
+  const encodedPath = path.split("/").map(encodeURIComponent).join("/");
+  const stored = await fetch(`${supabaseUrl}/storage/v1/object/authenticated/receipts/${encodedPath}`, {
+    headers: { apikey: supabaseKey, Authorization: `Bearer ${token}` },
+    cache: "no-store",
+    signal: AbortSignal.timeout(10000),
+  }).catch(() => null);
+  if (!stored?.ok) return NextResponse.json({ error: "Fiş dosyasına güvenli depolama alanından ulaşılamadı." }, { status: 400 });
+  const storedMime = (stored.headers.get("content-type") || "").split(";")[0].trim().toLowerCase();
+  if (storedMime !== mimeType) return NextResponse.json({ error: "Dosya biçimi doğrulanamadı." }, { status: 400 });
+  const bytes = Buffer.from(await stored.arrayBuffer());
+  if (bytes.length === 0 || bytes.length > MAX_IMAGE_BYTES || !hasValidSignature(bytes, storedMime)) {
     return NextResponse.json({ error: "Fotoğrafın içeriği veya dosya biçimi geçersiz." }, { status: 400 });
   }
 
