@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { ArrowDown, ArrowUp, Check, GripVertical, Palette, RotateCcw, Type } from "lucide-react";
 
 const THEMES = [
-  { id: "retro", name: "Kaset Kulübü", desc: "Sıcak, nostaljik ve karakterli", colors: ["#f4ecd9", "#fff9ed", "#d95743"], tag: "İmza tema" },
+  { id: "retro", name: "Kaset Kulübü", desc: "Analog sıcaklık, kâğıt dokusu ve canlı kiremit", colors: ["#f4ecd9", "#fff9ed", "#d95743"], tag: "İmza tema" },
   { id: "zumrut", name: "Zümrüt Gece", desc: "Derin lacivert ve zümrüt vurgular", colors: ["#080d18", "#111b2c", "#34d399"] },
   { id: "okyanus", name: "Okyanus", desc: "Serin mavi tonlar", colors: ["#06101f", "#0f2542", "#38bdf8"] },
   { id: "altin", name: "Altın Lüks", desc: "Siyah ve şampanya altını", colors: ["#0b0a08", "#1a1712", "#fbbf24"] },
@@ -16,12 +16,12 @@ const THEMES = [
   { id: "mint", name: "Nane", desc: "Ferahlık veren doğal yeşiller", colors: ["#eaf4ef", "#f8fffb", "#27845f"] },
   { id: "rose", name: "Gül", desc: "Yumuşak pudra ve gül kurusu", colors: ["#fbf0ef", "#fffafa", "#c66b78"] },
 
-  { id: "aurora", name: "Aurora", desc: "Kuzey ışıkları, derin petrol ve turkuaz", colors: ["#07131a", "#102a32", "#6ee7c2"], tag: "Yeni · Atmosferik" },
-  { id: "obsidyen", name: "Obsidyen", desc: "Siyah taş, bronz ve mücevher hissi", colors: ["#101012", "#202023", "#d6a66b"], tag: "Yeni · Lüks" },
-  { id: "terracotta", name: "Terra", desc: "Toprak, kiremit ve doğal dokular", colors: ["#f1e5d8", "#fff8ef", "#bd5b3f"], tag: "Yeni · Sıcak" },
-  { id: "cobalt", name: "Kobalt", desc: "Gece mavisi ve elektrikli mavi", colors: ["#080f27", "#142454", "#80a7ff"], tag: "Yeni · Canlı" },
-  { id: "sakura", name: "Sakura", desc: "Pudra, gül ve yumuşak kontrast", colors: ["#f8edf1", "#fff9fb", "#c66b91"], tag: "Yeni · Zarif" },
-  { id: "paper", name: "Editorial", desc: "Mat kâğıt, orman yeşili ve editoryal sadelik", colors: ["#f2f0e9", "#fffef9", "#456b55"], tag: "Yeni · Minimal" },
+  { id: "aurora", name: "Aurora", desc: "Kuzey ışıkları, derin petrol ve turkuaz", colors: ["#07131a", "#102a32", "#6ee7c2"], tag: "01 · Atmosferik" },
+  { id: "obsidyen", name: "Obsidyen", desc: "Siyah taş, bronz ve mücevher hissi", colors: ["#101012", "#202023", "#d6a66b"], tag: "02 · Lüks" },
+  { id: "terracotta", name: "Terra", desc: "Toprak, kiremit ve doğal dokular", colors: ["#f1e5d8", "#fff8ef", "#bd5b3f"], tag: "03 · Organik" },
+  { id: "cobalt", name: "Kobalt", desc: "Gece mavisi ve elektrikli mavi", colors: ["#080f27", "#142454", "#80a7ff"], tag: "04 · Dinamik" },
+  { id: "sakura", name: "Sakura", desc: "Pudra, gül ve yumuşak kontrast", colors: ["#f8edf1", "#fff9fb", "#c66b91"], tag: "05 · Zarif" },
+  { id: "paper", name: "Editorial", desc: "Mat kâğıt, orman yeşili ve editoryal sadelik", colors: ["#f2f0e9", "#fffef9", "#456b55"], tag: "06 · Editoryal" },
 ];
 const FONTS = [
   { id: "modern", name: "Modern", desc: "Çağdaş ve dengeli · Önerilen" },
