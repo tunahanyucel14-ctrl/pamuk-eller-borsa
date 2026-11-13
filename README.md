@@ -40,15 +40,17 @@ SQL dosyaları `supabase/` altında sıralıdır. Şema değişikliklerini mümk
 - Piyasa ve enflasyon verileri kaynak ve güncelleme zamanı ile sunulur; eksik veri uydurulmaz.
 - Finansal tahminler garanti değildir; kullanılan varsayımlar görünür olmalıdır.
 - Fiş OCR sonucu kullanıcı onayı olmadan finansal işlem olarak kaydedilmemelidir.
+- AI uç noktaları oturum doğrulaması, girdi boyutu sınırı, zaman aşımı ve OCR dosya imzası/çıktı doğrulaması kullanır.
 - Bildirimlerin mevcut tarayıcı tabanlı sürümü, tarayıcı/uygulama açıkken çalışır; arka plan push için ayrıca Web Push ve zamanlayıcı altyapısı gerekir.
 
 ## Geliştirme sırası
 1. Mevcut özelliklerde doğruluk, güvenlik ve derleme kontrolü.
 2. Veri modelinin ve finansal işlem ilişkilerinin sağlamlaştırılması.
-3. Maaş, ek ödeme, nöbet ve nakit akışı planlama.
-4. Yapay zekâ asistanı ve fiş OCR güvenilirliği.
-5. Piyasa verisi, yatırım portföyü ve Borsa Arenası.
-6. Bildirim altyapısı, mobil deneyim ve tasarım sistemi.
+3. Maaş, ek ödeme, nöbet ve düzenli gelir planlama (ilk sürüm eklendi).
+4. Yapay zekâ asistanı ve fiş OCR güvenilirliği (istek/doğrulama katmanı güçlendirildi).
+5. Nakit akışı tahmini, borç kapatma simülasyonu ve hedef planlama.
+6. Piyasa verisi, yatırım portföyü ve Borsa Arenası.
+7. Bildirim altyapısı, mobil deneyim ve tasarım sistemi.
 
 ## Dikkat
 Bu uygulama finansal kayıt ve eğitim aracıdır; yatırım tavsiyesi veya kazanç garantisi sunmaz.
