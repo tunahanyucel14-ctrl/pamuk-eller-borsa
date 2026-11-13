@@ -27,7 +27,7 @@ function parseCsv(text:string):string[][]{
  return rows;
 }
 function parseAmount(raw:string):{amount:number;kind:"gelir"|"gider";signed:boolean}|null{
- let s=raw.replace(/[₺$€£\s]/g,"").replace(/TL/gi,"").replace(/\u00a0/g,"");
+ let s=raw.replace(/[₺$€£\s]/g,"").replace(/TRY|TL/gi,"").replace(/\u00a0/g,"");
  const negative=/^\(.*\)$/.test(s)||s.startsWith("-")||s.endsWith("-");
  s=s.replace(/[()]/g,"").replace(/^-|-$/g,"");
  if(s.includes(",")&&s.includes(".")){if(s.lastIndexOf(",")>s.lastIndexOf("."))s=s.replace(/\./g,"").replace(",",".");else s=s.replace(/,/g,"");}
@@ -37,13 +37,15 @@ function parseAmount(raw:string):{amount:number;kind:"gelir"|"gider";signed:bool
  return {amount:Math.abs(value),kind:negative?"gider":"gelir",signed:negative||/\+/.test(raw)};
 }
 function parseDate(raw:string):string|null{
- const s=raw.trim();
- let m=s.match(/^(\d{1,2})[./-](\d{1,2})[./-](\d{4})$/);
- if(m){const d=m[1].padStart(2,"0"),mo=m[2].padStart(2,"0");return m[3]+"-"+mo+"-"+d;}
- m=s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
- if(m)return m[1]+"-"+m[2].padStart(2,"0")+"-"+m[3].padStart(2,"0");
- const excel=Number(s);if(Number.isFinite(excel)&&excel>20000&&excel<80000){const d=new Date(Date.UTC(1899,11,30)+excel*86400000);return d.toISOString().slice(0,10);}
- return null;
+ const s=raw.trim();let iso:string|null=null;
+ let m=s.match(/^(\\d{1,2})[./-](\\d{1,2})[./-](\\d{4})$/);
+ if(m){const d=m[1].padStart(2,"0"),mo=m[2].padStart(2,"0");iso=m[3]+"-"+mo+"-"+d;}
+ m=s.match(/^(\\d{4})-(\\d{1,2})-(\\d{1,2})/);
+ if(!iso&&m)iso=m[1]+"-"+m[2].padStart(2,"0")+"-"+m[3].padStart(2,"0");
+ if(!iso){const excel=Number(s);if(Number.isFinite(excel)&&excel>20000&&excel<80000){const d=new Date(Date.UTC(1899,11,30)+excel*86400000);iso=d.toISOString().slice(0,10);}}
+ if(!iso)return null;
+ const check=new Date(iso+"T00:00:00Z");
+ return Number.isFinite(check.getTime())&&check.toISOString().slice(0,10)===iso?iso:null;
 }
 function inferType(raw:string):"gelir"|"gider"|null{
  const s=normalize(raw);
