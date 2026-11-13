@@ -42,7 +42,7 @@ function StatCard({
         : "text-accent bg-accent/10";
 
   return (
-    <article className={kart + " relative overflow-hidden"}>
+    <article className={"relative overflow-hidden rounded-2xl border border-line bg-card p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"}>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-sm font-medium text-muted">{title}</p>
@@ -148,15 +148,15 @@ export default function GenelBakis() {
 
   return (
     <div className="flex flex-col gap-6">
-      <section className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+      <section className="relative flex flex-col justify-between gap-4 overflow-hidden rounded-3xl border border-line bg-card p-5 shadow-sm sm:flex-row sm:items-end sm:p-7">
         <div>
           <p className="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-[0.18em] text-accent">
             <span className="h-2 w-2 rounded-full bg-accent" />
-            Finansal kontrol merkezi
+            PAMUK ELLER · FİNANSAL KONTROL MERKEZİ
           </p>
-          <h1 className={baslik + " text-2xl sm:text-3xl"}>Genel Bakış</h1>
+          <h1 className={baslik + " text-2xl sm:text-3xl"}>Finansal durumun, tek bakışta.</h1>
           <p className="mt-1 text-sm text-muted">
-            Gelirini, harcamalarını ve toplam varlığını tek yerden takip et.
+            Gelirini, harcamalarını ve hedeflerini güvenle yönet.
           </p>
         </div>
         <label className="flex items-center gap-2 rounded-2xl border border-line bg-card px-3 py-2.5 shadow-sm">
@@ -189,7 +189,7 @@ export default function GenelBakis() {
         </div>
       ) : (
         <>
-          <section className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+          <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <StatCard
               title="Toplam varlık"
               value={tl(toplamVarlik)}
@@ -219,8 +219,8 @@ export default function GenelBakis() {
             />
           </section>
 
-          <section className="grid gap-4 xl:grid-cols-[1.15fr_0.85fr]">
-            <div className={kart}>
+          <section className="grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
+            <div className="rounded-2xl border border-line bg-card p-5 shadow-sm sm:p-6">
               <div className="mb-5 flex items-center justify-between gap-3">
                 <div>
                   <h2 className="font-bold text-fg">Aylık nakit akışı</h2>
@@ -262,7 +262,7 @@ export default function GenelBakis() {
               </div>
             </div>
 
-            <div className={kart}>
+            <div className="rounded-2xl border border-line bg-card p-5 shadow-sm sm:p-6">
               <div className="mb-4 flex items-center gap-2">
                 <Wallet size={18} className="text-accent" />
                 <h2 className="font-bold text-fg">Hesap bakiyeleri</h2>
