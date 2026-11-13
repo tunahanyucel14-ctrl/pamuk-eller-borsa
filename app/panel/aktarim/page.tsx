@@ -145,6 +145,7 @@ export default function AktarimPage(){
   if(ocrBusy)return;
   if(selected.length>5){setError("En fazla 5 dosya yükleyebilirsin.");return;}
   if(selected.some(file=>file.size>6*1024*1024)){setError("Her dosya en fazla 6 MB olabilir.");return;}
+  if(selected.reduce((total,file)=>total+file.size,0)>12*1024*1024){setError("Seçilen dosyaların toplamı en fazla 12 MB olabilir.");return;}
   if(selected.some(file=>!["image/jpeg","image/png","image/webp","application/pdf"].includes(file.type))){setError("PDF, JPG, PNG veya WEBP dosyaları destekleniyor.");return;}
   const pdfCount=selected.filter(file=>file.type==="application/pdf").length;
   if(pdfCount>1||(pdfCount&&selected.length>1)){setError("PDF dosyasını tek başına seç. Birden fazla ekran görüntüsünü birlikte yükleyebilirsin.");return;}
@@ -254,7 +255,7 @@ export default function AktarimPage(){
    <div className="flex items-center gap-3"><span className="rounded-xl bg-accent/10 p-3 text-accent"><FileUp size={22}/></span><div><h2 className="font-bold">1. Banka ekstresi dosyanı seç</h2><p className="text-xs text-muted">Maksimum 8 MB · En fazla 1000 işlem · CSV veya XLSX</p></div></div>
    <label className="flex cursor-pointer flex-col items-center gap-2 rounded-2xl border-2 border-dashed border-line bg-inner/60 p-8 text-center transition hover:border-accent"><FileSpreadsheet size={30} className="text-accent"/><b>{fileName||"CSV veya Excel dosyasını seçmek için tıkla"}</b><span className="text-xs text-muted">İşlem tarihi, açıklama ve tutar sütunları bulunmalı. Excel dosyalarında ilk sayfa okunur.</span><input type="file" accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" className="sr-only" onChange={e=>void fileSelected(e.target.files?.[0])}/></label>
    <div className="rounded-2xl border border-line bg-inner/50 p-4">
-    <div className="mb-3 flex items-center gap-3"><span className="rounded-xl bg-accent/10 p-2 text-accent"><FileImage size={20}/></span><div><h3 className="text-sm font-bold">Banka ekstresini PDF veya görselle aktar</h3><p className="text-xs text-muted">PDF tek dosya · JPG, PNG veya WEBP en fazla 5 görsel · Her dosya 6 MB</p></div></div>
+    <div className="mb-3 flex items-center gap-3"><span className="rounded-xl bg-accent/10 p-2 text-accent"><FileImage size={20}/></span><div><h3 className="text-sm font-bold">Banka ekstresini PDF veya görselle aktar</h3><p className="text-xs text-muted">PDF tek dosya · En fazla 5 görsel · Her dosya 6 MB, toplam 12 MB</p></div></div>
     <label className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-accent/40 bg-card px-4 py-4 text-sm font-semibold transition hover:border-accent">{ocrBusy?"Ekstre okunuyor…":"PDF veya görsel seç"} <FileImage size={17}/><input type="file" accept="application/pdf,image/jpeg,image/png,image/webp" multiple className="sr-only" disabled={ocrBusy||!yazabilir} onChange={e=>{void statementFilesSelected(e.target.files);e.currentTarget.value="";}}/></label>
     <p className="mt-2 text-[11px] leading-5 text-muted">Yazma yetkin varsa yapay zekâ PDF metnini ve sayfa görüntülerini veya görselleri okuyarak tarih, açıklama, tutar ve gelir/gider türünü çıkarır. Aktarım öncesinde tüm satırları kontrol et; şifreli PDF ve bulanık görüntüler okunamayabilir.</p>
    </div>
