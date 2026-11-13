@@ -198,11 +198,11 @@ export default function GenelBakis() {
             <span className="h-2 w-2 rounded-full bg-accent" />
             PAMUK ELLER · FİNANSAL KONTROL MERKEZİ
           </p>
-          <h1 className="max-w-2xl text-3xl font-black leading-tight tracking-tight sm:text-5xl">Paranın kontrolü <span className="text-emerald-300">sende.</span></h1>
+          <h1 className="max-w-2xl text-3xl font-black leading-tight tracking-tight sm:text-5xl">Paranın kontrolü <span className="dashboard-highlight">sende.</span></h1>
           <p className="mt-3 max-w-xl text-sm leading-6 dashboard-copy sm:text-base">Gelirini, harcamalarını ve finansal hedeflerini tek bir akıllı merkezden yönet.</p>
           <div className="mt-6 flex flex-wrap gap-2"><a href="/panel/islemler" className="dashboard-primary-action rounded-xl px-4 py-2.5 text-xs font-extrabold shadow-lg transition hover:-translate-y-0.5">+ Yeni işlem</a><a href="/panel/butce" className="dashboard-secondary-action rounded-xl border px-4 py-2.5 text-xs font-bold transition">Bütçemi planla ↗</a></div>
         </div>
-        <div className="pointer-events-none absolute -right-16 -top-28 -z-0 h-80 w-80 rounded-full border border-emerald-200/10 bg-emerald-300/10 blur-3xl"/><div className="pointer-events-none absolute right-1/4 top-0 -z-0 h-48 w-48 rounded-full bg-teal-300/10 blur-3xl"/>
+        <div className="pointer-events-none absolute -right-16 -top-28 -z-0 h-80 w-80 rounded-full dashboard-orb dashboard-orb-large blur-3xl"/><div className="pointer-events-none absolute right-1/4 top-0 -z-0 h-48 w-48 rounded-full dashboard-orb dashboard-orb-small blur-3xl"/>
         <label className="relative z-10 flex items-center gap-2 rounded-2xl dashboard-month border px-4 py-3 shadow-xl backdrop-blur-xl">
           <CalendarDays size={17} className="text-accent" />
           <span className="sr-only">Rapor ayı</span>
@@ -210,7 +210,7 @@ export default function GenelBakis() {
             type="month"
             value={ay}
             onChange={(e) => e.target.value && setAy(e.target.value)}
-            className="w-auto border-0 bg-transparent text-sm font-semibold text-white outline-none"
+            className="dashboard-month-input w-auto border-0 bg-transparent text-sm font-semibold outline-none"
           />
         </label>
       </section>
