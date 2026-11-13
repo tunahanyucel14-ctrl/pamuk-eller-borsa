@@ -708,7 +708,7 @@ export default function Home() {
                   <div className="mb-3 grid grid-cols-2 gap-3">
                     <div className="rounded-xl bg-inner p-4">
                       <p className="text-xs text-muted">Sıralaman</p>
-                      <p className="mt-1 text-xl font-black">#{myRank}</p>
+                      <p className="mt-1 text-xl font-black">{myRank > 0 ? "#" + myRank : "—"}</p>
                     </div>
                     <div className="rounded-xl bg-inner p-4">
                       <p className="text-xs text-muted">Rozetlerin</p>
