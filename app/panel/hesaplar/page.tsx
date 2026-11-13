@@ -7,11 +7,13 @@ import { sayiyaCevir, tl } from "../../../lib/finans";
 import { HESAP_TURU_ADI } from "../../../lib/tipler";
 import type { Bakiye } from "../../../lib/tipler";
 import { kart, girdi, dugme, etiket, baslik } from "../../../lib/ui";
+import { BANKALAR } from "../../../lib/kataloglar";
 
 export default function Hesaplar() {
   const { aileId, yazabilir } = useAile();
   const [liste, setListe] = useState<Bakiye[]>([]);
   const [ad, setAd] = useState("");
+  const [banka, setBanka] = useState("Ziraat Bankası");
   const [tur, setTur] = useState("banka");
   const [acilis, setAcilis] = useState("");
   const [hata, setHata] = useState("");
@@ -55,7 +57,7 @@ export default function Hesaplar() {
     setBekle(true);
     const { error } = await supabase.from("accounts").insert({
       family_id: aileId,
-      name: ad.trim(),
+      name: tur === "banka" ? banka + " · " + ad.trim() : ad.trim(),
       type: tur,
       currency: "TRY",
       opening_balance: tutar,
@@ -126,8 +128,13 @@ export default function Hesaplar() {
       {yazabilir ? (
         <form onSubmit={ekle} className={kart + " grid gap-3 md:grid-cols-4"}>
           <div className="md:col-span-2">
+            <label className={etiket}>Banka / finans kuruluşu</label>
+            <select className={girdi} value={banka} onChange={(e) => setBanka(e.target.value)} disabled={tur !== "banka"}>
+              {["Ziraat Bankası", "Akbank", "Garanti BBVA", "İş Bankası", "Yapı Kredi", "QNB", "Enpara Bank", "Halkbank", "VakıfBank", "DenizBank", "TEB", "ING", "Fibabanka", "Diğer / listede yok"].map((x) => <option key={x} value={x}>{x}</option>)}
+              <optgroup label="BDDK kayıtlı diğer bankalar">{BANKALAR.filter((b) => !["Ziraat Bankası", "Akbank", "Garanti BBVA", "İş Bankası", "Yapı Kredi", "QNB", "Enpara Bank", "Halkbank", "VakıfBank", "DenizBank", "TEB", "ING", "Fibabanka"].includes(b.name)).map((b) => <option key={b.name} value={b.name}>{b.name}</option>)}</optgroup>
+            </select>
             <label className={etiket}>Hesap adı</label>
-            <input className={girdi} value={ad} onChange={(e) => setAd(e.target.value)} placeholder="Örn: Ziraat Maaş Hesabı" />
+            <input className={girdi} value={ad} onChange={(e) => setAd(e.target.value)} placeholder="Örn: Maaş hesabı / Birikim" />
           </div>
           <div>
             <label className={etiket}>Tür</label>
