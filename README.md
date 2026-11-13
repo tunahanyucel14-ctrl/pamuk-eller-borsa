@@ -43,6 +43,7 @@ SQL dosyaları `supabase/` altında sıralıdır. Şema değişikliklerini mümk
 
 ## Güvenli dosya aktarımı
 - Banka ekstresi dosyaları tarayıcıda okunur; yalnızca kullanıcı onayından sonra doğrulanmış işlem satırları Supabase'e gönderilir.
+- XLSX okuma, güvenlik yamaları içeren `exceljs-hardened` tarayıcı paketiyle yapılır; dosya, açılmış arşiv boyutu, çalışma sayfası, satır ve sütun limitleri uygulanır.
 - Fiş görselleri özel Supabase Storage alanına doğrudan yüklenir; Vercel API'ye yalnızca dosya yolu gönderilir. API kullanıcı oturumunu, dosya sahipliğini, MIME türünü ve gerçek dosya imzasını doğrular.
 - Fiş dosyası yolu işlem kaydına bağlanır. Fişi yükleyen kullanıcı, İşlemler ekranından süreli özel bağlantıyla görüntüleyebilir.
 - Bir işlem silindiğinde ilişkili banka ekstresi mükerrer kayıt izi de atomik olarak silinir; aynı ekstre yeniden içe aktarılabilir.
