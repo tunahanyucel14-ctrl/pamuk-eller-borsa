@@ -11,8 +11,20 @@ type Tx = { id:string; kind:"gelir"|"gider"|"transfer"; amount:number; tx_date:s
 type Category = { id:string; name:string; kind:string };
 type Income = { id:string; name:string; expected_amount:number; active:boolean };
 type Bill = { id:string; name:string; amount:number; active:boolean; category:string };
-type Debt = { id:string; name:string; remaining_amount:number; monthly_payment:number; annual_interest_rate:number };
-type Goal = { id:string; name:string; target_amount:number; current_amount:number; target_date:string|null };
+type Debt = {
+  id: string;
+  name: string;
+  remaining_amount: number;
+  monthly_payment: number;
+  annual_interest_rate: number;
+};
+type Goal = {
+  id: string;
+  name: string;
+  target_amount: number;
+  current_amount: number;
+  target_date: string | null;
+};
 type PlanLog = { month:string; actual:number; note:string };
 type Month = { key:string; label:string; income:number; expense:number };
 type CategorySpend = { id:string; name:string; amount:number; previous:number; change:number };
