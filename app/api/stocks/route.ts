@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+export const maxDuration = 20;
 export const runtime="nodejs";
 export const revalidate=60;
 const universe=[
