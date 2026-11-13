@@ -1,0 +1,16 @@
+{
+  "description": "Tamamen sentetik banka ekstresi regresyon örnekleri; gerçek müşteri veya hesap verisi içermez.",
+  "cases": [
+    {"institution": "T.C. ZİRAAT BANKASI A.Ş.", "expected": "Ziraat Bankası", "accountType": "vadesiz"},
+    {"institution": "Ziraat Katılım Bankası", "expected": "Ziraat Katılım", "accountType": "katilim"},
+    {"institution": "Türkiye Halk Bankası", "expected": "Halkbank", "accountType": "vadesiz"},
+    {"institution": "T. Vakıflar Bankası T.A.O.", "expected": "VakıfBank", "accountType": "vadesiz"},
+    {"institution": "Türkiye İş Bankası", "expected": "İş Bankası", "accountType": "kredi_karti"},
+    {"institution": "Garanti BBVA", "expected": "Garanti BBVA", "accountType": "kredi_karti"},
+    {"institution": "Yapı ve Kredi Bankası", "expected": "Yapı Kredi", "accountType": "vadesiz"},
+    {"institution": "QNB Finansbank", "expected": "QNB", "accountType": "kredi_karti"},
+    {"institution": "Kuveyt Türk Katılım Bankası", "expected": "Kuveyt Türk", "accountType": "katilim"},
+    {"institution": "Türkiye Finans Katılım Bankası", "expected": "Türkiye Finans", "accountType": "katilim"},
+    {"institution": "Enpara.com", "expected": "Enpara", "accountType": "dijital"}
+  ]
+}
