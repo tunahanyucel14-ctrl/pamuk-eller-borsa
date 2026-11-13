@@ -259,14 +259,22 @@ export default function Home() {
   const [filter, setFilter] = useState<"Tümü" | "Yükselen" | "Düşen">("Tümü");
   const [toast, setToast] = useState<{ text: string; ok: boolean } | null>(null);
 
-  const [theme, setTheme] = useState("zumrut");
+  const [theme, setTheme] = useState("retro");
   const [themeOpen, setThemeOpen] = useState(false);
 
   /* Kayıtlı temayı yükle */
   useEffect(() => {
     try {
       const saved = localStorage.getItem("pamuk-tema");
-      if (saved && THEMES.some((t) => t.id === saved)) setTheme(saved);
+      if (saved === "zumrut") {
+        // Eski varsayılan koyu tema, yeni varsayılan retro temaya taşınır.
+        setTheme("retro");
+        document.documentElement.setAttribute("data-theme", "retro");
+        localStorage.setItem("pamuk-tema", "retro");
+      } else if (saved && THEMES.some((t) => t.id === saved)) {
+        setTheme(saved);
+        document.documentElement.setAttribute("data-theme", saved);
+      }
     } catch {
       /* tarayıcı izin vermezse varsayılan tema kalır */
     }
