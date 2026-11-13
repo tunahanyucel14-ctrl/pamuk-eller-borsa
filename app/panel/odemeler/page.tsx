@@ -62,6 +62,7 @@ export default function OdemelerPage() {
   }, []);
 
   const total = rows.reduce((sum, row) => sum + Number(row.amount), 0) + debts.filter(row=>Number(row.remaining_amount)>0).reduce((sum, row) => sum + Number(row.monthly_payment), 0);
+  const debtsWithoutDueDate=debts.filter(row=>Number(row.remaining_amount)>0&&Number(row.monthly_payment)>0&&!row.due_day).length;
   const billEvents = rows.map(row => ({ title: row.name, detail: tl(Number(row.amount)), date: dateForDay(row.due_day), kind: "bill" as const }));
   const debtEvents = debts.filter(row => Number(row.monthly_payment) > 0 && Number(row.remaining_amount) > 0 && row.due_day).map(row => ({
     title: row.name + " taksiti", detail: tl(Number(row.monthly_payment)), date: dateForDay(Number(row.due_day)), kind: "debt" as const,
@@ -187,6 +188,7 @@ export default function OdemelerPage() {
       </section>}
 
       {error && <p className="text-sm text-down">{error}</p>}
+      {debtsWithoutDueDate>0&&<p role="status" className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-muted">{debtsWithoutDueDate} açık borçta ödeme günü tanımlı değil. Bu borçlar için hatırlatma oluşturulamaz; Borçlar bölümünden ödeme gününü ekle.</p>}
       <section className={kart}>
         <h2 className="mb-3 font-bold">Ödeme listesi</h2>
         {rows.length === 0 ? <p className="text-sm text-muted">Henüz düzenli ödeme yok.</p> : <div className="space-y-2">
