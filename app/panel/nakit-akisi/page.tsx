@@ -57,9 +57,21 @@ export default function NakitAkisiPage() {
       setBillRows((bills.data || []) as Bill[]);
       setDebtRows((debts.data || []) as Debt[]);
       if(!history.error){
-        const tryAccounts=new Set(balanceRows.filter(row=>String(row.currency||"TRY").toUpperCase()==="TRY").map(row=>row.account_id));
-        const total= (history.data||[]).filter((row:any)=>tryAccounts.has(row.account_id)).reduce((sum:number,row:any)=>sum+(Number(row.amount)||0),0);
-        setHistoricalMonthlyExpense(total/3);
+        const historyRows=[...(history.data||[])];
+        let offset=1000;
+        let pageError=false;
+        while(historyRows.length>=offset){
+          const page=await supabase.from("fin_transactions").select("amount,account_id").eq("family_id",aileId).eq("kind","gider").gte("tx_date",iso(historyStart)).lt("tx_date",iso(monthStart)).range(offset,offset+999);
+          if(page.error){pageError=true;break;}
+          historyRows.push(...(page.data||[]));
+          if((page.data||[]).length<1000)break;
+          offset+=1000;
+        }
+        if(!pageError){
+          const tryAccounts=new Set(balanceRows.filter(row=>String(row.currency||"TRY").toUpperCase()==="TRY").map(row=>row.account_id));
+          const total=historyRows.filter((row:any)=>tryAccounts.has(row.account_id)).reduce((sum:number,row:any)=>sum+(Number(row.amount)||0),0);
+          setHistoricalMonthlyExpense(total/3);
+        }else setHistoricalMonthlyExpense(null);
       }else setHistoricalMonthlyExpense(null);
       setLoading(false);
     }
