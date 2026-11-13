@@ -85,7 +85,7 @@ export default function GenelBakis() {
       const trendBaslangic = new Date(yil, ayNo - 6, 1);
       const trendBitis = new Date(yil, ayNo, 1);
       const tarihISO = (d: Date) => String(d.getFullYear()) + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
-      const [b, i, k, trend, budgets] = await Promise.all([
+      const [b, i, k, budgets, trend] = await Promise.all([
         supabase.from("account_balances").select("*").eq("family_id", aileId),
         supabase
           .from("fin_transactions")
