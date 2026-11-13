@@ -37,7 +37,7 @@ export default function TaramaPage() {
   const [message, setMessage] = useState("");
   const [aileId,setAileId] = useState("");
   const router = useRouter();
-  const [accounts,setAccounts] = useState<{account_id:string;name:string}[]>([]);
+  const [accounts,setAccounts] = useState<{account_id:string;name:string;currency:string}[]>([]);
   const [categories,setCategories] = useState<{id:string;name:string}[]>([]);
   const [accountId,setAccountId] = useState("");
   const [categoryId,setCategoryId] = useState("");
@@ -51,9 +51,9 @@ export default function TaramaPage() {
       const family=members?.[0]?.family_id;
       if(!family||!active)return;
       setAileId(family);
-      const [a,k]=await Promise.all([supabase.from("account_balances").select("account_id,name").eq("family_id",family).order("name"),supabase.from("categories").select("id,name").eq("family_id",family).eq("kind","gider").order("name")]);
+      const [a,k]=await Promise.all([supabase.from("account_balances").select("account_id,name,currency").eq("family_id",family).eq("currency","TRY").order("name"),supabase.from("categories").select("id,name").eq("family_id",family).eq("kind","gider").order("name")]);
       if(!active)return;
-      setAccounts(a.data||[]);setCategories(k.data||[]);if(a.data?.[0])setAccountId(a.data[0].account_id);
+      setAccounts((a.data||[]) as {account_id:string;name:string;currency:string}[]);setCategories(k.data||[]);if(a.data?.[0])setAccountId(a.data[0].account_id);
     }
     load();
     return ()=>{active=false;};
