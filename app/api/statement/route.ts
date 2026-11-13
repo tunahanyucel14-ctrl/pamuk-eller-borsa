@@ -14,7 +14,7 @@ function validImage(bytes: Buffer, mime: string) {
 }
 
 export async function POST(request: Request) {
-  const token = request.headers.get("authorization")?.replace(/^Bearer\\s+/i, "").trim();
+  const token = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "").trim();
   if (!token || token.length > 4096) return NextResponse.json({ error: "Giriş yapman gerekiyor." }, { status: 401 });
   if (Number(request.headers.get("content-length") || 0) > 16_000) return NextResponse.json({ error: "İstek çok büyük." }, { status: 413 });
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://tdwoqankjznioxnupsvn.supabase.co";
@@ -32,7 +32,7 @@ export async function POST(request: Request) {
     if (!item || typeof item !== "object") return NextResponse.json({ error: "Dosya bilgisi geçersiz." }, { status: 400 });
     const { path, mimeType } = item as { path?: unknown; mimeType?: unknown };
     if (typeof path !== "string" || path.length > 320 || !path.startsWith(user.id + "/") || path.includes("..") || path.includes("\\") ||
-      !/^([0-9a-f-]{36})\\/[0-9]{10,}-[A-Za-z0-9._-]{1,200}$/i.test(path) || !MIME_TYPES.includes(String(mimeType))) {
+      !/^([0-9a-f-]{36})\/[0-9]{10,}-[A-Za-z0-9._-]{1,200}$/i.test(path) || !MIME_TYPES.includes(String(mimeType))) {
       return NextResponse.json({ error: "Görsel yolu veya biçimi geçersiz." }, { status: 400 });
     }
     const encodedPath = path.split("/").map(encodeURIComponent).join("/");
@@ -64,12 +64,12 @@ export async function POST(request: Request) {
     const data = await response.json().catch(() => ({}));
     if (!response.ok) return NextResponse.json({ error: "Görsel okuma servisine şu anda ulaşılamıyor." }, { status: 502 });
     const raw = data?.choices?.[0]?.message?.content;
-    const parsed = JSON.parse(String(raw || "").replace(/^\`\`\`json\\s*/i, "").replace(/\\s*\`\`\`$/, ""));
+    const parsed = JSON.parse(String(raw || "").replace(/^```json\s*/i, "").replace(/\s*```$/, ""));
     if (!parsed || !Array.isArray(parsed.rows)) throw new Error("Invalid OCR response");
     const rows = parsed.rows.slice(0, 1000).flatMap((row: unknown) => {
       if (!row || typeof row !== "object") return [];
       const r = row as Record<string, unknown>;
-      const date = typeof r.date === "string" && /^\\d{4}-\\d{2}-\\d{2}$/.test(r.date) ? r.date : "";
+      const date = typeof r.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(r.date) ? r.date : "";
       const d = date ? new Date(date + "T00:00:00Z") : null;
       const amount = Number(r.amount);
       if (!d || !Number.isFinite(d.getTime()) || d.toISOString().slice(0, 10) !== date || !Number.isFinite(amount) || amount <= 0 || (r.type !== "gelir" && r.type !== "gider")) return [];
