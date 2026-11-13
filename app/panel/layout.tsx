@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { LayoutDashboard, ArrowLeftRight, Wallet, Tags, Users, Table2, CreditCard, Receipt, Target, TrendingUp, ChartNoAxesCombined, CalendarClock, GraduationCap, ScanLine, Settings, Trophy, UserRound, LogOut } from "lucide-react";
+import { LayoutDashboard, ArrowLeftRight, Wallet, Tags, Users, Table2, CreditCard, Receipt, Target, TrendingUp, Activity, CalendarClock, GraduationCap, ScanLine, Settings, Trophy, UserRound, LogOut } from "lucide-react";
 import { supabase } from "../../lib/supabase";
 import { AileSaglayici } from "../../lib/aile-baglami";
 import { ROL_ADI } from "../../lib/tipler";
@@ -23,7 +23,7 @@ const MENU = [
   { href: "/panel/odemeler", ad: "Ödemeler", icon: Receipt },
   { href: "/panel/hedefler", ad: "Hedefler", icon: Target },
   { href: "/panel/yatirim", ad: "Yatırımlar", icon: TrendingUp },
-  { href: "/panel/ekonomi", ad: "Ekonomi", icon: ChartNoAxesCombined },
+  { href: "/panel/ekonomi", ad: "Ekonomi", icon: Activity },
   { href: "/panel/gelecek", ad: "Gelecek Planı", icon: CalendarClock },
   { href: "/panel/akademi", ad: "Finans Akademisi", icon: GraduationCap },
   { href: "/tarama", ad: "Fiş Tara", icon: ScanLine },
