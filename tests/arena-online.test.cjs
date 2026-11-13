@@ -4,26 +4,27 @@ const fs = require("node:fs");
 const path = require("node:path");
 
 const root = path.join(__dirname, "..");
-const api = fs.readFileSync(path.join(root, "app/api/arena/route.ts"), "utf8");
+const edge = fs.readFileSync(path.join(root, "supabase/functions/arena/index.ts"), "utf8");
 const migration = fs.readFileSync(path.join(root, "supabase/17-borsa-arenasi-online.sql"), "utf8");
 const page = fs.readFileSync(path.join(root, "app/borsa/page.tsx"), "utf8");
 
-test("Arena API authenticates the caller before accessing game data", () => {
-  assert.match(api, /Authorization:\s*"Bearer "\s*\+\s*token/);
-  assert.match(api, /\/auth\/v1\/user/);
-  assert.match(api, /if\s*\(!user\)\s*return .*401/);
+test("Arena Edge Function validates signed-in users with Supabase server auth", () => {
+  assert.match(edge, /withSupabase\(\{\s*auth:\s*"user"\s*\}/);
+  assert.match(edge, /ctx\.userClaims/);
+  assert.match(edge, /ctx\.supabaseAdmin/);
 });
 
-test("privileged Supabase credentials stay server-side", () => {
-  assert.match(api, /process\.env\.SUPABASE_SECRET_KEY\s*\|\|\s*process\.env\.SUPABASE_SERVICE_ROLE_KEY/);
-  assert.doesNotMatch(api, /NEXT_PUBLIC_SUPABASE_(?:SECRET|SERVICE_ROLE)/);
+test("privileged database access is isolated inside the Edge Function", () => {
+  assert.match(edge, /ctx\.supabaseAdmin/);
+  assert.doesNotMatch(page, /SUPABASE_(?:SECRET|SERVICE_ROLE)_KEY/);
+  assert.doesNotMatch(page, /supabase\.rpc\(["']arena_(?:ensure_account|execute_trade|sync_quotes)/);
 });
 
-test("trade price is resolved from server market data, never accepted from the client body", () => {
-  assert.match(api, /marketQuotes\(request\)/);
-  assert.match(api, /stocks\.find\(\(stock\) => stock\.symbol\.toUpperCase\(\) === symbol\)/);
-  assert.match(api, /p_price:\s*quote\.price/);
-  assert.doesNotMatch(api, /body\??\.price/);
+test("trade prices are resolved from server market data, never accepted from client input", () => {
+  assert.match(edge, /marketQuotes\(\)/);
+  assert.match(edge, /quotes\.find\(\(stock\) => stock\.symbol\.toUpperCase\(\) === symbol\)/);
+  assert.match(edge, /p_price:\s*quote\.price/);
+  assert.doesNotMatch(edge, /body\??\.price/);
 });
 
 test("database protects private game records and server-only trade functions", () => {
@@ -37,9 +38,9 @@ test("database protects private game records and server-only trade functions", (
   assert.match(migration, /arena_trades_season_id_idx/);
 });
 
-test("Arena UI uses real leaderboard data instead of invented demo players", () => {
+test("Arena UI uses real Supabase leaderboard data instead of invented demo players", () => {
   assert.doesNotMatch(page, /DEMO_PLAYERS/);
-  assert.match(page, /fetch\("\/api\/arena"/);
+  assert.match(page, /functions\.invoke\("arena"/);
   assert.match(page, /arenaBoard\.map/);
   assert.match(page, /Misafir modu/);
 });
