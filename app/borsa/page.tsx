@@ -497,10 +497,11 @@ export default function Home() {
               <div className="mb-1 hidden items-center gap-2 text-xs font-semibold text-accent lg:flex">
                 <span className="h-2 w-2 rounded-full bg-accent" />
                 SANAL BORSA YARIŞMASI
-                <span className="rounded-md border border-accent/30 bg-accent/10 px-2 py-1 text-[10px] font-black tracking-wide text-accent">DEMO VERİ</span>
+                <span className="rounded-md border border-accent/30 bg-accent/10 px-2 py-1 text-[10px] font-black tracking-wide text-accent">HARİCİ PİYASA VERİSİ</span>
               </div>
               <h2 className="text-2xl font-black md:text-3xl">{activeTab}</h2>
-              <p className="mt-1 text-sm text-muted">{SUBTITLES[activeTab]}</p>\n              {activeTab === "Piyasalar" && <p className="mt-2 text-xs text-muted">{marketError || (marketStamp ? "Kaynak: Yahoo Finance · Son güncelleme: " + new Date(marketStamp).toLocaleTimeString("tr-TR") + " · Fiyatlar gecikmeli olabilir." : "BIST verileri yükleniyor…")}</p>}
+              <p className="mt-1 text-sm text-muted">{SUBTITLES[activeTab]}</p>
+              {activeTab === "Piyasalar" && <p className="mt-2 text-xs text-muted">{marketError || (marketStamp ? "Kaynak: Yahoo Finance · Son güncelleme: " + new Date(marketStamp).toLocaleTimeString("tr-TR") + " · Fiyatlar gecikmeli olabilir." : "BIST verileri yükleniyor…")}</p>}
             </div>
 
             <div className="relative flex shrink-0 items-center gap-2">
