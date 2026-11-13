@@ -263,3 +263,94 @@ html[data-font="classic"] body { font-family: Georgia, "Times New Roman", serif;
 html[data-font="rounded"] body { font-family: "Trebuchet MS", "Segoe UI", sans-serif; }
 html[data-font="mono"] body { font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace; }
 html[data-font="system"] body { font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; }
+
+
+/* ─────────────────────────────────────────────────────────────
+   PAMUK ELLER — karakterli tema koleksiyonu
+   Her tema yalnızca renk değil; farklı yüzey, derinlik ve atmosfer sunar.
+   ───────────────────────────────────────────────────────────── */
+[data-theme="aurora"] {
+  --bg:#07131a; --side:#0b2028; --card:#102a32; --inner:#0a2028;
+  --line:rgba(116,232,207,.16); --fg:#effffb; --muted:#8eb8b2;
+  --accent:#6ee7c2; --accent-fg:#06231d; --up:#67e8a5; --down:#ff8298;
+}
+[data-theme="obsidyen"] {
+  --bg:#101012; --side:#171719; --card:#202023; --inner:#151518;
+  --line:rgba(220,177,119,.18); --fg:#f7f1e8; --muted:#aaa095;
+  --accent:#d6a66b; --accent-fg:#20160b; --up:#8bc7a0; --down:#e77d78;
+}
+[data-theme="terracotta"] {
+  --bg:#f1e5d8; --side:#e6d4c3; --card:#fff8ef; --inner:#f2e7da;
+  --line:rgba(103,60,45,.14); --fg:#392b25; --muted:#887368;
+  --accent:#bd5b3f; --accent-fg:#fffaf4; --up:#3d8066; --down:#bd4b4b;
+}
+[data-theme="cobalt"] {
+  --bg:#080f27; --side:#0e1940; --card:#142454; --inner:#0d1a3d;
+  --line:rgba(135,170,255,.18); --fg:#f1f5ff; --muted:#9aadd8;
+  --accent:#80a7ff; --accent-fg:#08132f; --up:#58d6b1; --down:#ff8295;
+}
+[data-theme="sakura"] {
+  --bg:#f8edf1; --side:#f0dfe7; --card:#fff9fb; --inner:#f5e8ee;
+  --line:rgba(125,65,91,.14); --fg:#402b37; --muted:#927886;
+  --accent:#c66b91; --accent-fg:#fff; --up:#36856d; --down:#c64f65;
+}
+[data-theme="paper"] {
+  --bg:#f2f0e9; --side:#e8e5dc; --card:#fffef9; --inner:#eeece4;
+  --line:rgba(48,57,49,.14); --fg:#28332d; --muted:#727d73;
+  --accent:#456b55; --accent-fg:#fff; --up:#2f8061; --down:#bd5550;
+}
+
+/* Tema atmosferleri: arka plan ışığı, kart derinliği ve bileşen karakteri */
+html[data-theme="aurora"] body {
+  background-image: radial-gradient(ellipse at 12% 0%,rgba(57,210,180,.15),transparent 34rem),radial-gradient(ellipse at 95% 75%,rgba(93,105,220,.13),transparent 32rem);
+}
+html[data-theme="obsidyen"] body {
+  background-image: radial-gradient(ellipse at 80% -10%,rgba(214,166,107,.12),transparent 34rem),linear-gradient(145deg,#101012,#171719 55%,#111114);
+}
+html[data-theme="cobalt"] body {
+  background-image: radial-gradient(ellipse at 15% 0%,rgba(65,112,255,.2),transparent 38rem),radial-gradient(ellipse at 100% 90%,rgba(42,190,220,.09),transparent 30rem);
+}
+html[data-theme="terracotta"] body {
+  background-image: radial-gradient(ellipse at 0% 0%,rgba(189,91,63,.12),transparent 34rem),radial-gradient(ellipse at 100% 100%,rgba(119,137,94,.12),transparent 30rem);
+}
+html[data-theme="sakura"] body {
+  background-image: radial-gradient(ellipse at 10% 0%,rgba(198,107,145,.13),transparent 34rem),radial-gradient(ellipse at 95% 95%,rgba(222,166,181,.18),transparent 30rem);
+}
+html[data-theme="paper"] body {
+  background-image: radial-gradient(ellipse at 90% 0%,rgba(69,107,85,.09),transparent 32rem),linear-gradient(180deg,#f2f0e9,#eae8df);
+}
+
+/* Yeni nesil yüzeyler: tema kontrastını koruyarak kartları daha rafine gösterir. */
+html[data-theme="aurora"] .rounded-2xl.border,
+html[data-theme="aurora"] .rounded-3xl.border,
+html[data-theme="obsidyen"] .rounded-2xl.border,
+html[data-theme="obsidyen"] .rounded-3xl.border,
+html[data-theme="cobalt"] .rounded-2xl.border,
+html[data-theme="cobalt"] .rounded-3xl.border {
+  box-shadow: 0 1px 0 rgba(255,255,255,.035) inset,0 16px 38px rgba(0,0,0,.16);
+  backdrop-filter: blur(12px);
+}
+html[data-theme="terracotta"] .rounded-2xl.border,
+html[data-theme="terracotta"] .rounded-3xl.border,
+html[data-theme="sakura"] .rounded-2xl.border,
+html[data-theme="sakura"] .rounded-3xl.border,
+html[data-theme="paper"] .rounded-2xl.border,
+html[data-theme="paper"] .rounded-3xl.border {
+  box-shadow: 0 2px 3px rgba(54,39,31,.035),0 12px 30px rgba(54,39,31,.055);
+}
+html[data-theme="obsidyen"] button.bg-accent,
+html[data-theme="aurora"] button.bg-accent,
+html[data-theme="cobalt"] button.bg-accent {
+  box-shadow: 0 5px 18px color-mix(in srgb,var(--accent) 22%,transparent);
+}
+html[data-theme="paper"] h1,
+html[data-theme="paper"] h2,
+html[data-theme="terracotta"] h1,
+html[data-theme="terracotta"] h2 {
+  letter-spacing: -.035em;
+}
+html[data-theme="aurora"] ::selection,
+html[data-theme="obsidyen"] ::selection,
+html[data-theme="cobalt"] ::selection {
+  color: var(--accent-fg); background: var(--accent);
+}
