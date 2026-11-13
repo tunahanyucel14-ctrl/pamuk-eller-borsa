@@ -759,3 +759,44 @@ html[data-theme="retro"] .financial-kpi { color:#a94335; }
   .financial-highlight { transition:transform .22s ease,border-color .22s ease,box-shadow .22s ease; }
   .financial-highlight:hover { transform:translateY(-2px); box-shadow:0 18px 42px var(--kpi-glow); }
 }
+
+
+/* Extra theme family: Midnight, Deep Ocean, Sahil and Berry */
+[data-theme="midnight"] { --bg:#100d20;--side:#18142d;--card:#211b38;--inner:#17132b;--line:rgba(188,170,255,.18);--fg:#f7f4ff;--muted:#aaa0c8;--accent:#9d8cff;--accent-fg:#170f30;--up:#67d8b0;--down:#ff829e; }
+[data-theme="oceanic"] { --bg:#061b2a;--side:#092638;--card:#0c3044;--inner:#082536;--line:rgba(75,212,208,.17);--fg:#edffff;--muted:#8db7c3;--accent:#4bd4d0;--accent-fg:#052b31;--up:#75dfa9;--down:#ff8b85; }
+[data-theme="sand"] { --bg:#eee5d5;--side:#e3d7c3;--card:#fffaf0;--inner:#f0e8da;--line:rgba(73,83,78,.16);--fg:#303b3a;--muted:#78827c;--accent:#287d91;--accent-fg:#fff;--up:#348263;--down:#c3544d; }
+[data-theme="berry"] { --bg:#1b1020;--side:#24152d;--card:#30203a;--inner:#21152a;--line:rgba(229,138,200,.19);--fg:#fff3fb;--muted:#c0a4bd;--accent:#e58ac8;--accent-fg:#301329;--up:#70d7ac;--down:#ff849c; }
+html[data-theme="midnight"] body { background-image:radial-gradient(ellipse at 15% 0%,rgba(157,140,255,.19),transparent 35rem),radial-gradient(ellipse at 100% 85%,rgba(83,190,255,.1),transparent 30rem); }
+html[data-theme="oceanic"] body { background-image:radial-gradient(ellipse at 0% 0%,rgba(75,212,208,.15),transparent 36rem),radial-gradient(ellipse at 100% 100%,rgba(40,119,181,.16),transparent 32rem); }
+html[data-theme="sand"] body { background-image:radial-gradient(ellipse at 90% 0%,rgba(40,125,145,.12),transparent 34rem),linear-gradient(180deg,#eee5d5,#e7e1d5); }
+html[data-theme="berry"] body { background-image:radial-gradient(ellipse at 10% 0%,rgba(229,138,200,.17),transparent 35rem),radial-gradient(ellipse at 100% 100%,rgba(119,76,180,.15),transparent 30rem); }
+html[data-theme="midnight"],html[data-theme="oceanic"],html[data-theme="berry"] { color-scheme:dark; }
+html[data-theme="sand"] { color-scheme:light; }
+
+/* Route and component transitions */
+body,main,aside,.dashboard-stat,.dashboard-chart,.financial-highlight {
+  transition:background-color .35s ease,color .28s ease,border-color .28s ease,box-shadow .3s ease,transform .28s cubic-bezier(.2,.75,.25,1);
+}
+main { animation:pe-page-enter .34s cubic-bezier(.2,.75,.25,1) both; }
+@keyframes pe-page-enter { from {opacity:.35;transform:translateY(7px)} to {opacity:1;transform:translateY(0)} }
+html[data-motion="subtle"] main { animation-duration:.16s; }
+html[data-motion="subtle"] .dashboard-stat,html[data-motion="subtle"] .financial-highlight { transition-duration:.14s; }
+html[data-motion="off"] *,html[data-motion="off"] *::before,html[data-motion="off"] *::after { animation:none!important;transition:none!important;scroll-behavior:auto!important; }
+html[data-density="compact"] .dashboard-stat { padding:1rem!important; }
+html[data-density="compact"] .rounded-3xl.border.bg-card { padding:1rem!important; }
+html[data-density="compact"] .dashboard-stat p.mt-3 { margin-top:.55rem!important; }
+html[data-density="compact"] .dashboard-stat p.mt-2 { margin-top:.35rem!important; }
+
+/* Optional photographic atmosphere. Photo layers sit behind content and never behind text cards. */
+html[data-photo="mountain"] body::after,
+html[data-photo="ocean"] body::after,
+html[data-photo="sunrise"] body::after {
+  content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;background-position:center;background-size:cover;background-attachment:fixed;opacity:.12;filter:saturate(.8);
+}
+html[data-photo="mountain"] body::after { background-image:linear-gradient(135deg,var(--bg) 8%,transparent 80%),url("https://images.unsplash.com/photo-1470770841072-f978cf4d019e?auto=format&fit=crop&w=1800&q=80"); }
+html[data-photo="ocean"] body::after { background-image:linear-gradient(135deg,var(--bg) 8%,transparent 80%),url("https://images.unsplash.com/photo-1518837695005-2083093ee35b?auto=format&fit=crop&w=1800&q=80"); }
+html[data-photo="sunrise"] body::after { background-image:linear-gradient(135deg,var(--bg) 8%,transparent 80%),url("https://images.unsplash.com/photo-1470252649378-9c29740c9fa8?auto=format&fit=crop&w=1800&q=80"); }
+html[data-photo="none"] body::after { content:none; }
+html[data-photo="mountain"] body,html[data-photo="ocean"] body,html[data-photo="sunrise"] body { background-color:var(--bg); }
+html[data-photo="mountain"] .bg-card,html[data-photo="ocean"] .bg-card,html[data-photo="sunrise"] .bg-card { backdrop-filter:blur(12px); }
+@media (prefers-reduced-motion:reduce) { main {animation:none!important;} }
