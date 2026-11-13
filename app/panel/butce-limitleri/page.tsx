@@ -20,6 +20,7 @@ export default function ButceLimitleriPage(){
  const [categories,setCategories]=useState<Category[]>([]);
  const [budgets,setBudgets]=useState<Budget[]>([]);
  const [transactions,setTransactions]=useState<Transaction[]>([]);
+ const [foreignCurrencies,setForeignCurrencies]=useState<string[]>([]);
  const [drafts,setDrafts]=useState<Record<string,string>>({});
  const [loading,setLoading]=useState(true);
  const [busy,setBusy]=useState("");
@@ -40,6 +41,7 @@ export default function ButceLimitleriPage(){
   const bRows=(b.data||[]).map((x:any)=>({...x,limit_amount:Number(x.limit_amount)||0})) as Budget[];
   setCategories(cats);setBudgets(bRows);
   const currencyByAccount=new Map((a.data||[]).map((x:any)=>[x.account_id,String(x.currency||"TRY").toUpperCase()]));
+  setForeignCurrencies(Array.from(new Set((a.data||[]).map((x:any)=>String(x.currency||"TRY").toUpperCase()).filter((x:string)=>x!=="TRY"))));
   setTransactions((t.data||[]).filter((x:any)=>currencyByAccount.get(x.account_id)==="TRY").map((x:any)=>({...x,amount:Number(x.amount)||0})) as Transaction[]);
   setDrafts(Object.fromEntries(bRows.map(x=>[x.category_id,String(x.limit_amount)])));
   setLoading(false);
@@ -77,6 +79,7 @@ export default function ButceLimitleriPage(){
  if(loading)return <div className={kart+" animate-pulse"}>Kategori bütçeleri hazırlanıyor…</div>;
  return <div className="space-y-5">
   <header className="flex flex-wrap items-end justify-between gap-3"><div><p className="text-xs font-bold uppercase tracking-[.2em] text-accent">Pamuk Eller · Harcama kontrolü</p><h1 className={baslik}>Kategori Bütçe Limitleri</h1><p className="mt-2 max-w-2xl text-sm text-muted">Her harcama kategorisine aylık üst sınır koy. Gerçekleşen giderler otomatik hesaplanır; limite yaklaşınca uyarı görürsün.</p></div><label className="flex items-center gap-2 rounded-xl border border-line bg-card px-3 py-2"><CalendarDays size={16} className="text-accent"/><span className="sr-only">Bütçe ayı</span><input aria-label="Bütçe ayı" type="month" className="bg-transparent text-sm" value={month} onChange={e=>setMonth(e.target.value)}/></label></header>
+  {foreignCurrencies.length>0&&<p role="status" className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-muted">Kategori bütçeleri TL bazlıdır. Döviz hesapları ({foreignCurrencies.join(", ")}) kur dönüşümü yapılmadığı için gerçekleşen gider toplamına katılmadı.</p>}
   {error&&<p role="alert" className="rounded-xl border border-down/30 bg-down/5 p-3 text-sm text-down">{error}</p>}
   {notice&&<p role="status" className="rounded-xl border border-up/30 bg-up/5 p-3 text-sm text-up">{notice}</p>}
   <section className="grid gap-3 sm:grid-cols-3"><article className={kart}><p className="text-xs text-muted">Tanımlı toplam limit</p><b className="mt-2 block text-2xl">{tl(totals.limit)}</b><p className="mt-1 text-xs text-muted">{totals.count} kategori</p></article><article className={kart}><p className="text-xs text-muted">Gerçekleşen harcama</p><b className="mt-2 block text-2xl text-down">{tl(totals.spent)}</b><p className="mt-1 text-xs text-muted">Seçilen ayın işlem kayıtları</p></article><article className={kart}><p className="text-xs text-muted">Limit aşımı</p><b className={"mt-2 block text-2xl "+(totals.over?"text-down":"text-up")}>{totals.over} kategori</b><p className="mt-1 text-xs text-muted">{totals.limit>0?("%"+(totals.spent/totals.limit*100).toFixed(1)+" toplam limit kullanımı"):"Henüz limit tanımlanmadı"}</p></article></section>
