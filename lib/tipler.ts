@@ -36,6 +36,7 @@ export type Islem = {
   kind: IslemTuru;
   amount: number;
   description: string | null;
+  receipt_path?: string | null;
   tx_date: string;
   created_at: string;
 };
