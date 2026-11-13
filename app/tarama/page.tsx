@@ -33,6 +33,7 @@ export default function TaramaPage() {
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState("");
   const [receipt, setReceipt] = useState<Receipt | null>(null);
+  const [receiptPath,setReceiptPath] = useState("");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [aileId,setAileId] = useState("");
@@ -59,15 +60,19 @@ export default function TaramaPage() {
     return ()=>{active=false;};
   },[]);
 
+  useEffect(()=>()=>{if(preview)URL.revokeObjectURL(preview);},[preview]);
+
   function choose(f?: File) {
     if (!f) return;
     if (!["image/jpeg", "image/png", "image/webp"].includes(f.type) || f.size > 6 * 1024 * 1024) {
       setMessage("JPG, PNG veya WEBP biçiminde en fazla 6 MB fotoğraf seç.");
       return;
     }
+    if(receiptPath)void supabase.storage.from("receipts").remove([receiptPath]);
     setFile(f);
     setPreview(URL.createObjectURL(f));
     setReceipt(null);
+    setReceiptPath("");
     setMessage("");
   }
 
@@ -79,22 +84,21 @@ export default function TaramaPage() {
       const { data } = await supabase.auth.getSession();
       const token = data.session?.access_token;
       if (!token) throw new Error("Oturumun sona ermiş. Yeniden giriş yap.");
-      const base64 = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(String(reader.result).split(",")[1] || "");
-        reader.onerror = () => reject(new Error("Fotoğraf okunamadı."));
-        reader.readAsDataURL(file);
-      });
-      const res = await fetch("/api/receipt", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ image: base64, mimeType: file.type }) });
+      let path=receiptPath;
+      if(!path){
+        const safeName=(file.name.replace(/[^a-zA-Z0-9._-]/g,"_").slice(0,180)||"fis.jpg");
+        path=`${data.session.user.id}/${Date.now()}-${safeName}`;
+        const {error:uploadError}=await supabase.storage.from("receipts").upload(path,file,{contentType:file.type,upsert:false});
+        if(uploadError)throw new Error("Fiş özel arşive yüklenemedi: "+uploadError.message);
+        setReceiptPath(path);
+      }
+      const res = await fetch("/api/receipt", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ path, mimeType: file.type }) });
       const result = await res.json();
       if (!res.ok) throw new Error(result.error || "Tarama başarısız.");
       setReceipt(result.receipt);
       const suggestedId = suggestReceiptCategory(result.receipt,categories);
       if(suggestedId)setCategoryId(suggestedId);
-      const path = `${data.session!.user.id}/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
-      const { error } = await supabase.storage.from("receipts").upload(path, file, { contentType: file.type, upsert: false });
-      if (error) setMessage("Fiş okundu; ancak arşive kaydedilemedi: " + error.message);
-      else setMessage("Fiş okundu ve özel dosya alanına kaydedildi. İşlem kaydından önce bilgileri kontrol et.");
+      setMessage("Fiş okundu ve özel arşive kaydedildi. İşlem kaydından önce bilgileri kontrol et.");
     } catch (e) {
       setMessage(e instanceof Error ? e.message : "Bir hata oluştu.");
     } finally {
@@ -105,7 +109,7 @@ export default function TaramaPage() {
   async function saveExpense(){
     if(!receipt || !accountId || !(Number(receipt.total)>0)){setMessage("Geçerli tutar ve hesap seçmelisin.");return;}
     setSaving(true);setMessage("");
-    const {error}=await supabase.from("fin_transactions").insert({family_id:aileId,account_id:accountId,category_id:categoryId||null,kind:"gider",amount:Number(receipt.total),description:receipt.merchant ? receipt.merchant+" · "+(receipt.description||"Fiş taraması") : (receipt.description||"Fiş taraması"),tx_date:receipt.date||(()=>{const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");})()});
+    const {error}=await supabase.from("fin_transactions").insert({family_id:aileId,account_id:accountId,category_id:categoryId||null,kind:"gider",amount:Number(receipt.total),receipt_path:receiptPath||null,description:receipt.merchant ? receipt.merchant+" · "+(receipt.description||"Fiş taraması") : (receipt.description||"Fiş taraması"),tx_date:receipt.date||(()=>{const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");})()});
     if(error)setMessage("İşlem kaydedilemedi: "+error.message);
     else{setMessage("Gider işlemi başarıyla kaydedildi.");setTimeout(()=>router.push("/panel/islemler"),700);}
     setSaving(false);
