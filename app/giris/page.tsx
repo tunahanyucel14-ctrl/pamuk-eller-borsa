@@ -44,7 +44,7 @@ export default function GirisSayfasi() {
       if (error) {
         setHata(hataCevir(error.message));
       } else if (data.session) {
-        router.push("/panel");
+        router.push("/");
       } else {
         setMesaj(
           "Kayıt oluşturuldu. E-postana gelen onay bağlantısına tıkla, sonra giriş yap."
