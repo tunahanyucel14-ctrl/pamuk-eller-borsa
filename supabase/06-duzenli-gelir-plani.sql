@@ -12,6 +12,7 @@ create table if not exists public.family_income_rules (
   created_at timestamptz not null default now()
 );
 create index if not exists idx_family_income_rules_family_id on public.family_income_rules(family_id);
+create index if not exists idx_family_income_rules_created_by on public.family_income_rules(created_by);
 alter table public.family_income_rules enable row level security;
 grant select, insert, update, delete on public.family_income_rules to authenticated;
 drop policy if exists "income_rules_read" on public.family_income_rules;
