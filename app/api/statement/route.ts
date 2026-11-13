@@ -55,12 +55,16 @@ function parseStatement(raw: string): { statement: ParsedStatement; skippedRows:
     return Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === value ? value : null;
   };
   const nullableAmount = (value: unknown) => typeof value === "number" && Number.isFinite(value) && value >= 0 && value <= 1_000_000_000_000 ? Math.round(value * 100) / 100 : null;
+  const periodStart = nullableDate(parsed.period_start);
+  const periodEnd = nullableDate(parsed.period_end);
+  const validPeriod = !(periodStart && periodEnd && periodStart > periodEnd);
+  const currency = nullableText(parsed.currency, 8)?.toUpperCase() || null;
   return {
     statement: {
       bank_name: nullableText(parsed.bank_name, 80),
-      currency: nullableText(parsed.currency, 8)?.toUpperCase() || null,
-      period_start: nullableDate(parsed.period_start),
-      period_end: nullableDate(parsed.period_end),
+      currency: currency && /^[A-Z]{3}$/.test(currency) ? currency : null,
+      period_start: validPeriod ? periodStart : null,
+      period_end: validPeriod ? periodEnd : null,
       statement_income: nullableAmount(parsed.statement_income),
       statement_expense: nullableAmount(parsed.statement_expense),
       rows
