@@ -23,6 +23,13 @@ const MENU = [
   { href: "/panel/kategoriler", ad: "Kategoriler" },
   { href: "/panel/aile", ad: "Aile" },
   { href: "/panel/butce", ad: "Bütçe Tablosu" },
+  { href: "/panel/borclar", ad: "Borçlarım" },
+  { href: "/panel/odemeler", ad: "Ödemeler" },
+  { href: "/panel/hedefler", ad: "Hedefler" },
+  { href: "/panel/yatirim", ad: "Yatırımlar" },
+  { href: "/panel/ekonomi", ad: "Ekonomi" },
+  { href: "/panel/gelecek", ad: "Gelecek Planı" },
+  { href: "/panel/akademi", ad: "Finans Akademisi" },
   { href: "/tarama", ad: "Fiş Tara" },
 ];
 
