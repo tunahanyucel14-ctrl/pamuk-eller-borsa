@@ -7,6 +7,7 @@ Türkiye'deki bireyler ve aileler için gelir-gider, hesap, borç, abonelik, yat
 - Tailwind CSS 4, lucide-react
 - Supabase Auth, PostgreSQL ve Row Level Security
 - Vercel AI Gateway (AI asistanı ve fiş okuma)
+- ExcelJS (tarayıcıda XLSX ekstresi okuma)
 - Harici veri kaynakları: TCMB, Dünya Bankası, Binance, CoinGecko ve Yahoo Finance
 
 ## Geliştirme
@@ -53,8 +54,8 @@ SQL dosyaları `supabase/` altında sıralıdır. Şema değişikliklerini mümk
 7. Aile Finans Analizi: 3/6 aylık gelir-gider grafikleri, üyeye ve kategoriye göre kayıt özeti, aile toplamı ve dönem filtresi.
 8. Ortak birikim hedefleri: üye bazlı katkı/çekim geçmişi ve veritabanında atomik bakiye güncellemesi.
 9. Kategori bütçe limitleri: aylık kategori tavanı, gerçek giderlerle otomatik ilerleme, %80 ve %100 uyarıları.
-10. Banka ekstresi CSV aktarımı: sütun eşleştirme, ön izleme, aile/hesap doğrulaması, atomik kayıt ve aynı dosyayı tekrar aktarmaya karşı mükerrer koruması.
-11. Yapay zekâ asistanı ve fiş OCR güvenilirliği (istek/doğrulama katmanı güçlendirildi).
+10. Banka ekstresi CSV/XLSX aktarımı: ilk Excel sayfasını okuma, sütun eşleştirme, ön izleme, Türkçe işyeri anahtar kelimeleriyle kategori önerileri, satır bazında kategori düzenleme, aile/hesap doğrulaması ve mükerrer koruması.
+11. Fiş/fatura OCR: fotoğraftan işletme, tarih, toplam ve ürünleri çıkarma; akıllı kategori önerisi; kullanıcı onayıyla gider kaydı.
 12. Hedef planlama, piyasa verisi, yatırım portföyü ve Borsa Arenası.
 13. Bildirim altyapısı, mobil deneyim ve tasarım sistemi.
 
