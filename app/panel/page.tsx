@@ -266,7 +266,7 @@ export default function GenelBakis() {
             />
           </section>
 
-          {butceDurumlari.length > 0 && (
+          {(butceDurumlari.length > 0 || butceHata) && (
             <section className={kart + " space-y-4"}>
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div><h2 className="flex items-center gap-2 font-bold text-fg"><Gauge size={18} className="text-accent"/> Kategori bütçe kontrolü</h2><p className="mt-1 text-xs text-muted">{ayEtiketi} için limit kullanımın</p></div>
