@@ -24,6 +24,7 @@ function dateText(date:Date) {
 export default function NakitAkisiPage() {
   const { aileId } = useAile();
   const [openingBalance, setOpeningBalance] = useState(0);
+  const [foreignBalances, setForeignBalances] = useState<Record<string,number>>({});
   const [incomeRows, setIncomeRows] = useState<Income[]>([]);
   const [billRows, setBillRows] = useState<Bill[]>([]);
   const [debtRows, setDebtRows] = useState<Debt[]>([]);
@@ -36,7 +37,7 @@ export default function NakitAkisiPage() {
     async function load() {
       setLoading(true); setError("");
       const [balances, incomes, bills, debts] = await Promise.all([
-        supabase.from("account_balances").select("balance").eq("family_id", aileId),
+        supabase.from("account_balances").select("balance,currency").eq("family_id", aileId),
         supabase.from("family_income_rules").select("id,name,expected_amount,pay_day,active").eq("family_id", aileId).eq("active", true),
         supabase.from("family_bills").select("id,name,amount,due_day,active,category").eq("family_id", aileId).eq("active", true),
         supabase.from("family_debts").select("id,name,monthly_payment,due_day,remaining_amount").eq("family_id", aileId),
@@ -44,7 +45,9 @@ export default function NakitAkisiPage() {
       if (cancelled) return;
       const failed = balances.error || incomes.error || bills.error || debts.error;
       if (failed) setError("Bazı finans kayıtları yüklenemedi: " + failed.message);
-      setOpeningBalance((balances.data || []).reduce((sum,row)=>sum+(Number(row.balance)||0),0));
+      const balanceRows=(balances.data||[]) as {balance:number;currency:string}[];
+      setOpeningBalance(balanceRows.filter(row=>String(row.currency||"TRY").toUpperCase()==="TRY").reduce((sum,row)=>sum+(Number(row.balance)||0),0));
+      setForeignBalances(balanceRows.filter(row=>String(row.currency||"TRY").toUpperCase()!=="TRY").reduce<Record<string,number>>((acc,row)=>{const cur=String(row.currency||"TRY").toUpperCase();acc[cur]=(acc[cur]||0)+(Number(row.balance)||0);return acc;},{}));
       setIncomeRows((incomes.data || []) as Income[]);
       setBillRows((bills.data || []) as Bill[]);
       setDebtRows((debts.data || []) as Debt[]);
@@ -92,6 +95,7 @@ export default function NakitAkisiPage() {
   return <div className="space-y-5">
     <header><p className="text-xs font-bold uppercase tracking-widest text-accent">6 aylık tahmin</p><h1 className={baslik}>Akıllı Nakit Akışı</h1><p className="text-sm text-muted">Kayıtlı hesap bakiyelerin, düzenli gelirlerin, faturaların ve borç taksitlerinle önümüzdeki altı ayı planla.</p></header>
     {error&&<p role="alert" className="rounded-xl bg-down/10 p-3 text-sm text-down">{error}</p>}
+    {Object.keys(foreignBalances).length>0&&<div role="status" className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-sm"><b>Yabancı para hesapları nakit akışı tahminine katılmadı.</b><p className="mt-1 text-xs text-muted">Kur dönüşümü yapılmadığından yalnızca TL hesap bakiyesiyle tahmin yapılıyor.</p><div className="mt-2 flex flex-wrap gap-3 text-xs">{Object.entries(foreignBalances).map(([cur,value])=><span key={cur}>{value.toLocaleString("tr-TR",{maximumFractionDigits:2})} {cur}</span>)}</div></div>}
     <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
       <div className={kart}><p className="text-xs text-muted">Bugünkü hesap bakiyesi</p><b className="mt-2 block text-xl">{tl(openingBalance)}</b><p className="mt-1 text-xs text-muted">Kayıtlı hesapların toplamı</p></div>
       <div className={kart}><p className="text-xs text-muted">Aylık planlı gelir</p><b className="mt-2 block text-xl text-up">{tl(totalIncome)}</b><p className="mt-1 text-xs text-muted">Aktif gelir planları</p></div>
