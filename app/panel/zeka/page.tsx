@@ -12,7 +12,8 @@ type Category = { id:string; name:string; kind:string };
 type Income = { id:string; name:string; expected_amount:number; active:boolean };
 type Bill = { id:string; name:string; amount:number; active:boolean; category:string };
 type Debt = { id:string; name:string; remaining_amount:number; monthly_payment:number; annual_interest_rate:number };
-type Goal = { id:string; name:string; target_amount:number; current_amount:number; target_date:string|null };\ntype PlanLog = { month:string; actual:number; note:string };
+type Goal = { id:string; name:string; target_amount:number; current_amount:number; target_date:string|null };
+type PlanLog = { month:string; actual:number; note:string };
 type Month = { key:string; label:string; income:number; expense:number };
 type CategorySpend = { id:string; name:string; amount:number; previous:number; change:number };
 
@@ -28,7 +29,11 @@ export default function FinansalZekaPage(){
  const [bills,setBills]=useState<Bill[]>([]);
  const [debts,setDebts]=useState<Debt[]>([]);
  const [goals,setGoals]=useState<Goal[]>([]);
- const [monthlyPlan,setMonthlyPlan]=useState("0");\n const [actualInput,setActualInput]=useState("");\n const [planLogs,setPlanLogs]=useState<PlanLog[]>([]);\n const [planLoaded,setPlanLoaded]=useState(false);\n const [planNote,setPlanNote]=useState("");
+ const [monthlyPlan,setMonthlyPlan]=useState("0");
+ const [actualInput,setActualInput]=useState("");
+ const [planLogs,setPlanLogs]=useState<PlanLog[]>([]);
+ const [planLoaded,setPlanLoaded]=useState(false);
+ const [planNote,setPlanNote]=useState("");
  const [cash,setCash]=useState(0);
  const [foreignBalances,setForeignBalances]=useState<Record<string,number>>({});
  const [loading,setLoading]=useState(true);
@@ -84,7 +89,8 @@ export default function FinansalZekaPage(){
   if(!planLoaded||!aileId)return;
   try{localStorage.setItem("pamuk-finans-plan:"+aileId,JSON.stringify({monthlyPlan,logs:planLogs}));}catch{}
  },[aileId,monthlyPlan,planLogs,planLoaded]);
-\n const analysis=useMemo(()=>{
+
+ const analysis=useMemo(()=>{
   const now=new Date();
   const months:Month[]=[];
   for(let i=6;i>=1;i--){const d=new Date(now.getFullYear(),now.getMonth()-i,1);months.push({key:monthKey(d),label:labelMonth(d),income:0,expense:0});}
