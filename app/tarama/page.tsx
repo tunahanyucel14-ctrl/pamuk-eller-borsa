@@ -105,7 +105,7 @@ export default function TaramaPage() {
   async function saveExpense(){
     if(!receipt || !accountId || !(Number(receipt.total)>0)){setMessage("Geçerli tutar ve hesap seçmelisin.");return;}
     setSaving(true);setMessage("");
-    const {error}=await supabase.from("fin_transactions").insert({family_id:aileId,account_id:accountId,category_id:categoryId||null,kind:"gider",amount:Number(receipt.total),description:receipt.merchant ? receipt.merchant+" · "+(receipt.description||"Fiş taraması") : (receipt.description||"Fiş taraması"),tx_date:receipt.date||new Date().toISOString().slice(0,10)});
+    const {error}=await supabase.from("fin_transactions").insert({family_id:aileId,account_id:accountId,category_id:categoryId||null,kind:"gider",amount:Number(receipt.total),description:receipt.merchant ? receipt.merchant+" · "+(receipt.description||"Fiş taraması") : (receipt.description||"Fiş taraması"),tx_date:receipt.date||(()=>{const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");})()});
     if(error)setMessage("İşlem kaydedilemedi: "+error.message);
     else{setMessage("Gider işlemi başarıyla kaydedildi.");setTimeout(()=>router.push("/panel/islemler"),700);}
     setSaving(false);
