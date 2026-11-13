@@ -46,7 +46,7 @@ function parseStatement(raw: string): { statement: ParsedStatement; skippedRows:
     if (!d || !Number.isFinite(d.getTime()) || d.toISOString().slice(0, 10) !== date || !Number.isFinite(amount) || amount <= 0 || (r.type !== "gelir" && r.type !== "gider")) return [];
     const description = typeof r.description === "string" ? r.description.trim().slice(0, 240) : "";
     if (!description) return [];
-    return [{ date, description, amount: Math.round(amount * 100) / 100, type: r.type }];
+    return [{ date, description, amount: Math.round(amount * 100) / 100, type: r.type as "gelir" | "gider" }];
   });
   const nullableText = (value: unknown, max: number) => typeof value === "string" && value.trim() ? value.trim().slice(0, max) : null;
   const nullableDate = (value: unknown) => {
