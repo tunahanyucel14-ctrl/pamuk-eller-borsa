@@ -591,7 +591,7 @@ export default function Home() {
               <h2 className="text-2xl font-black md:text-3xl">{activeTab}</h2>
               <p className="mt-1 text-sm text-muted">{SUBTITLES[activeTab]}</p>
               <p className={"mt-2 text-xs font-semibold " + (arenaStatus === "online" ? "text-up" : arenaStatus === "offline" ? "text-down" : "text-muted")}>
-                {arenaStatus === "online" ? "● Çevrimiçi Arena · İşlemlerin hesabına kaydediliyor" : arenaStatus === "guest" ? "Misafir modu · İşlemler yalnızca bu cihazda saklanır" : arenaStatus === "offline" ? "Çevrimiçi bağlantı kurulamadı · İşlemler kapalı" : "Çevrimiçi Arena bağlanıyor…"}
+                {arenaStatus === "online" ? "● Çevrimiçi Arena · İşlemlerin hesabına kaydediliyor" : arenaStatus === "guest" ? "Misafir modu · İşlemler yalnızca bu oturumda saklanır" : arenaStatus === "offline" ? "Çevrimiçi bağlantı kurulamadı · İşlemler kapalı" : "Çevrimiçi Arena bağlanıyor…"}
               </p>
               {activeTab === "Piyasalar" && <p className="mt-2 text-xs text-muted">{marketError || (marketStamp ? "Kaynak: Yahoo Finance · Son güncelleme: " + new Date(marketStamp).toLocaleTimeString("tr-TR") + " · Fiyatlar gecikmeli olabilir." : "BIST verileri yükleniyor…")}</p>}
             </div>
