@@ -47,10 +47,11 @@ SQL dosyaları `supabase/` altında sıralıdır. Şema değişikliklerini mümk
 1. Mevcut özelliklerde doğruluk, güvenlik ve derleme kontrolü.
 2. Veri modelinin ve finansal işlem ilişkilerinin sağlamlaştırılması.
 3. Maaş, ek ödeme, nöbet ve düzenli gelir planlama (ilk sürüm eklendi).
-4. Yapay zekâ asistanı ve fiş OCR güvenilirliği (istek/doğrulama katmanı güçlendirildi).
-5. Nakit akışı tahmini, borç kapatma simülasyonu ve hedef planlama.
-6. Piyasa verisi, yatırım portföyü ve Borsa Arenası.
-7. Bildirim altyapısı, mobil deneyim ve tasarım sistemi.
+4. Altı aylık nakit akışı tahmini; hesap bakiyesi, gelir planı, faturalar ve borç taksitleri birlikte değerlendirilir.
+5. Borç faiz oranı takibi ve ek ödeme senaryolu kapatma simülatörü.
+6. Yapay zekâ asistanı ve fiş OCR güvenilirliği (istek/doğrulama katmanı güçlendirildi).
+7. Hedef planlama, piyasa verisi, yatırım portföyü ve Borsa Arenası.
+8. Bildirim altyapısı, mobil deneyim ve tasarım sistemi.
 
 ## Dikkat
 Bu uygulama finansal kayıt ve eğitim aracıdır; yatırım tavsiyesi veya kazanç garantisi sunmaz.
