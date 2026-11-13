@@ -31,7 +31,7 @@ const FONTS = [
   { id: "mono", name: "Teknik", desc: "Monospace, terminal tarzı" },
 ];
 const MENU_ITEMS = [
-  ["Genel Bakış", "/panel"], ["Finansal Sağlık", "/panel/saglik"], ["Finansal Zekâ", "/panel/zeka"], ["İşlemler", "/panel/islemler"], ["Banka Ekstresi Aktar", "/panel/aktarim"], ["Hesaplarım", "/panel/hesaplar"],
+  ["Genel Bakış", "/panel"], ["Finansal Sağlık", "/panel/saglik"], ["Net Servet & 12 Ay", "/panel/servet"], ["Finansal Zekâ", "/panel/zeka"], ["İşlemler", "/panel/islemler"], ["Banka Ekstresi Aktar", "/panel/aktarim"], ["Hesaplarım", "/panel/hesaplar"],
   ["Kategoriler", "/panel/kategoriler"], ["Gelir Planlama", "/panel/gelirler"], ["Nakit Akışı", "/panel/nakit-akisi"], ["Aile", "/panel/aile"], ["Aile Finans Analizi", "/panel/aile-analiz"], ["Bütçe Tablosu", "/panel/butce"], ["Kategori Bütçeleri", "/panel/butce-limitleri"],
   ["Borçlarım", "/panel/borclar"], ["Ödemeler", "/panel/odemeler"], ["Aboneliklerim", "/panel/abonelikler"], ["Hedefler", "/panel/hedefler"],
   ["Yatırımlar", "/panel/yatirim"], ["Ekonomi", "/panel/ekonomi"], ["Gelecek Planı", "/panel/gelecek"],
