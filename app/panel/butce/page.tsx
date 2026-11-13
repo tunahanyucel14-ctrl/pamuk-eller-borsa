@@ -61,7 +61,7 @@ export default function ButcePage() {
   async function deleteMonthData(){
     if(!aileId || !yazabilir || deleting)return;
     const label=months[month];
-    if(!window.confirm(label+" ayına ait bütçe hücreleri ve "+new Date().getFullYear()+" yılı işlem kayıtları silinsin mi? Bu işlem geri alınamaz."))return;
+    if(!window.confirm(label+" ayına ait bütçe hücreleri ve "+new Date().getFullYear()+" yılı işlem kayıtları silinsin mi? Fiş fotoğrafları özel arşivde kalır. Bu işlem geri alınamaz."))return;
     setDeleting(true);
     const year=new Date().getFullYear();
     const dateOnly=(d:Date)=>d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
@@ -73,7 +73,7 @@ export default function ButcePage() {
   }
   async function deleteAllFinanceData(){
     if(!aileId || !yonetebilir || deleting)return;
-    const ok=window.confirm("Bu ailenin TÜM finans verileri silinecek: işlem kayıtları, banka ekstresi aktarım geçmişi, gelir planları, faturalar ve abonelikler, borçlar, hedefler, yatırımlar, kategori bütçeleri ve bütçe tablosu. Hesaplar silinmeyecek; açılış bakiyeleri sıfırlanacak. Kullanıcı hesapları, aile üyeliği, kategoriler ve Borsa Arenası korunur. Devam edilsin mi?");
+    const ok=window.confirm("Bu ailenin TÜM finans kayıtları silinecek: işlem kayıtları, banka ekstresi aktarım geçmişi, gelir planları, faturalar ve abonelikler, borçlar, hedefler, yatırımlar, kategori bütçeleri ve bütçe tablosu. Hesaplar silinmeyecek; açılış bakiyeleri sıfırlanacak. Kullanıcı hesapları, aile üyeliği, kategoriler ve Borsa Arenası korunur. Fiş fotoğrafları özel arşivde kalır. Devam edilsin mi?");
     if(!ok)return;
     const second=window.prompt("Onaylamak için TAMAM yaz.");
     if(second!=="TAMAM")return;
