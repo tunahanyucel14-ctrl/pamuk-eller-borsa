@@ -79,7 +79,7 @@ export default function ButcePage() {
     const second=window.prompt("Onaylamak için TAMAM yaz.");
     if(second!=="TAMAM")return;
     setDeleting(true);
-    const {data,error}=await supabase.rpc("clear_family_finances",{p_family_id:aileId});
+    const {error}=await supabase.rpc("clear_family_finances",{p_family_id:aileId});
     if(error){
       setSaveStatus("Finans verileri güvenli biçimde temizlenemedi: "+error.message);
       setDeleting(false);
