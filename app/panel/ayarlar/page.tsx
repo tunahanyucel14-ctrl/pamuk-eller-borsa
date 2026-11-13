@@ -25,7 +25,7 @@ const FONTS = [
 ];
 const MENU_ITEMS = [
   ["Genel Bakış", "/panel"], ["Finansal Sağlık", "/panel/saglik"], ["Finansal Zekâ", "/panel/zeka"], ["İşlemler", "/panel/islemler"], ["Hesaplarım", "/panel/hesaplar"],
-  ["Kategoriler", "/panel/kategoriler"], ["Gelir Planlama", "/panel/gelirler"], ["Nakit Akışı", "/panel/nakit-akisi"], ["Aile", "/panel/aile"], ["Aile Finans Analizi", "/panel/aile-analiz"], ["Bütçe Tablosu", "/panel/butce"],
+  ["Kategoriler", "/panel/kategoriler"], ["Gelir Planlama", "/panel/gelirler"], ["Nakit Akışı", "/panel/nakit-akisi"], ["Aile", "/panel/aile"], ["Aile Finans Analizi", "/panel/aile-analiz"], ["Bütçe Tablosu", "/panel/butce"], ["Kategori Bütçeleri", "/panel/butce-limitleri"],
   ["Borçlarım", "/panel/borclar"], ["Ödemeler", "/panel/odemeler"], ["Aboneliklerim", "/panel/abonelikler"], ["Hedefler", "/panel/hedefler"],
   ["Yatırımlar", "/panel/yatirim"], ["Ekonomi", "/panel/ekonomi"], ["Gelecek Planı", "/panel/gelecek"],
   ["Finans Akademisi", "/panel/akademi"], ["Fiş Tara", "/tarama"],
