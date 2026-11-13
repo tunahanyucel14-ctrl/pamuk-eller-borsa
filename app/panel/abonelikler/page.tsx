@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { CalendarClock, Plus, Repeat, Trash2 } from "lucide-react";
 import { supabase } from "../../../lib/supabase";
 import { useAile } from "../../../lib/aile-baglami";
-import { tl } from "../../../lib/finans";
+import { sayiyaCevir, tl } from "../../../lib/finans";
 import { ABONELIKLER } from "../../../lib/kataloglar";
 import { kart, girdi, dugme, etiket, baslik } from "../../../lib/ui";
 
@@ -22,8 +22,12 @@ export default function AboneliklerPage(){
  const [error,setError]=useState("");
  const [busy,setBusy]=useState(false);
  const load=useCallback(async()=>{
-  const {data,error}=await supabase.from("family_bills").select("*").eq("family_id",aileId).eq("category","Abonelik").eq("active",true).order("due_day");
-  if(error)setError(error.message);else setRows((data||[]) as Subscription[]);
+  const [billsResult, accountsResult] = await Promise.all([
+   supabase.from("family_bills").select("*").eq("family_id",aileId).eq("category","Abonelik").eq("active",true).order("due_day"),
+   supabase.from("accounts").select("id,name,type").eq("family_id",aileId).order("name"),
+  ]);
+  const failure = billsResult.error || accountsResult.error;
+  if(failure)setError(failure.message);else {setRows((billsResult.data||[]) as Subscription[]);setAccounts((accountsResult.data||[]) as AccountOption[]);}
  },[aileId]);
  useEffect(()=>{void load();},[load]);
  const allApps=useMemo(()=>ABONELIKLER.flatMap(g=>g.apps),[]);
@@ -33,7 +37,7 @@ export default function AboneliklerPage(){
   e.preventDefault();
   if(busy)return;
   setError("");
-  const parsed=Number(amount),due=Number(day),name=provider==="Diğer / listede yok"?custom.trim():provider;
+  const parsed=sayiyaCevir(amount),due=Number(day),name=provider==="Diğer / listede yok"?custom.trim():provider;
   if(!name||!Number.isFinite(parsed)||parsed<=0||!Number.isInteger(due)||due<1||due>31){setError("Uygulama adı, aylık ücret ve 1–31 arasında ödeme günü gir.");return;}
   setBusy(true);
   try{
