@@ -15,20 +15,20 @@ function walk(directory) {
 
 const files = walk(appRoot);
 const pages = new Set(files
-  .filter((file) => /(?:^|[\\/])page\\.(?:tsx|ts|jsx|js)$/.test(file))
+  .filter((file) => /(?:^|[\\/])page\.(?:tsx|ts|jsx|js)$/.test(file))
   .map((file) => {
     const relative = path.relative(appRoot, path.dirname(file)).split(path.sep).join("/");
     return relative ? "/" + relative : "/";
   }));
 
-const sourceFiles = files.filter((file) => /\\.(?:tsx|ts|jsx|js)$/.test(file));
-const source = sourceFiles.map((file) => fs.readFileSync(file, "utf8")).join("\\n");
+const sourceFiles = files.filter((file) => /\.(?:tsx|ts|jsx|js)$/.test(file));
+const source = sourceFiles.map((file) => fs.readFileSync(file, "utf8")).join("\n");
 const staticTargets = new Set();
 
-for (const match of source.matchAll(/\\bhref\\s*=\\s*["'](\\/[A-Za-z0-9_./-]*(?:#[A-Za-z0-9_.-]+)?)["']/g)) {
+for (const match of source.matchAll(/\bhref\s*=\s*["'](\/[A-Za-z0-9_./-]*(?:#[A-Za-z0-9_.-]+)?)["']/g)) {
   staticTargets.add(match[1].split("#")[0] || "/");
 }
-for (const match of source.matchAll(/\\brouter\\.(?:push|replace)\\(\\s*["'](\\/[A-Za-z0-9_./-]*)["']/g)) {
+for (const match of source.matchAll(/\brouter\.(?:push|replace)\(\s*["'](\/[A-Za-z0-9_./-]*)["']/g)) {
   staticTargets.add(match[1]);
 }
 
