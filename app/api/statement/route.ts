@@ -48,7 +48,7 @@ function parseStatement(raw: string): { statement: ParsedStatement; skippedRows:
   const parsed = JSON.parse(clean) as Partial<ParsedStatement>;
   if (!parsed || !Array.isArray(parsed.rows)) throw new Error("Invalid statement response");
   if (parsed.rows.length > 1000) throw new Error("Statement contains more than 1000 rows");
-  const rows = parsed.rows.flatMap((row: unknown) => {
+  const rows: StatementRow[] = parsed.rows.flatMap((row: unknown): StatementRow[] => {
     if (!row || typeof row !== "object") return [];
     const r = row as Record<string, unknown>;
     const date = typeof r.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(r.date) ? r.date : "";
