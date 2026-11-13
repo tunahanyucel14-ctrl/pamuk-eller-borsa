@@ -32,7 +32,7 @@ type ParsedStatement = {
   rows: StatementRow[];
 };
 
-function parseStatement(raw: string): { statement: ParsedStatement; skippedRows: number } {
+function parseStatement(raw: string): { statement: ParsedStatement; skippedRows: number; sourceRowCount: number } {
   const clean = raw.replace(/^\`\`\`json\s*/i, "").replace(/\s*\`\`\`$/, "");
   const parsed = JSON.parse(clean) as Partial<ParsedStatement>;
   if (!parsed || !Array.isArray(parsed.rows)) throw new Error("Invalid statement response");
@@ -69,7 +69,8 @@ function parseStatement(raw: string): { statement: ParsedStatement; skippedRows:
       statement_expense: nullableAmount(parsed.statement_expense),
       rows
     },
-    skippedRows: Math.max(0, parsed.rows.length - rows.length)
+    skippedRows: Math.max(0, parsed.rows.length - rows.length),
+    sourceRowCount: parsed.rows.length
   };
 }
 
@@ -205,7 +206,7 @@ export async function POST(request: Request) {
       statementIncome: parsed.statement.statement_income,
       statementExpense: parsed.statement.statement_expense,
       skippedRows: parsed.skippedRows,
-      atLimit: parsed.statement.rows.length >= 1000,
+      atLimit: parsed.sourceRowCount >= 1000,
       extractedIncome: Math.round(parsed.statement.rows.filter(row => row.type === "gelir").reduce((sum, row) => sum + row.amount, 0) * 100) / 100,
       extractedExpense: Math.round(parsed.statement.rows.filter(row => row.type === "gider").reduce((sum, row) => sum + row.amount, 0) * 100) / 100
     } });
