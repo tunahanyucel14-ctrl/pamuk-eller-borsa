@@ -7,10 +7,11 @@ import { tl } from "../../../lib/finans";
 import { kart, girdi, dugme, baslik, etiket } from "../../../lib/ui";
 type Debt={id:string;created_by?:string|null;name:string;creditor:string;debt_type:string;original_amount:number;remaining_amount:number;monthly_payment:number;annual_interest_rate:number;due_day:number|null;end_date:string|null;notes:string};
 function parseLocalNumber(raw:string):number{
- let value=raw.trim().replace(/[\\s₺]/g,"");
+ let value=raw.trim().replace(/[\s₺]/g,"");
  if(value.includes(",")&&value.includes(".")){
-  value=value.lastIndexOf(",")>value.lastIndexOf(".")?value.replace(/\\./g,"").replace(",","."):value.replace(/,/g,"");
+  value=value.lastIndexOf(",")>value.lastIndexOf(".")?value.replace(/\./g,"").replace(",","."):value.replace(/,/g,"");
  }else if(value.includes(","))value=value.replace(",",".");
+ else if(/^\d{1,3}(\.\d{3})+$/.test(value))value=value.replace(/\./g,"");
  return Number(value);
 }
 function simulatePortfolio(debts:Debt[], extraBudget:number) {
