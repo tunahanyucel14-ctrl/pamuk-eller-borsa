@@ -314,7 +314,10 @@ export default function Home() {
       try { await refreshArena(); } catch { /* Durum ekranda açıklanır. */ }
     };
     void load();
-    const timer = window.setInterval(() => { void load(); }, 60000);
+    const timer = window.setInterval(async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.access_token) void load();
+    }, 60000);
     return () => { cancelled = true; window.clearInterval(timer); };
   }, [balanceReady, portfolioReady, tradeCountReady, stocks.length, refreshArena]);
 
