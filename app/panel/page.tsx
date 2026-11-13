@@ -390,7 +390,7 @@ export default function GenelBakis() {
               const incomeArea = aylikTrend.length ? `M ${xAt(0)} 194 L ${aylikTrend.map((x, i) => `${xAt(i)} ${yAt(x.gelir)}`).join(" L ")} L ${xAt(aylikTrend.length - 1)} 194 Z` : "";
               const expenseArea = aylikTrend.length ? `M ${xAt(0)} 194 L ${aylikTrend.map((x, i) => `${xAt(i)} ${yAt(x.gider)}`).join(" L ")} L ${xAt(aylikTrend.length - 1)} 194 Z` : "";
               return (
-                <div className="overflow-hidden rounded-2xl border border-line bg-inner/35 p-3 sm:p-5">
+                <div className="dashboard-chart overflow-hidden rounded-2xl border border-line bg-inner/35 p-3 sm:p-5">
                   <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
                     <div><p className="text-sm font-bold">Gelir ve gider rotası</p><p className="mt-1 text-[11px] text-muted">Son altı ayın gerçek işlem kayıtları · TRY hesapları</p></div>
                     <div className="flex gap-3 text-[11px] font-semibold"><span className="flex items-center gap-1.5 text-up"><i className="h-2 w-2 rounded-full bg-up"/> Gelir</span><span className="flex items-center gap-1.5 text-down"><i className="h-2 w-2 rounded-full bg-down"/> Gider</span></div>
@@ -399,19 +399,19 @@ export default function GenelBakis() {
                     <div className="flex h-52 items-center justify-center rounded-xl border border-dashed border-line text-center text-sm text-muted">Grafiği oluşturmak için henüz yeterli işlem kaydı yok.</div>
                   ) : (
                     <>
-                      <svg viewBox="0 0 720 224" role="img" aria-label="Son altı ayın gelir ve gider çizgi grafiği" className="h-48 w-full overflow-visible sm:h-64">
+                      <svg viewBox="0 0 720 224" role="img" aria-label="Son altı ayın gelir ve gider çizgi grafiği" className="dashboard-chart-svg h-48 w-full overflow-visible sm:h-64">
                         <defs>
                           <linearGradient id="incomeFill" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stopColor="var(--up)" stopOpacity=".28"/><stop offset="100%" stopColor="var(--up)" stopOpacity="0"/></linearGradient>
                           <linearGradient id="expenseFill" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stopColor="var(--down)" stopOpacity=".2"/><stop offset="100%" stopColor="var(--down)" stopOpacity="0"/></linearGradient>
                         </defs>
-                        {[36, 88, 141, 194].map((y) => <line key={y} x1="18" x2="702" y1={y} y2={y} stroke="var(--line)" strokeDasharray="4 7" />)}
+                        {[36, 88, 141, 194].map((y) => <line key={y} x1="18" x2="702" y1={y} y2={y} className="dashboard-chart-grid" stroke="var(--line)" strokeDasharray="4 7" />)}
                         <path d={incomeArea} fill="url(#incomeFill)"/>
                         <path d={expenseArea} fill="url(#expenseFill)"/>
-                        <polyline points={incomePoints} fill="none" stroke="var(--up)" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"/>
+                        <polyline points={incomePoints} fill="none" stroke="var(--up)" className="dashboard-income-line" className="dashboard-expense-line" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"/>
                         <polyline points={expensePoints} fill="none" stroke="var(--down)" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"/>
                         {aylikTrend.map((item, i) => <g key={i}>
-                          <circle cx={xAt(i)} cy={yAt(item.gelir)} r="6" fill="var(--up)" stroke="var(--card)" strokeWidth="3"><title>{item.ay} gelir: {tl(item.gelir)}</title></circle>
-                          <circle cx={xAt(i)} cy={yAt(item.gider)} r="6" fill="var(--down)" stroke="var(--card)" strokeWidth="3"><title>{item.ay} gider: {tl(item.gider)}</title></circle>
+                          <circle className="dashboard-chart-dot dashboard-chart-income-dot" cx={xAt(i)} cy={yAt(item.gelir)} r="6" fill="var(--up)" stroke="var(--card)" strokeWidth="3"><title>{item.ay} gelir: {tl(item.gelir)}</title></circle>
+                          <circle className="dashboard-chart-dot dashboard-chart-expense-dot" cx={xAt(i)} cy={yAt(item.gider)} r="6" fill="var(--down)" stroke="var(--card)" strokeWidth="3"><title>{item.ay} gider: {tl(item.gider)}</title></circle>
                         </g>)}
                       </svg>
                       <div className="grid grid-cols-6 gap-1">
