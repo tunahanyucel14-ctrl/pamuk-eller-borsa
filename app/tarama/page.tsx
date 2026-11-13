@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useAile } from "../../lib/aile-baglami";
+
 import Link from "next/link";
 import { Camera, FileImage, ScanLine, ArrowLeft, CheckCircle2 } from "lucide-react";
 import { supabase } from "../../lib/supabase";
@@ -15,14 +15,29 @@ export default function TaramaPage() {
   const [receipt, setReceipt] = useState<Receipt | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
-  const { aileId } = useAile();
+  const [aileId,setAileId] = useState("");
   const router = useRouter();
   const [accounts,setAccounts] = useState<{account_id:string;name:string}[]>([]);
   const [categories,setCategories] = useState<{id:string;name:string}[]>([]);
   const [accountId,setAccountId] = useState("");
   const [categoryId,setCategoryId] = useState("");
   const [saving,setSaving] = useState(false);
-  useEffect(()=>{Promise.all([supabase.from("account_balances").select("account_id,name").eq("family_id",aileId).order("name"),supabase.from("categories").select("id,name").eq("family_id",aileId).eq("kind","gider").order("name")]).then(([a,k])=>{setAccounts(a.data||[]);setCategories(k.data||[]);if(a.data?.[0])setAccountId(a.data[0].account_id);});},[aileId]);
+  useEffect(()=>{
+    let active=true;
+    async function load(){
+      const {data:userData}=await supabase.auth.getUser();
+      if(!userData.user)return;
+      const {data:members}=await supabase.from("family_members").select("family_id").eq("user_id",userData.user.id).limit(1);
+      const family=members?.[0]?.family_id;
+      if(!family||!active)return;
+      setAileId(family);
+      const [a,k]=await Promise.all([supabase.from("account_balances").select("account_id,name").eq("family_id",family).order("name"),supabase.from("categories").select("id,name").eq("family_id",family).eq("kind","gider").order("name")]);
+      if(!active)return;
+      setAccounts(a.data||[]);setCategories(k.data||[]);if(a.data?.[0])setAccountId(a.data[0].account_id);
+    }
+    load();
+    return ()=>{active=false;};
+  },[]);
 
   function choose(f?: File) {
     if (!f) return;
