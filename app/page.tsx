@@ -29,6 +29,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { usePersistentState } from "../lib/use-persistent-state";
+import Link from "next/link";
 
 /* ---------- TİPLER ---------- */
 
@@ -460,6 +461,13 @@ export default function Home() {
               </button>
             ))}
           </nav>
+          <Link
+            href="/panel"
+            className="mt-3 flex items-center gap-3 rounded-xl border border-accent/30 bg-accent/10 px-4 py-3 text-sm font-bold text-accent transition hover:bg-accent/20"
+          >
+            <Wallet size={19} />
+            Gelir-Gider Yönetimi
+          </Link>
 
           <div className="mt-auto rounded-2xl border border-accent/25 bg-accent/5 p-4">
             <div className="mb-2 flex items-center gap-2 text-accent">
@@ -497,6 +505,13 @@ export default function Home() {
             </div>
 
             <div className="relative flex shrink-0 items-center gap-2">
+              <Link
+                href="/panel"
+                className="rounded-xl border border-accent/30 bg-accent/10 px-3 py-3 text-xs font-bold text-accent transition hover:bg-accent/20 sm:text-sm"
+              >
+                <span className="sm:hidden">Finans</span>
+                <span className="hidden sm:inline">Gelir-Gider</span>
+              </Link>
               <button
                 onClick={() => setThemeOpen((o) => !o)}
                 aria-label="Tema seç"
