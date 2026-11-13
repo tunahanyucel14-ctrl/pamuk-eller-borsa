@@ -9,7 +9,7 @@ import { kart, girdi, dugme, baslik } from "../../../lib/ui";
 
 type Category={id:string;name:string};
 type Budget={id:string;category_id:string;limit_amount:number;budget_month:string};
-type Transaction={category_id:string|null;amount:number};
+type Transaction={category_id:string|null;amount:number;account_id:string};
 const monthNow=()=>{const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0");};
 const firstDay=(m:string)=>m+"-01";
 const nextMonth=(m:string)=>{const [y,mo]=m.split("-").map(Number);return new Date(y,mo,1).getFullYear()+"-"+String(new Date(y,mo,1).getMonth()+1).padStart(2,"0")+"-01";};
@@ -28,17 +28,19 @@ export default function ButceLimitleriPage(){
 
  const load=useCallback(async()=>{
   setLoading(true);setError("");setNotice("");
-  const [c,b,t]=await Promise.all([
+  const [c,b,t,a]=await Promise.all([
    supabase.from("categories").select("id,name").eq("family_id",aileId).eq("kind","gider").order("name"),
    supabase.from("family_category_budgets").select("id,category_id,limit_amount,budget_month").eq("family_id",aileId).eq("budget_month",firstDay(month)),
-   supabase.from("fin_transactions").select("category_id,amount").eq("family_id",aileId).eq("kind","gider").gte("tx_date",firstDay(month)).lt("tx_date",nextMonth(month))
+   supabase.from("fin_transactions").select("category_id,amount,account_id").eq("family_id",aileId).eq("kind","gider").gte("tx_date",firstDay(month)).lt("tx_date",nextMonth(month)),
+   supabase.from("account_balances").select("account_id,currency").eq("family_id",aileId)
   ]);
-  const failure=c.error||b.error||t.error;
+  const failure=c.error||b.error||t.error||a.error;
   if(failure){setError(failure.message);setLoading(false);return;}
   const cats=(c.data||[]) as Category[];
   const bRows=(b.data||[]).map((x:any)=>({...x,limit_amount:Number(x.limit_amount)||0})) as Budget[];
   setCategories(cats);setBudgets(bRows);
-  setTransactions((t.data||[]).map((x:any)=>({...x,amount:Number(x.amount)||0})) as Transaction[]);
+  const currencyByAccount=new Map((a.data||[]).map((x:any)=>[x.account_id,String(x.currency||"TRY").toUpperCase()]));
+  setTransactions((t.data||[]).filter((x:any)=>currencyByAccount.get(x.account_id)==="TRY").map((x:any)=>({...x,amount:Number(x.amount)||0})) as Transaction[]);
   setDrafts(Object.fromEntries(bRows.map(x=>[x.category_id,String(x.limit_amount)])));
   setLoading(false);
  },[aileId,month]);
