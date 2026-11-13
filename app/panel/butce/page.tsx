@@ -11,7 +11,7 @@ type Row = { id: string; name: string; kind: Kind; owner: string; values: (numbe
 const money = (n:number) => new Intl.NumberFormat("tr-TR",{style:"currency",currency:"TRY",maximumFractionDigits:0}).format(n);
 const cell = "min-w-24 w-24 border-b border-r border-line bg-transparent px-2 py-2 text-right text-sm outline-none focus:bg-accent/10 focus:ring-1 focus:ring-accent";
 export default function ButcePage() {
-  const { aileId, kullaniciId, yazabilir } = useAile();
+  const { aileId, kullaniciId, yazabilir, yonetebilir } = useAile();
   const [rows,setRows] = useState<Row[]>([]);
   const [month,setMonth] = useState(0);
   const [filter,setFilter] = useState<"Tümü"|Kind>("Tümü");
@@ -59,7 +59,7 @@ export default function ButcePage() {
   function change(id:string,index:number,value:string){setRows(old=>old.map(r=>r.id!==id?r:{...r,values:r.values.map((v,i)=>i===index?(value.trim()===""?null:Math.max(0,Number(value.replace(",","."))||0)):v)}));}
   function add(kind:Kind){const name=prompt("Yeni kalemin adı:");if(!name?.trim())return;setRows(old=>[...old,{id:crypto.randomUUID(),name:name.trim().toLocaleUpperCase("tr-TR"),kind,owner:"Ortak",values:Array(12).fill(null)}]);}
   async function deleteMonthData(){
-    if(!aileId || !yazabilir || deleting)return;
+    if(!aileId || !yonetebilir || deleting)return;
     const label=months[month];
     if(!window.confirm(label+" ayına ait bütçe hücreleri ve "+new Date().getFullYear()+" yılı işlem kayıtları silinsin mi? Bu işlem geri alınamaz."))return;
     setDeleting(true);
@@ -74,29 +74,24 @@ export default function ButcePage() {
   }
   async function deleteAllFinanceData(){
     if(!aileId || !yazabilir || deleting)return;
-    const ok=window.confirm("Tunahan ve Kübra'nın TÜM finans verileri silinecek: bütün işlem kayıtları, bütçe tablosu, borçlar, faturalar, hedefler, yatırımlar ve hesap bakiyeleri. Kullanıcı hesapları, aile üyeliği, kategoriler ve Borsa Arenası korunur. Devam edilsin mi?");
+    const ok=window.confirm("Bu ailenin TÜM finans verileri silinecek: işlem kayıtları, banka ekstresi aktarım geçmişi, gelir planları, faturalar ve abonelikler, borçlar, hedefler, yatırımlar, kategori bütçeleri ve bütçe tablosu. Hesaplar silinmeyecek; açılış bakiyeleri sıfırlanacak. Kullanıcı hesapları, aile üyeliği, kategoriler ve Borsa Arenası korunur. Devam edilsin mi?");
     if(!ok)return;
     const second=window.prompt("Onaylamak için TAMAM yaz.");
     if(second!=="TAMAM")return;
     setDeleting(true);
-    const tasks=await Promise.all([
-      supabase.from("fin_transactions").delete().eq("family_id",aileId),
-      supabase.from("family_debts").delete().eq("family_id",aileId),
-      supabase.from("family_bills").delete().eq("family_id",aileId),
-      supabase.from("family_goals").delete().eq("family_id",aileId),
-      supabase.from("family_investments").delete().eq("family_id",aileId),
-      supabase.from("accounts").update({opening_balance:0}).eq("family_id",aileId),
-      supabase.from("family_budget_sheets").upsert({family_id:aileId,rows:[],notes:"",updated_by:kullaniciId},{onConflict:"family_id"})
-    ]);
-    const failure=tasks.find(x=>x.error)?.error;
-    if(failure){setSaveStatus("Bazı veriler silinemedi: "+failure.message);setDeleting(false);return;}
+    const {data,error}=await supabase.rpc("clear_family_finances",{p_family_id:aileId});
+    if(error){
+      setSaveStatus("Finans verileri güvenli biçimde temizlenemedi: "+error.message);
+      setDeleting(false);
+      return;
+    }
     setRows([]);setNotes("");
-    setSaveStatus("Tüm finans verileri temizlendi. Hesaplar ve kullanıcı üyelikleri korundu.");
+    setSaveStatus("Finans verileri temizlendi. Hesaplar, aile üyelikleri ve Borsa Arenası korundu.");
     setDeleting(false);
   }
   function exportCsv(){const lines=[["Tür","Kalem","Kişi",...months,"Yıllık Toplam"],...rows.map(r=>[r.kind,r.name,r.owner,...r.values.map(v=>v??""),r.values.reduce<number>((s,v)=>s+(Number(v)||0),0)])];const csv="\uFEFF"+lines.map(r=>r.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(";")).join("\r\n");const url=URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8"}));const a=document.createElement("a");a.href=url;a.download="Pamuk-Eller-Butce.csv";a.click();window.setTimeout(()=>URL.revokeObjectURL(url),1000);}
   return <div className="space-y-5">
-    <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-accent"><FileSpreadsheet size={15}/> Akıllı bütçe çalışma sayfası</p><h1 className="mt-1 text-2xl font-black">Gelir – Gider Tablosu</h1><p className="mt-1 text-sm text-muted">Excel benzeri tabloda aylık gelir ve giderlerini düzenle. Değişiklikler aile hesabına kaydedilir.</p></div><div className="flex flex-wrap gap-2"><button onClick={exportCsv} className="flex items-center gap-2 rounded-xl border border-line bg-card px-4 py-2 text-sm font-semibold"><Download size={16}/> Excel uyumlu indir</button><button disabled={deleting||!yazabilir} onClick={deleteMonthData} className="flex items-center gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm font-semibold text-amber-600 disabled:opacity-50"><Trash2 size={15}/> Bu ayı sil</button><button disabled={deleting||!yazabilir} onClick={deleteAllFinanceData} className="flex items-center gap-2 rounded-xl border border-down/30 bg-down/10 px-3 py-2 text-sm font-semibold text-down disabled:opacity-50"><AlertTriangle size={15}/> Tüm finans verilerini sil</button></div></div>
+    <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-accent"><FileSpreadsheet size={15}/> Akıllı bütçe çalışma sayfası</p><h1 className="mt-1 text-2xl font-black">Gelir – Gider Tablosu</h1><p className="mt-1 text-sm text-muted">Excel benzeri tabloda aylık gelir ve giderlerini düzenle. Değişiklikler aile hesabına kaydedilir.</p></div><div className="flex flex-wrap gap-2"><button onClick={exportCsv} className="flex items-center gap-2 rounded-xl border border-line bg-card px-4 py-2 text-sm font-semibold"><Download size={16}/> Excel uyumlu indir</button><button disabled={deleting||!yazabilir} onClick={deleteMonthData} className="flex items-center gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm font-semibold text-amber-600 disabled:opacity-50"><Trash2 size={15}/> Bu ayı sil</button><button disabled={deleting||!yonetebilir} onClick={deleteAllFinanceData} className="flex items-center gap-2 rounded-xl border border-down/30 bg-down/10 px-3 py-2 text-sm font-semibold text-down disabled:opacity-50"><AlertTriangle size={15}/> Tüm finans verilerini sil</button></div></div>
     <div className="grid gap-3 sm:grid-cols-3"><div className="rounded-2xl border border-line bg-card p-4"><p className="text-xs text-muted">Yıllık gelir</p><p className="mt-1 text-xl font-black text-up">{money(annualIncome)}</p></div><div className="rounded-2xl border border-line bg-card p-4"><p className="text-xs text-muted">Yıllık gider</p><p className="mt-1 text-xl font-black text-down">{money(annualExpense)}</p></div><div className="rounded-2xl border border-line bg-card p-4"><p className="text-xs text-muted">Yıllık net bakiye</p><p className="mt-1 text-xl font-black">{money(annualIncome-annualExpense)}</p></div></div>
     <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-line bg-card p-3"><div className="flex items-center gap-2"><button onClick={()=>setMonth(m=>Math.max(0,m-1))} disabled={month===0} className="rounded-lg p-2 hover:bg-inner disabled:opacity-30"><ChevronLeft size={18}/></button><b className="min-w-28 text-center">{months[month]}</b><button onClick={()=>setMonth(m=>Math.min(11,m+1))} disabled={month===11} className="rounded-lg p-2 hover:bg-inner disabled:opacity-30"><ChevronRight size={18}/></button><button onClick={()=>setMonth(0)} className="ml-1 text-xs text-accent">Yıla dön</button></div><div className="flex flex-wrap items-center gap-2"><label className="relative"><Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted"/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Kalem ara..." className="w-36 rounded-lg border border-line bg-inner py-2 pl-8 pr-2 text-sm"/></label><select value={filter} onChange={e=>setFilter(e.target.value as "Tümü"|Kind)} className="rounded-lg border border-line bg-inner px-3 py-2 text-sm"><option>Tümü</option><option>Gelir</option><option>Gider</option></select><select value={owner} onChange={e=>setOwner(e.target.value)} className="rounded-lg border border-line bg-inner px-3 py-2 text-sm"><option>Tümü</option><option>Tunahan</option><option>Kübra</option><option>Ortak</option></select></div></div>
     <div className="overflow-hidden rounded-2xl border border-line bg-card"><div className="flex flex-wrap items-center justify-between gap-2 border-b border-line p-3"><b className="text-sm">Çalışma sayfası · {months[month]}</b><div className="flex gap-2"><button onClick={()=>add("Gelir")} className="flex items-center gap-1 rounded-lg bg-up/10 px-3 py-2 text-xs font-bold text-up"><Plus size={14}/> Gelir ekle</button><button onClick={()=>add("Gider")} className="flex items-center gap-1 rounded-lg bg-down/10 px-3 py-2 text-xs font-bold text-down"><Plus size={14}/> Gider ekle</button></div></div>
