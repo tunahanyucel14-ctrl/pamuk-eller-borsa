@@ -38,7 +38,7 @@ function mapProviderFailure(status: number, providerCode = ""): AiFailure {
   if (status === 402) {
     return {
       code: "AI_BILLING",
-      message: "Yapay zekâ kullanım bakiyesi veya ödeme limiti yetersiz. Vercel AI Gateway faturalandırma ve harcama limitini kontrol et.",
+      message: "Yapay zekâ sağlayıcısında bakiye veya ödeme limiti yetersiz. Sağlayıcının faturalandırma ayarlarını kontrol et.",
       httpStatus: 503,
     };
   }
@@ -125,7 +125,7 @@ export async function postAiRequest(
       provider: null,
       failure: {
         code: "AI_KEY_MISSING",
-        message: "Yapay zekâ bağlantısı yapılandırılmamış. Vercel projesinde OIDC erişimini etkinleştir veya AI_GATEWAY_API_KEY tanımla.",
+        message: "Yapay zekâ bağlantısı yapılandırılmamış. Vercel projesinde OIDC erişimini etkinleştir ya da AI_GATEWAY_API_KEY / OPENAI_API_KEY tanımla.",
         httpStatus: 503,
       },
     };
@@ -177,12 +177,12 @@ export async function postAiRequest(
       return { response, provider: credential.provider };
     }
 
-    const errorBody = await response.clone().json().catch(() => ({})) as {
+    const errorBody = await response.clone().json().catch(() => null) as {
       error?: { code?: unknown };
-    };
+    } | null;
     lastFailure = mapProviderFailure(
       response.status,
-      typeof errorBody.error?.code === "string" ? errorBody.error.code : "",
+      typeof errorBody?.error?.code === "string" ? errorBody.error.code : "",
     );
 
     // If OIDC is not authorized, try a configured Gateway key, then a direct OpenAI key.
