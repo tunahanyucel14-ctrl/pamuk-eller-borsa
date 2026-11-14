@@ -222,7 +222,7 @@ export async function postAiRequest(
     const upstreamErrorCode = safeProviderLabel(errorBody?.error?.code);
     const upstreamMessage = typeof errorBody?.error?.message === "string"
       ? errorBody.error.message.slice(0, 500)
-      : rawError.replace(/<[^>]*>/g, " ").replace(/\\s+/g, " ").trim().slice(0, 500);
+      : rawError.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim().slice(0, 500);
     lastFailure = {
       ...mapProviderFailure(response.status, upstreamErrorType, upstreamErrorCode, upstreamMessage),
       authMethod: credential.authMethod,
