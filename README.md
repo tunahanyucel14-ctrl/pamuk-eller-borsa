@@ -6,7 +6,8 @@ Türkiye'deki bireyler ve aileler için gelir-gider, hesap, borç, abonelik, yat
 - Next.js 15 App Router, React 19, TypeScript
 - Tailwind CSS 4, lucide-react
 - Supabase Auth, PostgreSQL ve Row Level Security
-- Vercel AI Gateway (AI asistanı ve fiş okuma)
+- Vercel AI Gateway (AI asistanı ve banka ekstresi PDF/görsel okuma)
+- Tesseract.js (Türkçe/İngilizce fiş OCR; AI sağlayıcısından bağımsız)
 - ExcelJS (tarayıcıda XLSX ekstresi okuma)
 - Harici veri kaynakları: TCMB, Dünya Bankası, Binance, CoinGecko ve Yahoo Finance
 
@@ -31,7 +32,7 @@ Her GitHub push ve pull request işleminde `.github/workflows/quality.yml` TypeS
 Aşağıdaki değerleri Vercel veya yerel `.env.local` ortamında tanımla:
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY` (Supabase publishable/anon anahtarı)
-- `AI_GATEWAY_API_KEY` (AI asistanı ve fiş tarama için)
+- `AI_GATEWAY_API_KEY` (AI asistanı ve banka ekstresi PDF/görsel okuma için)
 
 Supabase anahtarları yalnızca public/publishable türünde olmalıdır. Service-role anahtarı tarayıcıya veya `NEXT_PUBLIC_*` değişkenine konulmamalıdır.
 
@@ -57,6 +58,7 @@ SQL dosyaları `supabase/` altında sıralıdır. Şema değişikliklerini mümk
 - Banka bağlantısı salt-okunur tasarlanmalıdır; kullanıcının onayı olmadan para transferi/ödeme yapılmaz.
 - Piyasa ve enflasyon verileri kaynak ve güncelleme zamanı ile sunulur; eksik veri uydurulmaz.
 - Finansal tahminler garanti değildir; kullanılan varsayımlar görünür olmalıdır.
+- Fişler Tesseract.js ile Türkçe/İngilizce OCR üzerinden okunur; tutar, tarih ve kategori kurallarla ayrıştırılır. Fiş taraması AI Gateway anahtarı gerektirmez.
 - Fiş OCR sonucu kullanıcı onayı olmadan finansal işlem olarak kaydedilmemelidir.
 - AI uç noktaları oturum doğrulaması, girdi boyutu sınırı, zaman aşımı ve OCR dosya imzası/çıktı doğrulaması kullanır.
 - Bildirimlerin mevcut tarayıcı tabanlı sürümü, tarayıcı/uygulama açıkken çalışır; arka plan push için ayrıca Web Push ve zamanlayıcı altyapısı gerekir.
