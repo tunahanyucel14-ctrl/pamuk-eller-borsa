@@ -9,6 +9,7 @@ test.before(async () => {
 test("Turkish and international receipt amount formats are parsed safely", () => {
   assert.equal(parser.parseMoney("100"), 100);
   assert.equal(parser.parseMoney("100,50"), 100.5);
+  assert.equal(parser.parseMoney("100,5"), 100.5);
   assert.equal(parser.parseMoney("1.250,00"), 1250);
   assert.equal(parser.parseMoney("1.250"), 1250);
   assert.equal(parser.parseMoney("1,250.00"), 1250);
