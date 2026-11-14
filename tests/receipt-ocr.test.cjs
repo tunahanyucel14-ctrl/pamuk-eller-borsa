@@ -15,7 +15,7 @@ test("fiş tarama AI sağlayıcısına bağlı değil, Tesseract OCR kullanıyor
 });
 
 test("fiş OCR çıktısı belirsiz alanları kullanıcı kontrolüne bırakıyor", () => {
-  assert.match(parser, /needsReview: score < 75 \|\| !merchant \|\| !total \|\| !date/);
+  assert.match(parser, /needsReview:score<75\\|\\|!merchant\\|\\|!total\\|\\|!date\\|\\|uniqueItems\\.length===0/);
   assert.match(route, /OCR_NO_TEXT/);
   assert.match(route, /LOCAL_OCR_FAILED/);
 });
