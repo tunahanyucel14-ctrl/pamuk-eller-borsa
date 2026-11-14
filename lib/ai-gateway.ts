@@ -229,7 +229,8 @@ export async function postAiRequest(
 
     // Gateway auth, entitlement, budget, or quota failures should not prevent a
     // configured direct OpenAI key from being tried as a fallback.
-    if ([401, 402, 403, 429].includes(response.status) && index < credentials.length - 1) {
+    // A Gateway model/route 404 can still be served by the next configured credential/provider.
+    if ([401, 402, 403, 404, 429].includes(response.status) && index < credentials.length - 1) {
       continue;
     }
 
