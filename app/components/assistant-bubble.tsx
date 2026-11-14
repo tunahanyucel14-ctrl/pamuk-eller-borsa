@@ -41,8 +41,15 @@ export default function AssistantBubble() {
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ message, history: lines.slice(-8) }),
       });
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.error || "Asistan şu anda yanıt veremiyor.");
+      const raw = await response.text();
+      let result: { error?: string; reply?: string };
+      try { result = JSON.parse(raw); }
+      catch {
+        const detail = raw.replace(/\\s+/g, " ").trim().slice(0, 180);
+        throw new Error(response.ok ? "Asistan geçerli bir yanıt döndürmedi." : `Sunucu hatası (${response.status}): ${detail || "Yanıt okunamadı."}`);
+      }
+      if (!response.ok) throw new Error(result.error || `Asistan isteği başarısız (${response.status}).`);
+      if (typeof result.reply !== "string" || !result.reply.trim()) throw new Error("Asistan boş yanıt döndürdü.");
       setLines((old) => [...old, { role: "assistant", text: result.reply }]);
     } catch (error) {
       setLines((old) => [...old, { role: "assistant", text: error instanceof Error ? error.message : "Bağlantı hatası." }]);
