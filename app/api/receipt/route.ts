@@ -12,6 +12,16 @@ function hasValidSignature(bytes: Buffer, mimeType: string) {
   return false;
 }
 
+function aiProviderFailure(status: number, data: any, feature: "assistant" | "receipt") {
+  const code = [data?.error?.code, data?.error?.type, data?.code].filter((v) => typeof v === "string").join(" ").toLowerCase();
+  if (status === 401 || status === 403) return { code: "AI_AUTH", error: "Yapay zekâ servis anahtarı geçersiz veya yetkisiz. Vercel'deki AI_GATEWAY_API_KEY ayarını kontrol et." };
+  if (status === 402 || code.includes("credit") || code.includes("billing") || code.includes("quota")) return { code: "AI_BILLING", error: "Yapay zekâ servisinin kullanım bakiyesi veya kotası yetersiz. Vercel AI Gateway kullanım ve faturalandırma ayarlarını kontrol et." };
+  if (status === 429 || code.includes("rate")) return { code: "AI_RATE_LIMIT", error: "Yapay zekâ isteği hız sınırına takıldı. Biraz bekleyip tekrar dene." };
+  if (status === 400 || status === 404 || code.includes("model")) return { code: "AI_MODEL_CONFIG", error: "Yapay zekâ modeli veya istek biçimi servis tarafından kabul edilmedi. Model erişimini ve Gateway yapılandırmasını kontrol etmek gerekiyor." };
+  if (status >= 500) return { code: "AI_PROVIDER_DOWN", error: "Yapay zekâ sağlayıcısı geçici bir sunucu hatası verdi. Biraz sonra tekrar dene." };
+  return { code: "AI_PROVIDER_ERROR", error: feature === "receipt" ? "Fiş okuma servisi isteği kabul etmedi. Vercel AI Gateway ayarlarını kontrol et." : "Yapay zekâ servisi isteği kabul etmedi. Vercel AI Gateway ayarlarını kontrol et." };
+}
+
 export async function POST(request: Request) {
   const token = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
   if (!token || token.length > 4096) return NextResponse.json({ error: "Giriş yapman gerekiyor." }, { status: 401 });
@@ -77,7 +87,11 @@ export async function POST(request: Request) {
       }),
     });
     const data = await response.json().catch(() => ({}));
-    if (!response.ok) return NextResponse.json({ error: "Fiş okuma servisine şu anda ulaşılamıyor." }, { status: 502 });
+    if (!response.ok) {
+      const failure = aiProviderFailure(response.status, data, "receipt");
+      console.error("[receipt-ocr] provider rejected request", { status: response.status, code: failure.code });
+      return NextResponse.json(failure, { status: response.status === 429 ? 429 : response.status === 402 ? 503 : response.status === 401 || response.status === 403 ? 503 : 502 });
+    }
     const raw = data?.choices?.[0]?.message?.content;
     const clean = String(raw || "").replace(/^```json\s*/i, "").replace(/\s*```$/, "");
     const parsed: unknown = JSON.parse(clean);
