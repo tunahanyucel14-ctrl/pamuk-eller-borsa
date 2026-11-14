@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ArrowDown, ArrowUp, Check, GripVertical, Palette, RotateCcw, Type, Image as ImageIcon, Sparkles, SlidersHorizontal, Wifi, AlertTriangle, CheckCircle2 } from "lucide-react";\nimport { supabase } from "../../../lib/supabase";
+import { ArrowDown, ArrowUp, Check, GripVertical, Palette, RotateCcw, Type, Image as ImageIcon, Sparkles, SlidersHorizontal, Wifi, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { supabase } from "../../../lib/supabase";
 
 const THEMES = [
   { id: "retro", name: "Kaset Kulübü", desc: "Analog sıcaklık, kâğıt dokusu ve canlı kiremit", colors: ["#f4ecd9", "#fff9ed", "#d95743"], tag: "İmza tema" },
