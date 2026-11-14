@@ -10,6 +10,6 @@ test("AI gateway retries the next credential when a model route is unavailable",
 });
 
 test("AI gateway keeps the configured OpenAI direct-provider fallback", () => {
-  assert.match(source, /process\.env\.OPENAI_API_KEY/);
-  assert.match(source, /requestedModel\.replace\(\/\^openai\\\/\/, ""\)/);
+  assert.ok(source.includes("process.env.OPENAI_API_KEY"));
+  assert.ok(source.includes('requestedModel.replace(/^openai\\//, "")'));
 });
