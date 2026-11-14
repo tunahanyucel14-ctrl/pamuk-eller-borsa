@@ -45,7 +45,7 @@ function mapProviderFailure(
       httpStatus: 503,
     };
   }
-  if (status === 403 && (signal.includes("access_denied") || message.includes("access denied"))) {
+  if (status === 403 && (signal.includes("access_denied") || message.includes("access denied") || message.includes("not authorized") || message.includes("permission") || message.includes("forbidden"))) {
     return {
       code: "AI_ACCESS_DENIED",
       message: "Vercel AI Gateway isteği takım veya proje erişim izni nedeniyle reddetti. Proje bağlantısı, anahtar kapsamı ve takım erişimi kontrol edilmeli.",
@@ -233,7 +233,7 @@ export async function postAiRequest(
     // Gateway auth, entitlement, budget, or quota failures should not prevent a
     // configured direct OpenAI key from being tried as a fallback.
     // A Gateway model/route 404 can still be served by the next configured credential/provider.
-    if ([401, 402, 403, 404, 429].includes(response.status) && index < credentials.length - 1) {
+    if ([401, 402, 403, 404, 408, 429, 500, 502, 503, 504].includes(response.status) && index < credentials.length - 1) {
       continue;
     }
 
