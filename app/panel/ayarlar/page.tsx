@@ -43,6 +43,16 @@ const MENU_ITEMS = [
 ];
 const ORDER_KEY = "pamuk-menu-order";
 
+function readPreference(key: string, fallback = ""): string {
+  try { return window.localStorage.getItem(key) ?? fallback; }
+  catch { return fallback; }
+}
+
+function writePreference(key: string, value: string): void {
+  try { window.localStorage.setItem(key, value); }
+  catch { /* Depolama izni veya kota sorunu ayarlar ekranını kilitlememeli. */ }
+}
+
 export default function AyarlarSayfasi() {
   const [theme, setTheme] = useState("retro");
   const [font, setFont] = useState("modern");
@@ -54,30 +64,30 @@ export default function AyarlarSayfasi() {
   const [dragged, setDragged] = useState<string | null>(null);
 
   useEffect(() => {
-    setTheme(localStorage.getItem("pamuk-tema") || "retro");
-    setFont(localStorage.getItem("pamuk-font") || "modern");
-    const storedPhoto = localStorage.getItem("pamuk-photo") || "none"; setPhoto(storedPhoto); document.documentElement.setAttribute("data-photo", storedPhoto);
-    const storedMotion = localStorage.getItem("pamuk-motion") || "full"; setMotion(storedMotion); document.documentElement.setAttribute("data-motion", storedMotion);
-    const storedDensity = localStorage.getItem("pamuk-density") || "comfortable"; setDensity(storedDensity); document.documentElement.setAttribute("data-density", storedDensity);
+    setTheme(readPreference("pamuk-tema") || "retro");
+    setFont(readPreference("pamuk-font") || "modern");
+    const storedPhoto = readPreference("pamuk-photo") || "none"; setPhoto(storedPhoto); document.documentElement.setAttribute("data-photo", storedPhoto);
+    const storedMotion = readPreference("pamuk-motion") || "full"; setMotion(storedMotion); document.documentElement.setAttribute("data-motion", storedMotion);
+    const storedDensity = readPreference("pamuk-density") || "comfortable"; setDensity(storedDensity); document.documentElement.setAttribute("data-density", storedDensity);
     try {
-      const stored = JSON.parse(localStorage.getItem(ORDER_KEY) || "[]") as string[];
+      const stored = JSON.parse(readPreference(ORDER_KEY) || "[]") as string[];
       const valid = stored.filter((href) => MENU_ITEMS.some((x) => x[1] === href));
       setOrder([...valid, ...MENU_ITEMS.map((x) => x[1]).filter((href) => !valid.includes(href))]);
     } catch { /* Varsayılan sıra kullanılır. */ }
   }, []);
 
   function applyTheme(id: string) {
-    setTheme(id); localStorage.setItem("pamuk-tema", id);
+    setTheme(id); writePreference("pamuk-tema", id);
     document.documentElement.setAttribute("data-theme", id);
     setSaved(true); window.setTimeout(() => setSaved(false), 1800);
   }
   function applyFont(id: string) {
-    setFont(id); localStorage.setItem("pamuk-font", id);
+    setFont(id); writePreference("pamuk-font", id);
     document.documentElement.setAttribute("data-font", id);
     setSaved(true); window.setTimeout(() => setSaved(false), 1800);
   }
   function persistOrder(next: string[]) {
-    setOrder(next); localStorage.setItem(ORDER_KEY, JSON.stringify(next));
+    setOrder(next); writePreference(ORDER_KEY, JSON.stringify(next));
     window.dispatchEvent(new Event("pamuk-settings-changed"));
     setSaved(true); window.setTimeout(() => setSaved(false), 1800);
   }
@@ -93,17 +103,17 @@ export default function AyarlarSayfasi() {
     const next = [...order]; const target = index + direction;
     if (target < 0 || target >= next.length) return;
     [next[index], next[target]] = [next[target], next[index]];
-    setOrder(next); localStorage.setItem(ORDER_KEY, JSON.stringify(next));
+    setOrder(next); writePreference(ORDER_KEY, JSON.stringify(next));
     window.dispatchEvent(new Event("pamuk-settings-changed"));
     setSaved(true); window.setTimeout(() => setSaved(false), 1800);
   }
   function reset() {
     applyTheme("retro"); applyFont("modern");
-    setPhoto("none"); localStorage.setItem("pamuk-photo","none"); document.documentElement.setAttribute("data-photo","none");
-    setMotion("full"); localStorage.setItem("pamuk-motion","full"); document.documentElement.setAttribute("data-motion","full");
-    setDensity("comfortable"); localStorage.setItem("pamuk-density","comfortable"); document.documentElement.setAttribute("data-density","comfortable");
+    setPhoto("none"); writePreference("pamuk-photo","none"); document.documentElement.setAttribute("data-photo","none");
+    setMotion("full"); writePreference("pamuk-motion","full"); document.documentElement.setAttribute("data-motion","full");
+    setDensity("comfortable"); writePreference("pamuk-density","comfortable"); document.documentElement.setAttribute("data-density","comfortable");
     const next = MENU_ITEMS.map((x) => x[1]);
-    setOrder(next); localStorage.setItem(ORDER_KEY, JSON.stringify(next));
+    setOrder(next); writePreference(ORDER_KEY, JSON.stringify(next));
     window.dispatchEvent(new Event("pamuk-settings-changed"));
   }
 
@@ -146,7 +156,7 @@ export default function AyarlarSayfasi() {
           {id:"mountain",name:"Dağ & göl",desc:"Sakin doğa manzarası",url:"https://images.unsplash.com/photo-1470770841072-f978cf4d019e?auto=format&fit=crop&w=900&q=80"},
           {id:"ocean",name:"Okyanus",desc:"Derin mavi kıyı",url:"https://images.unsplash.com/photo-1518837695005-2083093ee35b?auto=format&fit=crop&w=900&q=80"},
           {id:"sunrise",name:"Gün doğumu",desc:"Yumuşak sıcak ışık",url:"https://images.unsplash.com/photo-1470252649378-9c29740c9fa8?auto=format&fit=crop&w=900&q=80"}
-        ].map(x=><button key={x.id} onClick={()=>{setPhoto(x.id);localStorage.setItem("pamuk-photo",x.id);document.documentElement.setAttribute("data-photo",x.id);setSaved(true);window.setTimeout(()=>setSaved(false),1800);}} className={"overflow-hidden rounded-2xl border text-left transition hover:-translate-y-1 "+(photo===x.id?"border-accent ring-2 ring-accent/20":"border-line")}>
+        ].map(x=><button key={x.id} onClick={()=>{setPhoto(x.id);writePreference("pamuk-photo",x.id);document.documentElement.setAttribute("data-photo",x.id);setSaved(true);window.setTimeout(()=>setSaved(false),1800);}} className={"overflow-hidden rounded-2xl border text-left transition hover:-translate-y-1 "+(photo===x.id?"border-accent ring-2 ring-accent/20":"border-line")}>
           <div className="relative h-24" style={{background:x.url?("linear-gradient(90deg,rgba(7,13,24,.25),rgba(7,13,24,.05)),url('"+x.url+"') center/cover"):"linear-gradient(135deg,var(--inner),var(--card))"}}><span className="absolute right-2 top-2 rounded-full bg-black/40 px-2 py-1 text-[9px] font-bold text-white">{photo===x.id?"SEÇİLİ":"ÖNİZLEME"}</span></div>
           <div className="p-3"><p className="text-sm font-bold">{x.name}</p><p className="mt-1 text-xs text-muted">{x.desc}</p></div>
         </button>)}
@@ -157,14 +167,14 @@ export default function AyarlarSayfasi() {
     <section id="animasyon" className="scroll-mt-28 rounded-3xl border border-line bg-card p-5 shadow-sm sm:p-7">
       <div className="mb-5 flex items-center gap-3"><span className="rounded-2xl bg-accent/10 p-3 text-accent"><Sparkles size={21}/></span><div><h2 className="text-lg font-bold">Geçiş ve hareket</h2><p className="text-xs text-muted">Sayfa geçişleri ve grafik animasyonlarının yoğunluğunu belirle.</p></div></div>
       <div className="grid gap-3 sm:grid-cols-3">
-        {[["full","Akıcı","Yumuşak geçişler ve grafik animasyonları"],["subtle","Sakin","Daha kısa, hafif hareketler"],["off","Hareketsiz","Animasyonları kapat"]].map(([id,name,desc])=><button key={id} onClick={()=>{setMotion(id);localStorage.setItem("pamuk-motion",id);document.documentElement.setAttribute("data-motion",id);setSaved(true);window.setTimeout(()=>setSaved(false),1800);}} className={"rounded-2xl border p-4 text-left "+(motion===id?"border-accent bg-accent/5 ring-2 ring-accent/15":"border-line hover:border-accent/50")}><p className="font-bold">{name}</p><p className="mt-1 text-xs text-muted">{desc}</p>{motion===id&&<span className="mt-2 inline-flex items-center gap-1 text-xs font-bold text-accent"><Check size={13}/> Seçili</span>}</button>)}
+        {[["full","Akıcı","Yumuşak geçişler ve grafik animasyonları"],["subtle","Sakin","Daha kısa, hafif hareketler"],["off","Hareketsiz","Animasyonları kapat"]].map(([id,name,desc])=><button key={id} onClick={()=>{setMotion(id);writePreference("pamuk-motion",id);document.documentElement.setAttribute("data-motion",id);setSaved(true);window.setTimeout(()=>setSaved(false),1800);}} className={"rounded-2xl border p-4 text-left "+(motion===id?"border-accent bg-accent/5 ring-2 ring-accent/15":"border-line hover:border-accent/50")}><p className="font-bold">{name}</p><p className="mt-1 text-xs text-muted">{desc}</p>{motion===id&&<span className="mt-2 inline-flex items-center gap-1 text-xs font-bold text-accent"><Check size={13}/> Seçili</span>}</button>)}
       </div>
     </section>
 
     <section id="ekran-yogunlugu" className="scroll-mt-28 rounded-3xl border border-line bg-card p-5 shadow-sm sm:p-7">
       <div className="mb-5 flex items-center gap-3"><span className="rounded-2xl bg-accent/10 p-3 text-accent"><SlidersHorizontal size={21}/></span><div><h2 className="text-lg font-bold">Ekran yoğunluğu</h2><p className="text-xs text-muted">Kartların ve listelerin ekranda kapladığı alanı ayarla.</p></div></div>
       <div className="grid gap-3 sm:grid-cols-2">
-        {[["comfortable","Rahat görünüm","Daha geniş aralıklar ve büyük dokunma alanları"],["compact","Kompakt görünüm","Daha fazla işlem ve bilgi aynı ekranda"]].map(([id,name,desc])=><button key={id} onClick={()=>{setDensity(id);localStorage.setItem("pamuk-density",id);document.documentElement.setAttribute("data-density",id);setSaved(true);window.setTimeout(()=>setSaved(false),1800);}} className={"rounded-2xl border p-4 text-left "+(density===id?"border-accent bg-accent/5 ring-2 ring-accent/15":"border-line hover:border-accent/50")}><p className="font-bold">{name}</p><p className="mt-1 text-xs text-muted">{desc}</p>{density===id&&<span className="mt-2 inline-flex items-center gap-1 text-xs font-bold text-accent"><Check size={13}/> Seçili</span>}</button>)}
+        {[["comfortable","Rahat görünüm","Daha geniş aralıklar ve büyük dokunma alanları"],["compact","Kompakt görünüm","Daha fazla işlem ve bilgi aynı ekranda"]].map(([id,name,desc])=><button key={id} onClick={()=>{setDensity(id);writePreference("pamuk-density",id);document.documentElement.setAttribute("data-density",id);setSaved(true);window.setTimeout(()=>setSaved(false),1800);}} className={"rounded-2xl border p-4 text-left "+(density===id?"border-accent bg-accent/5 ring-2 ring-accent/15":"border-line hover:border-accent/50")}><p className="font-bold">{name}</p><p className="mt-1 text-xs text-muted">{desc}</p>{density===id&&<span className="mt-2 inline-flex items-center gap-1 text-xs font-bold text-accent"><Check size={13}/> Seçili</span>}</button>)}
       </div>
     </section>
 
