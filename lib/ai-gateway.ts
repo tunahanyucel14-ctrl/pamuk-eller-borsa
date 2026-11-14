@@ -111,24 +111,25 @@ function mapProviderFailure(
 async function getCredentials(): Promise<ProviderCredential[]> {
   const candidates: ProviderCredential[] = [];
 
-  // Prefer short-lived Vercel OIDC, then a Gateway API key, then a direct OpenAI key.
-  const oidcToken = await getVercelOidcToken().catch(() => null);
-  if (typeof oidcToken === "string" && oidcToken.trim()) {
-    candidates.push({
-      provider: "vercel-ai-gateway",
-      authMethod: "oidc",
-      baseUrl: "https://ai-gateway.vercel.sh",
-      token: oidcToken.trim(),
-    });
-  }
-
+  // Match Vercel's documented precedence: an explicitly configured Gateway
+  // API key wins over OIDC. Keep OIDC as a fallback if that key is rejected.
   const gatewayKey = process.env.AI_GATEWAY_API_KEY?.trim();
-  if (gatewayKey && !candidates.some((candidate) => candidate.token === gatewayKey)) {
+  if (gatewayKey) {
     candidates.push({
       provider: "vercel-ai-gateway",
       authMethod: "gateway_api_key",
       baseUrl: "https://ai-gateway.vercel.sh",
       token: gatewayKey,
+    });
+  }
+
+  const oidcToken = await getVercelOidcToken().catch(() => null);
+  if (typeof oidcToken === "string" && oidcToken.trim() && !candidates.some((candidate) => candidate.token === oidcToken.trim())) {
+    candidates.push({
+      provider: "vercel-ai-gateway",
+      authMethod: "oidc",
+      baseUrl: "https://ai-gateway.vercel.sh",
+      token: oidcToken.trim(),
     });
   }
 
