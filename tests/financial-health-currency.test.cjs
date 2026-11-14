@@ -18,3 +18,10 @@ test("financial health excludes transactions from foreign-currency accounts", ()
   assert.match(source, /from\("fin_transactions"\)\.select\("kind,amount,tx_date,account_id"\)/);
   assert.match(source, /\.filter\(\(row: any\) => tryAccountIds\.has\(row\.account_id\)\)/);
 });
+
+test("financial health calculates a three-month emergency fund target", () => {
+  assert.match(source, /emergencyFundTarget = expense > 0 \? expense \* 3 : 0/);
+  assert.match(source, /emergencyFundProgress/);
+  assert.match(source, /Acil durum fonu/);
+  assert.match(source, /Kalan: /);
+});
