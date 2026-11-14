@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Plus, Download, Trash2, FileSpreadsheet, ChevronLeft, ChevronRight, AlertTriangle, Search } from "lucide-react";
 import { supabase } from "../../../lib/supabase";
 import { useAile } from "../../../lib/aile-baglami";
@@ -22,13 +22,16 @@ export default function ButcePage() {
   const [loaded,setLoaded] = useState(false);
   const [saveStatus,setSaveStatus] = useState("Yükleniyor...");
   const [deleting,setDeleting] = useState(false);
+  const saveVersion = useRef(0);
+  const saveQueue = useRef<Promise<void>>(Promise.resolve());
   useEffect(()=>{
     let active=true;
     async function load(){
       setLoaded(false);
+      if(!aileId){setRows([]);setNotes("");setSaveStatus("Aile verisi bekleniyor");return;}
       const {data,error}=await supabase.from("family_budget_sheets").select("rows,notes").eq("family_id",aileId).maybeSingle();
       if(!active)return;
-      if(error){setSaveStatus("Veri yüklenemedi: "+error.message);setLoaded(true);return;}
+      if(error){setRows([]);setNotes("");setSaveStatus("Veri yüklenemedi: "+error.message);return;}
       if(data){
         if(Array.isArray(data.rows))setRows(data.rows as Row[]);
         if(typeof data.notes==="string")setNotes(data.notes);
@@ -44,15 +47,23 @@ export default function ButcePage() {
   },[aileId]);
   useEffect(()=>{
     if(!loaded || !aileId || !kullaniciId || !yazabilir)return;
+    const version=++saveVersion.current;
     setSaveStatus("Kaydediliyor...");
-    const timer=setTimeout(async()=>{
-      const {error}=await supabase.from("family_budget_sheets").upsert(
-        {family_id:aileId,rows,notes,updated_by:kullaniciId},
-        {onConflict:"family_id"}
-      );
-      setSaveStatus(error ? "Kaydedilemedi: "+error.message : "Buluta kaydedildi");
+    const timer=setTimeout(()=>{
+      saveQueue.current=saveQueue.current.catch(()=>undefined).then(async()=>{
+        if(version!==saveVersion.current)return;
+        try{
+          const {error}=await supabase.from("family_budget_sheets").upsert(
+            {family_id:aileId,rows,notes,updated_by:kullaniciId},
+            {onConflict:"family_id"}
+          );
+          if(version===saveVersion.current)setSaveStatus(error ? "Kaydedilemedi: "+error.message : "Buluta kaydedildi");
+        }catch{
+          if(version===saveVersion.current)setSaveStatus("Kaydedilemedi: bağlantı hatası");
+        }
+      });
     },650);
-    return ()=>clearTimeout(timer);
+    return ()=>{clearTimeout(timer);if(saveVersion.current===version)saveVersion.current+=1;};
   },[rows,notes,loaded,aileId,kullaniciId,yazabilir]);
   const visible=rows.filter(r=>(filter==="Tümü"||r.kind===filter)&&(owner==="Tümü"||r.owner===owner)&&r.name.toLocaleLowerCase("tr-TR").includes(search.trim().toLocaleLowerCase("tr-TR")));
   const totals=useMemo(()=>months.map((_,i)=>({income:rows.filter(r=>r.kind==="Gelir").reduce((s,r)=>s+(Number(r.values[i])||0),0),expense:rows.filter(r=>r.kind==="Gider").reduce((s,r)=>s+(Number(r.values[i])||0),0)})),[rows]);
