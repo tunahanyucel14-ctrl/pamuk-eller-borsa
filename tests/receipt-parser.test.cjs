@@ -62,7 +62,7 @@ test("receipt line items preserve each price and receive category suggestions", 
     "EKMEK 12,00",
     "GENEL TOPLAM 47,50",
     "KDV 4,32"
-  ].join("\\n"), 92);
+  ].join("\n"), 92);
   assert.equal(receipt.total, 47.5);
   assert.equal(receipt.lineItems.length, 2);
   assert.deepEqual(receipt.lineItems.map(item => item.amount), [35.5, 12]);
@@ -77,6 +77,6 @@ test("merchant, tax and total lines are not treated as purchasable items", () =>
     "KDV 4,17",
     "KART 25,00",
     "GENEL TOPLAM 25,00"
-  ].join("\\n"), 90);
+  ].join("\n"), 90);
   assert.deepEqual(receipt.lineItems.map(item => item.description), ["ELMA"]);
 });
