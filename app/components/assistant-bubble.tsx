@@ -45,7 +45,7 @@ export default function AssistantBubble() {
       let result: { error?: string; reply?: string };
       try { result = JSON.parse(raw); }
       catch {
-        const detail = raw.replace(/\\s+/g, " ").trim().slice(0, 180);
+        const detail = raw.replace(/\s+/g, " ").trim().slice(0, 180);
         throw new Error(response.ok ? "Asistan geçerli bir yanıt döndürmedi." : `Sunucu hatası (${response.status}): ${detail || "Yanıt okunamadı."}`);
       }
       if (!response.ok) throw new Error(result.error || `Asistan isteği başarısız (${response.status}).`);
