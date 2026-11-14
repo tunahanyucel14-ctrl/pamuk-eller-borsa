@@ -31,7 +31,9 @@ test("all AI features use the shared OIDC-aware Gateway/OpenAI provider", () => 
   assert.match(ai, /process\.env\.OPENAI_API_KEY/);
   assert.match(ai, /AI_KEY_MISSING/);
   assert.match(assistantRoute, /postAiRequest\(request/);
-  assert.match(receiptRoute, /postAiRequest\(request/);
+  assert.doesNotMatch(receiptRoute, /postAiRequest\(request/);
+  assert.match(receiptRoute, /createWorker\("tur\+eng"/);
+  assert.match(receiptRoute, /tesseract-local-rules/);
   assert.match(route, /postAiRequest\(request/);
 });
 
