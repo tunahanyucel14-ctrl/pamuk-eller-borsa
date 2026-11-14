@@ -65,6 +65,12 @@ export default function TaramaPage() {
   function choose(f?: File) {
     if (!f) return;
     if (!["image/jpeg", "image/png", "image/webp"].includes(f.type) || f.size > 6 * 1024 * 1024) {
+      if (receiptPath) void supabase.storage.from("receipts").remove([receiptPath]);
+      setReceiptPath("");
+      setFile(null);
+      setPreview("");
+      setReceipt(null);
+      setCategoryId("");
       setMessage("JPG, PNG veya WEBP biçiminde en fazla 6 MB fotoğraf seç.");
       return;
     }
@@ -73,6 +79,7 @@ export default function TaramaPage() {
     setPreview(URL.createObjectURL(f));
     setReceipt(null);
     setReceiptPath("");
+    setCategoryId("");
     setMessage("");
   }
 
@@ -97,7 +104,7 @@ export default function TaramaPage() {
       if (!res.ok) throw new Error(result.error || "Tarama başarısız.");
       setReceipt(result.receipt);
       const suggestedId = suggestReceiptCategory(result.receipt,categories);
-      if(suggestedId)setCategoryId(suggestedId);
+      setCategoryId(suggestedId);
       setMessage("Fiş okundu ve özel arşive kaydedildi. İşlem kaydından önce bilgileri kontrol et.");
     } catch (e) {
       setMessage(e instanceof Error ? e.message : "Bir hata oluştu.");
@@ -121,7 +128,7 @@ export default function TaramaPage() {
     <section className="rounded-2xl border border-line bg-card p-5">
       <label className="flex min-h-44 cursor-pointer flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed border-line bg-inner p-5 text-center hover:border-accent">
         {preview ? <img src={preview} alt="Seçilen fiş" className="max-h-72 max-w-full rounded-lg object-contain"/> : <><span className="rounded-2xl bg-accent/10 p-4 text-accent"><Camera size={30}/></span><b>Fotoğraf çek veya dosya seç</b><span className="text-xs text-muted">Telefon kamerası veya bilgisayar · JPG, PNG, WEBP · 6 MB</span></>}
-        <input type="file" accept="image/jpeg,image/png,image/webp" capture="environment" className="sr-only" onChange={(e) => choose(e.target.files?.[0])}/>
+        <input type="file" accept="image/jpeg,image/png,image/webp" capture="environment" className="sr-only" onChange={(e) => { choose(e.target.files?.[0]); e.currentTarget.value = ""; }}/>
       </label>
       <button onClick={scan} disabled={!file || busy} className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-accent px-4 py-3 font-bold text-accent-fg disabled:opacity-40"><ScanLine size={18}/>{busy ? "Fiş okunuyor..." : "Fişi Tara ve Bilgileri Çıkar"}</button>
       {message && <p className="mt-3 text-sm text-muted">{message}</p>}
