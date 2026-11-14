@@ -16,7 +16,10 @@ function hasValidSignature(bytes: Buffer, mimeType: string) {
 
 async function readLimitedBody(response: Response, maxBytes: number): Promise<Buffer | null> {
   const declaredLength = Number(response.headers.get("content-length") || 0);
-  if (Number.isFinite(declaredLength) && declaredLength > maxBytes) return null;
+  if (Number.isFinite(declaredLength) && declaredLength > maxBytes) {
+    await response.body?.cancel().catch(() => undefined);
+    return null;
+  }
 
   const reader = response.body?.getReader();
   if (!reader) return null;
