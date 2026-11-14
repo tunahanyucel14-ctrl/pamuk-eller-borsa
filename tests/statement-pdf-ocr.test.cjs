@@ -5,6 +5,9 @@ const path = require("node:path");
 
 const root = path.join(__dirname, "..");
 const route = fs.readFileSync(path.join(root, "app/api/statement/route.ts"), "utf8");
+const ai = fs.readFileSync(path.join(root, "lib/ai-gateway.ts"), "utf8");
+const assistantRoute = fs.readFileSync(path.join(root, "app/api/assistant/route.ts"), "utf8");
+const receiptRoute = fs.readFileSync(path.join(root, "app/api/receipt/route.ts"), "utf8");
 const page = fs.readFileSync(path.join(root, "app/panel/aktarim/page.tsx"), "utf8");
 
 test("PDF upload is restricted to private, user-owned temporary storage", () => {
@@ -22,20 +25,25 @@ test("PDFs are sent as Responses API input_file data with visual page detail", (
   assert.match(route, /\/v1\/responses/);
 });
 
-test("PDF OCR can use Vercel AI Gateway or a server-side OpenAI key", () => {
-  assert.match(route, /process\.env\.AI_GATEWAY_API_KEY/);
-  assert.match(route, /process\.env\.OPENAI_API_KEY/);
-  assert.match(route, /const model = gatewayKey \? "openai\/gpt-5\.4" : "gpt-5\.4"/);
-  assert.match(route, /AI_KEY_MISSING/);
+test("all AI features use the shared OIDC-aware Gateway/OpenAI provider", () => {
+  assert.match(ai, /getVercelOidcToken/);
+  assert.match(ai, /process\.env\.AI_GATEWAY_API_KEY/);
+  assert.match(ai, /process\.env\.OPENAI_API_KEY/);
+  assert.match(ai, /AI_KEY_MISSING/);
+  assert.match(assistantRoute, /postAiRequest\(request/);
+  assert.match(receiptRoute, /postAiRequest\(request/);
+  assert.match(route, /postAiRequest\(request/);
 });
 
 test("provider errors and timeouts return actionable messages without exposing secrets", () => {
-  assert.match(route, /AI_AUTH/);
-  assert.match(route, /AI_LIMIT/);
-  assert.match(route, /PDF_UNSUPPORTED/);
-  assert.match(route, /AI_TIMEOUT/);
-  assert.match(route, /AI_CONNECTION/);
-  assert.doesNotMatch(route, /console\.log\([^)]*token|console\.log\([^)]*base64/i);
+  assert.match(ai, /AI_AUTH/);
+  assert.match(ai, /AI_PERMISSION/);
+  assert.match(ai, /AI_BILLING/);
+  assert.match(ai, /AI_LIMIT/);
+  assert.match(ai, /AI_BAD_REQUEST/);
+  assert.match(ai, /AI_TIMEOUT/);
+  assert.match(ai, /AI_CONNECTION/);
+  assert.doesNotMatch(ai, /console\.log\([^)]*token|console\.log\([^)]*base64/i);
 });
 
 test("PDF OCR keeps preview-before-import and never auto-saves extracted transactions", () => {
