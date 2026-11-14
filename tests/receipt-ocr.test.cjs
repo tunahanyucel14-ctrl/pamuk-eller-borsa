@@ -22,5 +22,5 @@ test("fiş dosyası doğrulaması ve kullanıcıya ait özel depolama kontrolü 
   assert.match(route, /hasValidSignature/);
   assert.match(route, /path\.startsWith\(user\.id \+ "\/"\)/);
   assert.match(route, /storage\/v1\/object\/authenticated\/receipts/);
-  assert.match(route, /MAX_IMAGE_BYTES/);
+  assert.match(route, /MAX_IMAGE_BYTES/);\n  assert.match(route, /readLimitedBody/);\n  assert.match(route, /reader\\.cancel/);\n  assert.doesNotMatch(route, /stored\\.arrayBuffer/);
 });
