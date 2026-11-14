@@ -4,10 +4,10 @@ export async function readJsonResponse<T = unknown>(response: Response): Promise
     return (raw.trim() ? JSON.parse(raw) : {}) as T;
   } catch {
     const detail = raw
-      .replace(/<script[\\s\\S]*?<\\/script>/gi, " ")
-      .replace(/<style[\\s\\S]*?<\\/style>/gi, " ")
+      .replace(/<script[\s\S]*?<\\/script>/gi, " ")
+      .replace(/<style[\s\S]*?<\\/style>/gi, " ")
       .replace(/<[^>]+>/g, " ")
-      .replace(/\\s+/g, " ")
+      .replace(/\s+/g, " ")
       .trim()
       .slice(0, 180);
     const status = response.status ? ` (${response.status})` : "";
