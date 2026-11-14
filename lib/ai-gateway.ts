@@ -194,32 +194,35 @@ export async function postAiRequest(
       });
     } catch (error) {
       const timedOut = error instanceof Error && (error.name === "TimeoutError" || error.name === "AbortError");
-      return {
-        response: null,
-        provider: credential.provider,
-        failure: {
-          code: timedOut ? "AI_TIMEOUT" : "AI_CONNECTION",
-          message: timedOut
-            ? "Yapay zekâ isteği zaman aşımına uğradı. Daha küçük bir dosya veya içerikle tekrar dene."
-            : "Yapay zekâ servisine bağlantı kurulamadı. Servis bağlantısını tekrar dene.",
-          httpStatus: 504,
-          authMethod: credential.authMethod,
-        },
+      lastFailure = {
+        code: timedOut ? "AI_TIMEOUT" : "AI_CONNECTION",
+        message: timedOut
+          ? "Yapay zekâ isteği zaman aşımına uğradı. Daha küçük bir dosya veya içerikle tekrar dene."
+          : "Yapay zekâ servisine bağlantı kurulamadı. Servis bağlantısını tekrar dene.",
+        httpStatus: 504,
+        authMethod: credential.authMethod,
       };
+      // A failed Gateway connection must not block a configured direct-provider fallback.
+      if (index < credentials.length - 1) continue;
+      return { response: null, provider: credential.provider, failure: lastFailure };
     }
 
     if (response.ok) {
       return { response, provider: credential.provider, authMethod: credential.authMethod };
     }
 
-    const errorBody = await response.clone().json().catch(() => null) as {
-      error?: { code?: unknown; type?: unknown; message?: unknown };
-    } | null;
+    const rawError = await response.clone().text().catch(() => "");
+    let errorBody: { error?: { code?: unknown; type?: unknown; message?: unknown } } | null = null;
+    try {
+      errorBody = rawError ? JSON.parse(rawError) as typeof errorBody : null;
+    } catch {
+      // Some gateways/proxies return plain text or HTML instead of JSON.
+    }
     const upstreamErrorType = safeProviderLabel(errorBody?.error?.type);
     const upstreamErrorCode = safeProviderLabel(errorBody?.error?.code);
     const upstreamMessage = typeof errorBody?.error?.message === "string"
       ? errorBody.error.message.slice(0, 500)
-      : "";
+      : rawError.replace(/<[^>]*>/g, " ").replace(/\\s+/g, " ").trim().slice(0, 500);
     lastFailure = {
       ...mapProviderFailure(response.status, upstreamErrorType, upstreamErrorCode, upstreamMessage),
       authMethod: credential.authMethod,
