@@ -50,7 +50,7 @@ export default function AssistantBubble() {
       }
       if (!response.ok) throw new Error(result.error || `Asistan isteği başarısız (${response.status}).`);
       if (typeof result.reply !== "string" || !result.reply.trim()) throw new Error("Asistan boş yanıt döndürdü.");
-      setLines((old) => [...old, { role: "assistant", text: result.reply }]);
+      setLines((old) => [...old, { role: "assistant", text: result.reply || "Asistan yanıt veremedi." }]);
     } catch (error) {
       setLines((old) => [...old, { role: "assistant", text: error instanceof Error ? error.message : "Bağlantı hatası." }]);
     } finally {
