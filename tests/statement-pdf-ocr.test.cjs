@@ -15,6 +15,9 @@ test("PDF upload is restricted to private, user-owned temporary storage", () => 
   assert.match(route, /path\.startsWith\(user\.id \+ "\/"/);
   assert.match(route, /object\/authenticated\/receipts/);
   assert.match(route, /finally\s*\{[\s\S]*cleanupPaths\.map/);
+  assert.match(route, /readLimitedBody/);
+  assert.match(route, /reader\.cancel/);
+  assert.doesNotMatch(route, /stored\.arrayBuffer/);
 });
 
 test("PDFs are sent as Responses API input_file data with visual page detail", () => {
