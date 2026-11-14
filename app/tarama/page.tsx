@@ -45,7 +45,7 @@ function suggestCategory(text:string,categories:Category[]):string{
   [/kirtasiye|kitap|defter|kalem/ ,/egitim|kirtasiye/],
  ];
  for(const [pattern,category] of rules){if(pattern.test(value)){const found=categories.find(c=>category.test(normalize(c.name)));if(found)return found.id;}}
- return matchCategory("Diğer",categories);
+ return "";
 }
 const today=()=>{const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");};
 
