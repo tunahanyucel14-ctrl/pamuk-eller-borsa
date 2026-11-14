@@ -156,9 +156,15 @@ export default function FinansalZekaPage(){
    const {data:{session}}=await supabase.auth.getSession();
    if(!session?.access_token)throw new Error("Oturumun sona ermiş. Yeniden giriş yap.");
    const response=await fetch("/api/assistant",{method:"POST",headers:{"Content-Type":"application/json",Authorization:"Bearer "+session.access_token},body:JSON.stringify({familyId:aileId,message:"Ailemin uygulamadaki kayıtlı finans verilerini bütüncül değerlendir. Önce kısa bir finansal durum özeti çıkar. Ardından borç yönetimi, harcama azaltma, nakit akışı ve birikim için önceliklendirilmiş somut öneriler ver. Önümüzdeki 30 gün için haftalara bölünmüş uygulanabilir bir yol haritası hazırla. Her hesaplamanın varsayımını ve eksik verileri açıkla; kesin olmayan rakamları gerçekmiş gibi sunma."})});
-   const data=await response.json();
-   if(!response.ok)throw new Error(data.error||"Yapay zekâ yanıt veremedi.");
-   setAiText(data.reply||"Yanıt alınamadı.");
+   const raw=await response.text();
+   let data:{error?:string;reply?:string;code?:string};
+   try{data=raw?JSON.parse(raw):{};}catch{
+    const detail=raw.replace(/\\s+/g," ").trim().slice(0,180);
+    throw new Error(response.ok?"Yapay zekâ servisi geçerli bir yanıt döndürmedi.":`Sunucu hatası (${response.status}): ${detail||"Yanıt okunamadı."}`);
+   }
+   if(!response.ok)throw new Error(data.error||`Yapay zekâ isteği başarısız (${response.status}).`);
+   if(typeof data.reply!=="string"||!data.reply.trim())throw new Error("Yapay zekâ boş yanıt döndürdü.");
+   setAiText(data.reply);
   }catch(e){setAiError(e instanceof Error?e.message:"Bir hata oluştu.");}
   finally{setAiBusy(false);}
  }
