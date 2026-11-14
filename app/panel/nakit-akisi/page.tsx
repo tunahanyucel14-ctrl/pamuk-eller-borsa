@@ -124,6 +124,10 @@ export default function NakitAkisiPage() {
 
   const lowest = months.length ? Math.min(...months.map(x=>x.closing)) : openingBalance;
   const next = months[0];
+  const daysRemaining = Math.max(1, new Date(today.getFullYear(), today.getMonth()+1, 0).getDate()-today.getDate()+1);
+  // Günlük limit yalnızca bu ayın kalan planlı net nakit akışına dayanır; mevcut birikimi harcanabilir gelir saymaz.
+  const dailySpendLimit = next ? Math.max(0, next.net) / daysRemaining : 0;
+  const monthlyPlanDeficit = Boolean(next && next.net < 0);
   const totalIncome = incomeRows.reduce((s,x)=>s+Number(x.expected_amount),0);
   const totalBills = billRows.reduce((s,x)=>s+Number(x.amount),0);
   const totalDebt = next?.events.filter(x=>x.source.startsWith("Borç taksiti")).reduce((s,x)=>s+x.amount,0)||0;
@@ -142,6 +146,14 @@ export default function NakitAkisiPage() {
       <div className={kart}><p className="text-xs text-muted">Aylık düzenli ödeme</p><b className="mt-2 block text-xl text-down">{tl(totalBills+totalDebt)}</b><p className="mt-1 text-xs text-muted">Fatura + borç taksitleri</p></div>
       <div className={kart}><p className="text-xs text-muted">6 ay içindeki en düşük tahmini bakiye</p><b className={"mt-2 block text-xl "+(lowest<0?"text-down":"text-up")}>{tl(lowest)}</b><p className="mt-1 text-xs text-muted">Senaryo sonucu</p></div>
     </div>
+    {!loading&&<section className={kart+" space-y-3 border border-accent/25 bg-gradient-to-br from-accent/10 to-transparent"}>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div><p className="text-xs font-bold uppercase tracking-widest text-accent">Maaş günü · günlük bütçe</p><h2 className="mt-1 text-lg font-black">Bugün için güvenli harcama limiti</h2><p className="mt-1 max-w-2xl text-xs leading-5 text-muted">Bu ayın kalan planlı gelirlerinden faturalar, borç taksitleri ve tahmini değişken giderler çıkarılır; kalan tutar ayın kalan günlerine bölünür.</p></div>
+        <div className="rounded-2xl bg-card px-4 py-3 text-right shadow-sm"><p className="text-[11px] text-muted">Günlük önerilen üst sınır</p><b className="mt-1 block text-2xl font-black text-accent">{tl(dailySpendLimit)}</b><p className="text-[10px] text-muted">{daysRemaining} gün kaldı</p></div>
+      </div>
+      {monthlyPlanDeficit&&<p role="status" className="rounded-xl bg-down/10 p-3 text-xs leading-5 text-down">Bu ayın kalan planlı nakit akışı açık veriyor. Yeni zorunlu olmayan harcamaları ertelemen ve gelir/ödeme planlarını kontrol etmen önerilir.</p>}
+      <p className="text-[10px] leading-4 text-muted">Bu bir bütçe önerisidir, banka bakiyesinden otomatik bloke koymaz. Yalnızca kaydettiğin aktif gelir, fatura ve borç planlarını ve mevcut 3 aylık gider ortalamasını kullanır; beklenmeyen giderler için ayrıca pay bırak.</p>
+    </section>}
     {!loading&&<section className={kart+" space-y-3"}>
       <div className="flex items-center gap-2"><AlertTriangle size={18} className="text-accent"/><h2 className="font-bold">Finansal erken uyarılar</h2></div>
       {[
