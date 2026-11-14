@@ -26,7 +26,7 @@ test("receipt total prefers the explicit payable total over tax and change", () 
     "Genel Toplam 100,00",
     "Kart 100,00",
     "Para Üstü 0,00"
-  ].join("\\n"), 92);
+  ].join("\n"), 92);
   assert.equal(receipt.merchant, "MİGROS TİCARET A.Ş.");
   assert.equal(receipt.date, "2026-11-14");
   assert.equal(receipt.total, 100);
@@ -40,7 +40,7 @@ test("receipt parser does not mistake receipt number or date for the total", () 
     "TARİH: 14.11.2026",
     "KASİYER: 12",
     "KDV 20,00"
-  ].join("\\n"), 96);
+  ].join("\n"), 96);
   assert.equal(receipt.total, 0);
   assert.equal(receipt.needsReview, true);
 });
