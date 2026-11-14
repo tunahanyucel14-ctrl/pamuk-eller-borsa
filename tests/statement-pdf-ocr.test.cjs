@@ -38,11 +38,17 @@ test("all AI features use the shared OIDC-aware Gateway/OpenAI provider", () => 
 test("provider errors and timeouts return actionable messages without exposing secrets", () => {
   assert.match(ai, /AI_AUTH/);
   assert.match(ai, /AI_PERMISSION/);
+  assert.match(ai, /AI_PROVIDER_RESTRICTED/);
+  assert.match(ai, /AI_ACCESS_DENIED/);
   assert.match(ai, /AI_BILLING/);
   assert.match(ai, /AI_LIMIT/);
   assert.match(ai, /AI_BAD_REQUEST/);
   assert.match(ai, /AI_TIMEOUT/);
   assert.match(ai, /AI_CONNECTION/);
+  assert.match(ai, /no_providers_available/);
+  assert.match(ai, /access_denied/);
+  assert.match(ai, /authMethod/);
+  assert.match(ai, /upstreamErrorType/);
   assert.doesNotMatch(ai, /console\.log\([^)]*token|console\.log\([^)]*base64/i);
 });
 
