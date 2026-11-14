@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { postAiRequest } from "@/lib/ai-gateway";
 
 export const runtime = "nodejs";
-export const maxDuration = 20;
+export const maxDuration = 45;
 
 export async function POST(request: Request) {
   const token = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "").trim();
