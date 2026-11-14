@@ -34,7 +34,8 @@ test("receipt total prefers the explicit payable total over tax and change", () 
   const fractional = parser.parseReceiptText(["MARKET", "Genel Toplam 100,5", "Tarih: 14.11.2026"].join("\n"), 90);
   assert.equal(fractional.total, 100.5);
   assert.equal(receipt.category, "Market");
-  assert.equal(receipt.needsReview, false);
+  assert.equal(receipt.lineItems.length, 0);
+  assert.equal(receipt.needsReview, true);
 });
 
 test("receipt parser does not mistake receipt number or date for the total", () => {
@@ -51,4 +52,31 @@ test("receipt parser does not mistake receipt number or date for the total", () 
 test("invalid calendar dates are rejected", () => {
   assert.equal(parser.extractDate("31.02.2026"), "");
   assert.equal(parser.extractDate("14/11/2026"), "2026-11-14");
+});
+
+test("receipt line items preserve each price and receive category suggestions", () => {
+  const receipt = parser.parseReceiptText([
+    "A101 MARKET",
+    "Tarih: 14.11.2026",
+    "SUT 1L 35,50",
+    "EKMEK 12,00",
+    "GENEL TOPLAM 47,50",
+    "KDV 4,32"
+  ].join("\\n"), 92);
+  assert.equal(receipt.total, 47.5);
+  assert.equal(receipt.lineItems.length, 2);
+  assert.deepEqual(receipt.lineItems.map(item => item.amount), [35.5, 12]);
+  assert.equal(receipt.lineItems[0].category, "Market");
+  assert.equal(receipt.items.length, 2);
+});
+
+test("merchant, tax and total lines are not treated as purchasable items", () => {
+  const receipt = parser.parseReceiptText([
+    "ORNEK MARKET",
+    "ELMA 25,00",
+    "KDV 4,17",
+    "KART 25,00",
+    "GENEL TOPLAM 25,00"
+  ].join("\\n"), 90);
+  assert.deepEqual(receipt.lineItems.map(item => item.description), ["ELMA"]);
 });
