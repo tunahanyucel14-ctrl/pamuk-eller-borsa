@@ -189,7 +189,7 @@ export async function POST(request: Request) {
       }, 45000);
 
   if (aiCall.failure) {
-    console.error("[statement-ocr] provider rejected request", { provider: aiCall.provider, code: aiCall.failure.code });
+    console.error("[statement-ocr] provider request failed", { provider: aiCall.provider, code: aiCall.failure.code, authMethod: aiCall.failure.authMethod, upstreamErrorType: aiCall.failure.upstreamErrorType, upstreamErrorCode: aiCall.failure.upstreamErrorCode });
     return NextResponse.json({ error: aiCall.failure.message, code: aiCall.failure.code }, { status: aiCall.failure.httpStatus });
   }
 
