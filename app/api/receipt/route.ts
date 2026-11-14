@@ -42,7 +42,7 @@ async function readLimitedBody(response: Response, maxBytes: number): Promise<Bu
 }
 
 export async function POST(request: Request) {
-  const token = request.headers.get("authorization")?.replace(/^Bearer\\s+/i, "");
+  const token = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
   if (!token || token.length > 4096) return NextResponse.json({ error: "Giriş yapman gerekiyor." }, { status: 401 });
 
   const contentLength = Number(request.headers.get("content-length") || 0);
@@ -66,7 +66,7 @@ export async function POST(request: Request) {
   const { path, mimeType } = payload as { path?: unknown; mimeType?: unknown };
   if (typeof path !== "string" || path.length > 320 ||
       !path.startsWith(user.id + "/") || path.includes("..") || path.includes("\\") ||
-      !/^([0-9a-f-]{36})\\/[0-9]{10,}-[A-Za-z0-9._-]{1,200}$/i.test(path) ||
+      !/^([0-9a-f-]{36})\/[0-9]{10,}-[A-Za-z0-9._-]{1,200}$/i.test(path) ||
       !["image/jpeg", "image/png", "image/webp"].includes(String(mimeType))) {
     return NextResponse.json({ error: "Fiş dosyası yolu veya biçimi geçersiz." }, { status: 400 });
   }
