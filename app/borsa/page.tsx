@@ -360,7 +360,7 @@ export default function Home() {
     async function loadMarket() {
       try {
         const response = await fetch("/api/stocks", { cache: "no-store" });
-        const data = await readJsonResponse<{ stocks?: any[]; error?: string }>(response);
+        const data = await readJsonResponse<{ stocks?: any[]; error?: string; updatedAt?: string }>(response);
         if (!response.ok) throw new Error(data.error || "Hisse verileri alınamadı.");
         if (!cancelled) {
           setStocks(Array.isArray(data.stocks) ? data.stocks : []);
