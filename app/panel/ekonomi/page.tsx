@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Activity, RefreshCw, ExternalLink, Globe2, Coins, Landmark, Calculator } from "lucide-react";
 import { kart, baslik } from "../../../lib/ui";
+import { readJsonResponse } from "../../../lib/http-response";
 type Quote={name:string;value:string;change?:string;source:string;url:string};
 type Country={code:string;name:string;latestYear:string;latest:number;history:{year:string;value:number}[]};
 type InflationData={countries:Country[];turkeyMonthly:{period:string;annual:number;monthly:number}|null;updatedAt:string;methodology:string;sources:{name:string;url:string}[]};
@@ -11,7 +12,7 @@ export default function EkonomiPage(){
  const [quotes,setQuotes]=useState<Quote[]>([]),[stamp,setStamp]=useState(""),[error,setError]=useState(""),[busy,setBusy]=useState(false);
  const [inflation,setInflation]=useState<InflationData|null>(null),[inflationError,setInflationError]=useState(""),[inflationBusy,setInflationBusy]=useState(false),[selectedYear,setSelectedYear]=useState("latest");
  const [amount,setAmount]=useState("100000"),[annualRate,setAnnualRate]=useState("30"),[period,setPeriod]=useState("3");
- async function loadMarkets(){setBusy(true);setError("");try{const r=await fetch("/api/markets",{cache:"no-store"});const d=await r.json();if(!r.ok)throw new Error(d.error||"Piyasa verileri alınamadı.");setQuotes(d.quotes||[]);setStamp(d.updatedAt||"");}catch(e){setError(e instanceof Error?e.message:"Bağlantı hatası");}finally{setBusy(false);}}
+ async function loadMarkets(){setBusy(true);setError("");try{const r=await fetch("/api/markets",{cache:"no-store"});const d=await readJsonResponse<any>(r);if(!r.ok)throw new Error(d.error||"Piyasa verileri alınamadı.");setQuotes(d.quotes||[]);setStamp(d.updatedAt||"");}catch(e){setError(e instanceof Error?e.message:"Bağlantı hatası");}finally{setBusy(false);}}
  async function loadInflation(){setInflationBusy(true);setInflationError("");try{const r=await fetch("/api/inflation",{cache:"no-store"});const d=await r.json();if(!r.ok)throw new Error(d.error||"Enflasyon verileri alınamadı.");setInflation(d);}catch(e){setInflationError(e instanceof Error?e.message:"Enflasyon verisi alınamadı.");}finally{setInflationBusy(false);}}
  async function refresh(){await Promise.all([loadMarkets(),loadInflation()]);}
  useEffect(()=>{void refresh();},[]);
