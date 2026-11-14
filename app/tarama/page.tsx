@@ -72,7 +72,7 @@ export default function TaramaPage(){
    let path=receiptPath;if(!path){const safeName=file.name.replace(/[^a-zA-Z0-9._-]/g,"_").replace(/\\.{2,}/g,".").slice(0,180)||"fis.jpg";path=data.session!.user.id+"/"+Date.now()+"-"+safeName;const {error}=await supabase.storage.from("receipts").upload(path,file,{contentType:file.type,upsert:false});if(error)throw new Error("Fiş özel arşive yüklenemedi: "+error.message);setReceiptPath(path);}
    const res=await fetch("/api/receipt",{method:"POST",headers:{"Content-Type":"application/json",Authorization:"Bearer "+token},body:JSON.stringify({path,mimeType:file.type})});const result=await res.json();if(!res.ok)throw new Error(result.error||"Tarama başarısız.");
    const parsed=result.receipt as Receipt;setReceipt(parsed);
-   const extracted=(parsed.lineItems||[]).map(item=>({description:item.description,amount:Number(item.amount)||0,category:item.category,categoryId:suggestCategory(item.description+" "+parsed.merchant,categories)}));
+   const extracted=(parsed.lineItems||[]).map(item=>({description:item.description,amount:Number(item.amount)||0,category:item.category,categoryId:suggestCategory(item.description,categories)||suggestCategory(item.category,categories)||suggestCategory(parsed.category,categories)}));
    setLines(extracted);setMessage("Fiş okundu. Bulunan tüm ürün/hizmet satırları ve tutarlar aşağıda kategori bazında kontrolüne sunuldu.");
   }catch(error){setMessage(error instanceof Error?error.message:"Bir hata oluştu.");}finally{setBusy(false);}
  }
