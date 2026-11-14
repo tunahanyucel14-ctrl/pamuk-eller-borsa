@@ -31,6 +31,8 @@ test("receipt total prefers the explicit payable total over tax and change", () 
   assert.equal(receipt.merchant, "MİGROS TİCARET A.Ş.");
   assert.equal(receipt.date, "2026-11-14");
   assert.equal(receipt.total, 100);
+  const fractional = parser.parseReceiptText(["MARKET", "Genel Toplam 100,5", "Tarih: 14.11.2026"].join("\n"), 90);
+  assert.equal(fractional.total, 100.5);
   assert.equal(receipt.category, "Market");
   assert.equal(receipt.needsReview, false);
 });
