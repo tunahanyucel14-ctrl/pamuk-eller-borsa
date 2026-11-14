@@ -29,6 +29,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { usePersistentState } from "../../lib/use-persistent-state";
+import { readJsonResponse } from "../../lib/http-response";
 import Link from "next/link";
 import { supabase } from "../../lib/supabase";
 
@@ -359,7 +360,7 @@ export default function Home() {
     async function loadMarket() {
       try {
         const response = await fetch("/api/stocks", { cache: "no-store" });
-        const data = await response.json();
+        const data = await readJsonResponse<{ stocks?: any[]; error?: string }>(response);
         if (!response.ok) throw new Error(data.error || "Hisse verileri alınamadı.");
         if (!cancelled) {
           setStocks(Array.isArray(data.stocks) ? data.stocks : []);
