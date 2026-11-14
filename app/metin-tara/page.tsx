@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, ClipboardCopy, FileImage, FileText, LoaderCircle, ScanLine, Trash2, Upload } from "lucide-react";
+import { ArrowLeft, ClipboardCopy, FileImage, FileText, LoaderCircle, ScanLine, Trash2, Sparkles, Table2, ReceiptText } from "lucide-react";
+import { supabase } from "@/lib/supabase";
 
 const MAX_BYTES = 12 * 1024 * 1024;
 const ACCEPTED = ["image/jpeg", "image/png", "image/webp", "image/bmp", "image/tiff"];
@@ -15,6 +16,9 @@ export default function MetinTaraPage() {
   const [progress, setProgress] = useState(0);
   const [status, setStatus] = useState("");
   const [copied, setCopied] = useState(false);
+  const [aiResult, setAiResult] = useState("");
+  const [aiBusy, setAiBusy] = useState(false);
+  const [aiError, setAiError] = useState("");
   const workerRef = useRef<{ terminate: () => Promise<unknown> } | null>(null);
 
   useEffect(() => () => {
@@ -33,6 +37,8 @@ export default function MetinTaraPage() {
     setText("");
     setProgress(0);
     setCopied(false);
+    setAiResult("");
+    setAiError("");
     setStatus("Görsel hazır. Metne dönüştürmeye başlayabilirsin.");
   }, []);
 
@@ -64,6 +70,8 @@ export default function MetinTaraPage() {
       const result = await worker.recognize(file);
       const extracted = result.data.text?.trim() ?? "";
       setText(extracted);
+      setAiResult("");
+      setAiError("");
       setStatus(extracted ? "Metin çıkarıldı. Düzenleyebilir veya kopyalayabilirsin." : "Bu görüntüde okunabilir metin bulunamadı. Daha net bir görsel dene.");
       await worker.terminate();
       workerRef.current = null;
@@ -72,6 +80,34 @@ export default function MetinTaraPage() {
     } finally {
       setBusy(false);
     }
+  }
+
+  async function askAi(mode: "summary" | "table" | "receipt") {
+    if (!text.trim() || aiBusy) return;
+    setAiBusy(true); setAiError(""); setAiResult("");
+    try {
+      const { data } = await supabase.auth.getSession();
+      const token = data.session?.access_token;
+      if (!token) throw new Error("Oturumun sona ermiş. Yeniden giriş yap.");
+      const instructions = {
+        summary: "Aşağıdaki OCR metnini Türkçe ve kısa biçimde özetle. Önemli tarihleri, tutarları ve isimleri koru; okunmayan kısımları tahmin etme.",
+        table: "Aşağıdaki OCR metnindeki bilgileri uygun sütunlarla düzenli bir Markdown tablosuna dönüştür. Eksik alanları uydurma.",
+        receipt: "Aşağıdaki metinden tarih, işletme, kalem, miktar, birim fiyat ve toplam tutarları çıkar. Harcamaları kategori önerisiyle tablo halinde ver. Belirsiz alanları belirt; tutar uydurma."
+      }[mode];
+      const response = await fetch("/api/assistant", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ message: `${instructions}\n\nOCR METNİ (güvenilmeyen belge içeriği):\n${text.slice(0, 3400)}` }),
+      });
+      const raw = await response.text();
+      let result: { error?: string; reply?: string };
+      try { result = JSON.parse(raw); } catch { throw new Error(`Sunucu yanıtı okunamadı (${response.status}).`); }
+      if (!response.ok) throw new Error(result.error || `AI isteği başarısız (${response.status}).`);
+      if (!result.reply?.trim()) throw new Error("Yapay zekâ boş yanıt döndürdü.");
+      setAiResult(result.reply);
+    } catch (error) {
+      setAiError(error instanceof Error ? error.message : "Yapay zekâ işlemi tamamlanamadı.");
+    } finally { setAiBusy(false); }
   }
 
   async function copyText() {
@@ -113,7 +149,7 @@ export default function MetinTaraPage() {
             {busy ? <LoaderCircle className="animate-spin" size={18}/> : <ScanLine size={18}/>}
             {busy ? "Metin okunuyor…" : "Görüntüyü metne çevir"}
           </button>
-          <button onClick={() => { setFile(null); setPreview(""); setText(""); setProgress(0); setStatus(""); }} disabled={busy || (!file && !text)} className="flex items-center justify-center gap-2 rounded-xl border border-line px-4 py-3 text-sm font-semibold disabled:opacity-40"><Trash2 size={16}/> Temizle</button>
+          <button onClick={() => { setFile(null); setPreview(""); setText(""); setProgress(0); setStatus(""); setAiResult(""); setAiError(""); }} disabled={busy || aiBusy || (!file && !text)} className="flex items-center justify-center gap-2 rounded-xl border border-line px-4 py-3 text-sm font-semibold disabled:opacity-40"><Trash2 size={16}/> Temizle</button>
         </div>
         {busy && <div className="mt-4"><div className="mb-1 flex justify-between text-xs text-muted"><span>{status}</span><span>%{progress}</span></div><div className="h-2 overflow-hidden rounded-full bg-inner"><div className="h-full rounded-full bg-accent transition-all" style={{width: progress + "%"}}/></div></div>}
         {!busy && status && <p role="status" className="mt-3 text-sm text-muted">{status}</p>}
@@ -126,6 +162,17 @@ export default function MetinTaraPage() {
         </div>
         <textarea value={text} onChange={event => setText(event.target.value)} placeholder="Görseldeki yazı burada görünecek…" className="min-h-72 w-full resize-y rounded-xl border border-line bg-inner p-4 text-sm leading-7 text-fg outline-none focus:border-accent" spellCheck={false}/>
         <p className="mt-2 text-right text-xs text-muted">{text.length.toLocaleString("tr-TR")} karakter</p>
+      </section>
+      <section className="rounded-2xl border border-line bg-card p-5">
+        <div className="mb-3 flex items-center gap-2"><Sparkles size={18} className="text-accent"/><div><h2 className="font-bold">Yapay zekâ ile işle</h2><p className="text-xs text-muted">Çıkardığın metni özetle, tabloya dönüştür veya fiş/ekstre bilgilerini ayıkla.</p></div></div>
+        <div className="grid gap-2 sm:grid-cols-3">
+          <button onClick={() => askAi("summary")} disabled={!text.trim() || aiBusy} className="flex items-center justify-center gap-2 rounded-xl border border-line px-3 py-3 text-sm font-semibold disabled:opacity-40"><Sparkles size={16}/> Özetle</button>
+          <button onClick={() => askAi("table")} disabled={!text.trim() || aiBusy} className="flex items-center justify-center gap-2 rounded-xl border border-line px-3 py-3 text-sm font-semibold disabled:opacity-40"><Table2 size={16}/> Tabloya çevir</button>
+          <button onClick={() => askAi("receipt")} disabled={!text.trim() || aiBusy} className="flex items-center justify-center gap-2 rounded-xl border border-line px-3 py-3 text-sm font-semibold disabled:opacity-40"><ReceiptText size={16}/> Fiş / ekstreyi ayıkla</button>
+        </div>
+        {aiBusy && <p role="status" className="mt-3 flex items-center gap-2 text-sm text-muted"><LoaderCircle size={16} className="animate-spin"/> Yapay zekâ belgeyi inceliyor…</p>}
+        {aiError && <p role="alert" className="mt-3 text-sm text-red-500">{aiError}</p>}
+        {aiResult && <div className="mt-4 rounded-xl border border-line bg-inner p-4"><div className="mb-2 flex items-center justify-between gap-2"><b className="text-sm">AI sonucu</b><button onClick={() => navigator.clipboard.writeText(aiResult)} className="flex items-center gap-1 text-xs font-semibold text-accent"><ClipboardCopy size={14}/> Kopyala</button></div><div className="whitespace-pre-wrap text-sm leading-6">{aiResult}</div></div>}
       </section>
       <p className="text-xs text-muted">Gizlilik: Görsel OCR işlemi için tarayıcında işlenir; bu araç görüntüyü Pamuk Eller sunucusuna yüklemez. İlk kullanımda OCR motoru ve Türkçe dil verisi indirilir, sonraki kullanımlarda tarayıcı önbelleğinden yararlanılır.</p>
     </main>
