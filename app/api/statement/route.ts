@@ -16,6 +16,31 @@ function validFile(bytes: Buffer, mime: string) {
   return false;
 }
 
+async function readLimitedBody(response: Response, maxBytes: number): Promise<Buffer | null> {
+  const declaredLength = Number(response.headers.get("content-length") || 0);
+  if (Number.isFinite(declaredLength) && declaredLength > maxBytes) return null;
+  const reader = response.body?.getReader();
+  if (!reader) return null;
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      total += value.byteLength;
+      if (total > maxBytes) {
+        await reader.cancel().catch(() => undefined);
+        return null;
+      }
+      chunks.push(value);
+    }
+    return Buffer.concat(chunks, total);
+  } catch {
+    await reader.cancel().catch(() => undefined);
+    return null;
+  }
+}
+
 function extractText(data: any): string {
   if (typeof data?.output_text === "string") return data.output_text;
   const parts = Array.isArray(data?.output) ? data.output.flatMap((item: any) => Array.isArray(item?.content) ? item.content : []) : [];
@@ -151,8 +176,8 @@ export async function POST(request: Request) {
     if (!stored?.ok) return NextResponse.json({ error: "Dosyaya güvenli depolama alanından ulaşılamadı." }, { status: 400 });
     const mime = (stored.headers.get("content-type") || "").split(";")[0].trim().toLowerCase();
     if (mime !== mimeType) return NextResponse.json({ error: "Dosya biçimi doğrulanamadı." }, { status: 400 });
-    const bytes = Buffer.from(await stored.arrayBuffer());
-    if (!bytes.length || bytes.length > MAX_FILE_BYTES || !validFile(bytes, mime)) return NextResponse.json({ error: "Dosya içeriği geçersiz veya 6 MB sınırını aşıyor." }, { status: 400 });
+    const bytes = await readLimitedBody(stored, MAX_FILE_BYTES);
+    if (!bytes || !bytes.length || !validFile(bytes, mime)) return NextResponse.json({ error: "Dosya içeriği geçersiz veya 6 MB sınırını aşıyor." }, { status: 400 });
     totalBytes += bytes.length;
     if (totalBytes > 12 * 1024 * 1024) return NextResponse.json({ error: "Toplam yükleme boyutu 12 MB sınırını aşıyor." }, { status: 413 });
     loaded.push({ bytes, mime, path });
