@@ -36,3 +36,15 @@ jobs:
         run: npm run typecheck
       - name: Üretim derlemesi
         run: npm run build
+      - name: Üretim sunucusu duman testi
+        run: |
+          npm run start -- --hostname 127.0.0.1 > /tmp/pamuk-eller-next.log 2>&1 &
+          echo $! > /tmp/pamuk-eller-next.pid
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:3000/api/health > /tmp/pamuk-eller-health.json; then
+              break
+            fi
+            sleep 2
+          done
+          node -e 'const fs=require("fs"); const health=JSON.parse(fs.readFileSync("/tmp/pamuk-eller-health.json","utf8")); if(health.ok!==true || health.service!=="pamuk-eller") process.exit(1); console.log("HEALTH_OK",health.service,health.timestamp);'
+          curl --fail --silent --output /dev/null http://127.0.0.1:3000/
