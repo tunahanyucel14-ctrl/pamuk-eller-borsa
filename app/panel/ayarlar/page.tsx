@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ArrowDown, ArrowUp, Check, GripVertical, Palette, RotateCcw, Type, Image as ImageIcon, Sparkles, SlidersHorizontal } from "lucide-react";
+import { ArrowDown, ArrowUp, Check, GripVertical, Palette, RotateCcw, Type, Image as ImageIcon, Sparkles, SlidersHorizontal, Wifi, AlertTriangle, CheckCircle2 } from "lucide-react";\nimport { supabase } from "../../../lib/supabase";
 
 const THEMES = [
   { id: "retro", name: "Kaset Kulübü", desc: "Analog sıcaklık, kâğıt dokusu ve canlı kiremit", colors: ["#f4ecd9", "#fff9ed", "#d95743"], tag: "İmza tema" },
@@ -52,6 +52,37 @@ export default function AyarlarSayfasi() {
   const [motion, setMotion] = useState("full");
   const [density, setDensity] = useState("comfortable");
   const [dragged, setDragged] = useState<string | null>(null);
+  const [aiCheckBusy, setAiCheckBusy] = useState(false);
+  const [aiCheck, setAiCheck] = useState<{ ok: boolean; message: string; code?: string; provider?: string | null; authMethod?: string } | null>(null);
+
+  async function checkAiConnection() {
+    setAiCheckBusy(true);
+    setAiCheck(null);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) throw new Error("Oturumun sona ermiş. Yeniden giriş yap.");
+      const response = await fetch("/api/ai/diagnostics", {
+        method: "POST",
+        headers: { Authorization: "Bearer " + session.access_token },
+        cache: "no-store",
+      });
+      const raw = await response.text();
+      let data: { ok?: boolean; message?: string; code?: string; provider?: string | null; authMethod?: string };
+      try { data = raw ? JSON.parse(raw) : {}; }
+      catch { throw new Error("Sunucu geçerli JSON döndürmedi (" + response.status + ")."); }
+      setAiCheck({
+        ok: response.ok && data.ok === true,
+        message: data.message || "Bağlantı testi tamamlanamadı.",
+        code: data.code,
+        provider: data.provider,
+        authMethod: data.authMethod,
+      });
+    } catch (error) {
+      setAiCheck({ ok: false, message: error instanceof Error ? error.message : "Bağlantı testi başarısız." });
+    } finally {
+      setAiCheckBusy(false);
+    }
+  }
 
   useEffect(() => {
     setTheme(localStorage.getItem("pamuk-tema") || "retro");
@@ -180,6 +211,33 @@ export default function AyarlarSayfasi() {
       <div className="grid gap-2 sm:grid-cols-2">
         {order.map((href, index) => { const item = MENU_ITEMS.find((x) => x[1] === href); if (!item) return null; return <div key={href} draggable onDragStart={() => setDragged(href)} onDragEnd={() => setDragged(null)} onDragOver={(e) => e.preventDefault()} onDrop={() => dropOn(href)} className={"flex cursor-grab items-center gap-3 rounded-xl border bg-inner/60 p-3 transition " + (dragged === href ? "border-accent opacity-40" : "border-line hover:border-accent/50")}><GripVertical size={17} className="shrink-0 text-muted"/><span className="w-6 text-center text-xs font-bold text-muted">{String(index + 1).padStart(2,"0")}</span><span className="min-w-0 flex-1 truncate text-sm font-semibold">{item[0]}</span><button onClick={() => move(index,-1)} disabled={index === 0} className="rounded-lg border border-line p-2 text-muted hover:text-accent disabled:opacity-25" aria-label={item[0] + " yukarı taşı"}><ArrowUp size={15}/></button><button onClick={() => move(index,1)} disabled={index === order.length-1} className="rounded-lg border border-line p-2 text-muted hover:text-accent disabled:opacity-25" aria-label={item[0] + " aşağı taşı"}><ArrowDown size={15}/></button></div>; })}
       </div>
+    </section>
+
+    <section id="yapay-zeka-baglanti" className="scroll-mt-28 rounded-3xl border border-line bg-card p-5 shadow-sm sm:p-7">
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <span className="rounded-2xl bg-accent/10 p-3 text-accent"><Wifi size={21}/></span>
+          <div><h2 className="text-lg font-bold">Yapay zekâ bağlantısı</h2><p className="text-xs text-muted">Gerçek sağlayıcıya küçük bir test isteği gönderir; API anahtarını veya gizli bilgileri göstermez.</p></div>
+        </div>
+        <button type="button" onClick={checkAiConnection} disabled={aiCheckBusy} className="rounded-xl bg-accent px-4 py-2.5 text-sm font-bold text-accent-fg disabled:opacity-50">
+          {aiCheckBusy ? "Bağlantı deneniyor…" : "Bağlantıyı test et"}
+        </button>
+      </div>
+      {aiCheck && <div role="status" className={"mt-4 flex items-start gap-3 rounded-2xl border p-4 " + (aiCheck.ok ? "border-up/30 bg-up/5" : "border-down/30 bg-down/5")}>
+        {aiCheck.ok ? <CheckCircle2 className="mt-0.5 shrink-0 text-up" size={19}/> : <AlertTriangle className="mt-0.5 shrink-0 text-down" size={19}/>}
+        <div className="min-w-0">
+          <p className="text-sm font-bold">{aiCheck.message}</p>
+          <p className="mt-1 break-words text-xs text-muted">
+            {aiCheck.provider ? "Sağlayıcı: " + aiCheck.provider : "Sağlayıcı doğrulanamadı"}
+            {aiCheck.authMethod ? " · Kimlik doğrulama: " + aiCheck.authMethod : ""}
+            {aiCheck.code ? " · Hata kodu: " + aiCheck.code : ""}
+          </p>
+          {aiCheck.code === "AI_PROVIDER_RESTRICTED" && <p className="mt-2 text-xs text-muted">Model sağlayıcısı takım izin listesinde engellenmiş olabilir. AI Gateway sağlayıcı izinleri kontrol edilmeli.</p>}
+          {aiCheck.code === "AI_AUTH" && <p className="mt-2 text-xs text-muted">Gateway anahtarı veya Vercel OIDC kimlik doğrulaması reddediliyor.</p>}
+          {aiCheck.code === "AI_BILLING" && <p className="mt-2 text-xs text-muted">Gateway ya da model sağlayıcısının kullanım bütçesi/ödeme sınırı kontrol edilmeli.</p>}
+        </div>
+      </div>}
+      <p className="mt-3 text-[11px] text-muted">Test başarılı olduğunda asistanın kullandığı model ve kimlik doğrulama yolu da doğrulanır. Test isteği sağlayıcı tarafında düşük miktarda kullanım oluşturabilir.</p>
     </section>
 
     <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-line bg-inner/50 p-4"><p className="text-xs text-muted">{saved ? "Tercihlerin kaydedildi." : "Değişiklikler anında uygulanır; finansal kayıtlarına dokunulmaz."}</p><button onClick={reset} className="flex items-center gap-2 rounded-xl border border-line bg-card px-4 py-2.5 text-sm font-semibold hover:border-accent hover:text-accent"><RotateCcw size={15}/> Varsayılanlara dön</button></div>
