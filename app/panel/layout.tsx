@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { LayoutDashboard, ArrowLeftRight, Wallet, Tags, Users, Table2, CreditCard, Receipt, Target, TrendingUp, Activity, CalendarClock, WalletCards, BrainCircuit, Gauge, GraduationCap, ScanLine, FileUp, Settings, ChartNoAxesCombined, Trophy, UserRound, LogOut, ShieldCheck, Repeat } from "lucide-react";
+import { LayoutDashboard, ArrowLeftRight, Wallet, Tags, Users, Table2, CreditCard, Receipt, Target, TrendingUp, Activity, CalendarClock, WalletCards, BrainCircuit, Gauge, GraduationCap, ScanLine, FileUp, FileText, Settings, ChartNoAxesCombined, Trophy, UserRound, LogOut, ShieldCheck, Repeat } from "lucide-react";
 import { supabase } from "../../lib/supabase";
 import { AileSaglayici } from "../../lib/aile-baglami";
 import { ROL_ADI } from "../../lib/tipler";
@@ -36,6 +36,7 @@ const MENU = [
   { href: "/panel/gelecek", ad: "Gelecek Planı", icon: CalendarClock },
   { href: "/panel/akademi", ad: "Finans Akademisi", icon: GraduationCap },
   { href: "/tarama", ad: "Fiş Tara", icon: ScanLine },
+  { href: "/metin-tara", ad: "Görüntüyü Metne Çevir", icon: FileText },
 ];
 const ORDER_KEY = "pamuk-menu-order";
 
