@@ -11,7 +11,7 @@ type Receipt={merchant:string;date:string;total:number;currency:string;category:
 type Account={account_id:string;name:string;currency:string};
 type Category={id:string;name:string};
 
-const normalize=(value:string)=>value.toLocaleLowerCase("tr-TR").normalize("NFD").replace(/[\\u0300-\\u036f]/g,"").replace(/ı/g,"i").replace(/[^a-z0-9]+/g," ").trim();
+const normalize=(value:string)=>value.toLocaleLowerCase("tr-TR").normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/ı/g,"i").replace(/[^a-z0-9]+/g," ").trim();
 function matchCategory(name:string,categories:Category[]):string{
  const value=normalize(name);
  const direct=categories.find(c=>normalize(c.name)===value);
