@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { postAiRequest } from "@/lib/ai-gateway";
 
 export const runtime = "nodejs";
 export const maxDuration = 55;
@@ -19,15 +20,6 @@ function extractText(data: any): string {
   if (typeof data?.output_text === "string") return data.output_text;
   const parts = Array.isArray(data?.output) ? data.output.flatMap((item: any) => Array.isArray(item?.content) ? item.content : []) : [];
   return parts.map((part: any) => typeof part?.text === "string" ? part.text : "").filter(Boolean).join("\n");
-}
-
-function providerFailure(status: number, data: any): { code: string; message: string; httpStatus: number } {
-  const providerCode = typeof data?.error?.code === "string" ? data.error.code.toLowerCase() : "";
-  if (status === 401 || status === 403) return { code: "AI_AUTH", message: "Yapay zekâ servisi anahtarı geçersiz veya yetkisiz. Vercel ortam değişkenlerini kontrol etmek gerekiyor.", httpStatus: 503 };
-  if (status === 429 || providerCode.includes("quota") || providerCode.includes("rate")) return { code: "AI_LIMIT", message: "Yapay zekâ okuma kotası veya hız sınırı dolmuş. Bir süre sonra tekrar dene.", httpStatus: 503 };
-  if (status === 413 || providerCode.includes("too_large")) return { code: "PDF_TOO_LARGE", message: "PDF yapay zekâ servisi için çok büyük. Daha küçük sayfa aralıklarına bölerek yükle.", httpStatus: 413 };
-  if (status === 400 || status === 415) return { code: "PDF_UNSUPPORTED", message: "PDF biçimi yapay zekâ servisi tarafından kabul edilmedi. Dosyanın şifresiz, açılabilir ve gerçek PDF olduğundan emin ol.", httpStatus: 422 };
-  return { code: "AI_PROVIDER", message: "Yapay zekâ servisi geçici olarak hata verdi. Biraz sonra tekrar dene.", httpStatus: 502 };
 }
 
 type StatementRow = { date: string; description: string; amount: number; type: "gelir" | "gider" };
@@ -171,62 +163,39 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "PDF dosyasını tek başına yükle. Birden fazla ekran görüntüsünü birlikte seçebilirsin." }, { status: 400 });
   }
 
-  const gatewayKey = process.env.AI_GATEWAY_API_KEY;
-  const openaiKey = process.env.OPENAI_API_KEY;
-  const key = gatewayKey || openaiKey;
-  const providerUrl = gatewayKey ? "https://ai-gateway.vercel.sh/v1/responses" : "https://api.openai.com/v1/responses";
-  const model = gatewayKey ? "openai/gpt-5.4" : "gpt-5.4";
-  if (!key) return NextResponse.json({
-    error: "PDF yüklemesi alındı ancak okuma servisi yapılandırılmamış. Vercel'de AI_GATEWAY_API_KEY veya OPENAI_API_KEY tanımlanmalı.",
-    code: "AI_KEY_MISSING"
-  }, { status: 503 });
-
-    stage = "yapay zekâ servisi";
-    let response: Response;
-    if (pdfs.length === 1) {
-      const pdf = pdfs[0];
-      response = await fetch(providerUrl, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-        signal: AbortSignal.timeout(50000),
-        body: JSON.stringify({
-          model,
-          max_output_tokens: 20000,
-          text: { format: { type: "json_schema", name: "bank_statement", strict: true, schema: statementSchema } },
-          input: [{
-            type: "message",
-            role: "user",
-            content: [
-              { type: "input_text", text: systemPrompt + " Bu PDF banka ekstresindeki işlem satırlarını çıkar." },
-              { type: "input_file", filename: "banka-ekstresi.pdf", file_data: `data:application/pdf;base64,${pdf.bytes.toString("base64")}`, detail: "high" }
-            ]
-          }]
-        })
-      });
-    } else {
-      const images = loaded.map(file => ({ type: "image_url", image_url: { url: `data:${file.mime};base64,${file.bytes.toString("base64")}` } }));
-      response = await fetch(gatewayKey ? "https://ai-gateway.vercel.sh/v1/chat/completions" : "https://api.openai.com/v1/chat/completions", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-        signal: AbortSignal.timeout(45000),
-        body: JSON.stringify({
-          model, temperature: 0, max_tokens: 6000,
-          messages: [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: [{ type: "text", text: "Bu banka ekstresi ekran görüntülerinden işlem satırlarını çıkar." }, ...images] }
+  stage = "yapay zekâ servisi";
+  const aiCall = pdfs.length === 1
+    ? await postAiRequest(request, "/v1/responses", {
+        model: "openai/gpt-5.4",
+        max_output_tokens: 20000,
+        text: { format: { type: "json_schema", name: "bank_statement", strict: true, schema: statementSchema } },
+        input: [{
+          type: "message",
+          role: "user",
+          content: [
+            { type: "input_text", text: systemPrompt + " Bu PDF banka ekstresindeki işlem satırlarını çıkar." },
+            { type: "input_file", filename: "banka-ekstresi.pdf", file_data: "data:application/pdf;base64," + pdfs[0].bytes.toString("base64"), detail: "high" }
           ]
-        })
-      });
-    }
+        }]
+      }, 50000)
+    : await postAiRequest(request, "/v1/chat/completions", {
+        model: "openai/gpt-5.4",
+        temperature: 0,
+        max_tokens: 6000,
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: [{ type: "text", text: "Bu banka ekstresi ekran görüntülerinden işlem satırlarını çıkar." }, ...loaded.map(file => ({ type: "image_url", image_url: { url: "data:" + file.mime + ";base64," + file.bytes.toString("base64") } }))] }
+        ]
+      }, 45000);
 
-    const responseText = await response.text();
-    let data: any = {};
-    try { data = responseText ? JSON.parse(responseText) : {}; } catch { /* JSON dışı sağlayıcı hatası aşağıda güvenli biçimde ele alınır. */ }
-    if (!response.ok) {
-      const failure = providerFailure(response.status, data);
-      console.error("[statement-ocr] provider rejected request", { provider: gatewayKey ? "vercel-ai-gateway" : "openai", status: response.status, code: failure.code });
-      return NextResponse.json({ error: failure.message, code: failure.code }, { status: failure.httpStatus });
-    }
+  if (aiCall.failure) {
+    console.error("[statement-ocr] provider rejected request", { provider: aiCall.provider, code: aiCall.failure.code });
+    return NextResponse.json({ error: aiCall.failure.message, code: aiCall.failure.code }, { status: aiCall.failure.httpStatus });
+  }
+
+  const responseText = await aiCall.response.text();
+  let data: any = {};
+  try { data = responseText ? JSON.parse(responseText) : {}; } catch { /* Başarılı HTTP yanıtındaki bozuk JSON aşağıda güvenli biçimde ele alınır. */ }
     stage = "ekstre sonucunu doğrulama";
     const raw = pdfs.length ? extractText(data) : data?.choices?.[0]?.message?.content;
     if (data.status === "incomplete" || data.incomplete_details?.reason === "max_output_tokens") {
