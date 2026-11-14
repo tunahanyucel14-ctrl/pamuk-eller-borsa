@@ -44,12 +44,12 @@ const MENU_ITEMS = [
 const ORDER_KEY = "pamuk-menu-order";
 
 function readPreference(key: string, fallback = ""): string {
-  try { return window.readPreference(key) ?? fallback; }
+  try { return window.localStorage.getItem(key) ?? fallback; }
   catch { return fallback; }
 }
 
 function writePreference(key: string, value: string): void {
-  try { window.writePreference(key, value); }
+  try { window.localStorage.setItem(key, value); }
   catch { /* Depolama izni veya kota sorunu ayarlar ekranını kilitlememeli. */ }
 }
 
