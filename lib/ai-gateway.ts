@@ -10,7 +10,8 @@ export type AiFailure = {
   authMethod?: AiAuthMethod;
   upstreamErrorType?: string;
   upstreamErrorCode?: string;
-  attempts?: { provider: AiProviderName; authMethod: AiAuthMethod; status?: number; code?: string; upstreamErrorType?: string; upstreamErrorCode?: string }[];
+  upstreamMessage?: string;
+  attempts?: { provider: AiProviderName; authMethod: AiAuthMethod; status?: number; code?: string; upstreamErrorType?: string; upstreamErrorCode?: string; detail?: string }[];
 };
 
 export type AiRequestResult =
@@ -25,6 +26,19 @@ type ProviderCredential = {
   baseUrl: string;
   token: string;
 };
+
+function safeProviderMessage(value: unknown): string {
+  if (typeof value !== "string") return "";
+  return value
+    .replace(/AIza[0-9A-Za-z_-]{20,}/g, "[redacted-key]")
+    .replace(/(?:Bearer\\s+)[A-Za-z0-9._~-]{12,}/gi, "Bearer [redacted]")
+    .replace(/(?:sk-[A-Za-z0-9_-]{12,})/g, "[redacted-key]")
+    .replace(/((?:api[_-]?key|token|secret)\\s*[:=]\\s*)[^\\s,;]+/gi, "$1[redacted]")
+    .replace(/https?:\\/\\/[^\\s]+/g, "[upstream-url]")
+    .replace(/\\s+/g, " ")
+    .trim()
+    .slice(0, 240);
+}
 
 function safeProviderLabel(value: unknown): string {
   if (typeof value !== "string") return "";
@@ -114,9 +128,30 @@ function mapProviderFailure(
 async function getCredentials(): Promise<ProviderCredential[]> {
   const candidates: ProviderCredential[] = [];
 
-  // Prefer explicitly configured direct-provider keys. If one is present, do not
-  // silently switch to Vercel OIDC: an unrelated Gateway 403 can mask the real
-  // Gemini/OpenAI error and make the user troubleshoot the wrong integration.
+  // Pamuk Eller is configured around Vercel AI Gateway (see README). Prefer
+  // the explicit Gateway key, then Vercel OIDC, and only then direct-provider
+  // keys. Keep direct keys as real fallbacks so a Gateway permission problem
+  // cannot hide a working Gemini/OpenAI integration.
+  const gatewayKey = process.env.AI_GATEWAY_API_KEY?.trim();
+  if (gatewayKey) {
+    candidates.push({
+      provider: "vercel-ai-gateway",
+      authMethod: "gateway_api_key",
+      baseUrl: "https://ai-gateway.vercel.sh",
+      token: gatewayKey,
+    });
+  } else {
+    const oidcToken = await getVercelOidcToken().catch(() => null);
+    if (typeof oidcToken === "string" && oidcToken.trim()) {
+      candidates.push({
+        provider: "vercel-ai-gateway",
+        authMethod: "oidc",
+        baseUrl: "https://ai-gateway.vercel.sh",
+        token: oidcToken.trim(),
+      });
+    }
+  }
+
   const geminiKey = process.env.GEMINI_API_KEY?.trim();
   if (geminiKey) {
     candidates.push({
@@ -134,30 +169,6 @@ async function getCredentials(): Promise<ProviderCredential[]> {
       authMethod: "openai_api_key",
       baseUrl: "https://api.openai.com",
       token: openaiKey,
-    });
-  }
-
-  // Direct credentials take precedence and remain isolated from Gateway/OIDC.
-  if (candidates.length) return candidates;
-
-  const gatewayKey = process.env.AI_GATEWAY_API_KEY?.trim();
-  if (gatewayKey) {
-    candidates.push({
-      provider: "vercel-ai-gateway",
-      authMethod: "gateway_api_key",
-      baseUrl: "https://ai-gateway.vercel.sh",
-      token: gatewayKey,
-    });
-    return candidates;
-  }
-
-  const oidcToken = await getVercelOidcToken().catch(() => null);
-  if (typeof oidcToken === "string" && oidcToken.trim()) {
-    candidates.push({
-      provider: "vercel-ai-gateway",
-      authMethod: "oidc",
-      baseUrl: "https://ai-gateway.vercel.sh",
-      token: oidcToken.trim(),
     });
   }
 
@@ -244,17 +255,18 @@ export async function postAiRequest(
     }
     const upstreamErrorType = safeProviderLabel(errorBody?.error?.type);
     const upstreamErrorCode = safeProviderLabel(errorBody?.error?.code);
-    const upstreamMessage = typeof errorBody?.error?.message === "string"
-      ? errorBody.error.message.slice(0, 500)
-      : rawError.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim().slice(0, 500);
+    const upstreamMessage = safeProviderMessage(typeof errorBody?.error?.message === "string"
+      ? errorBody.error.message
+      : rawError.replace(/<[^>]*>/g, " "));
     lastFailure = {
       ...mapProviderFailure(response.status, upstreamErrorType, upstreamErrorCode, upstreamMessage),
       authMethod: credential.authMethod,
       ...(upstreamErrorType ? { upstreamErrorType } : {}),
       ...(upstreamErrorCode ? { upstreamErrorCode } : {}),
+      ...(upstreamMessage ? { upstreamMessage } : {}),
     };
 
-    attempts.push({ provider: credential.provider, authMethod: credential.authMethod, status: response.status, code: lastFailure.code, ...(upstreamErrorType ? { upstreamErrorType } : {}), ...(upstreamErrorCode ? { upstreamErrorCode } : {}) });
+    attempts.push({ provider: credential.provider, authMethod: credential.authMethod, status: response.status, code: lastFailure.code, ...(upstreamErrorType ? { upstreamErrorType } : {}), ...(upstreamErrorCode ? { upstreamErrorCode } : {}), ...(upstreamMessage ? { detail: upstreamMessage } : {}) });
 
     // Try the next configured provider after any upstream rejection.
     if (index < credentials.length - 1) continue;
