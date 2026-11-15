@@ -1,5 +1,3 @@
-import { getVercelOidcToken } from "@vercel/oidc";
-
 export type AiProviderName = "gemini" | "vercel-ai-gateway" | "openai";
 export type AiAuthMethod = "gemini_api_key" | "oidc" | "gateway_api_key" | "openai_api_key";
 
@@ -58,14 +56,14 @@ function mapProviderFailure(
   if (status === 403 && (signal.includes("no_providers_available") || message.includes("restricted access to this provider"))) {
     return {
       code: "AI_PROVIDER_RESTRICTED",
-      message: "Vercel AI Gateway takım ayarları bu modelin sağlayıcısına izin vermiyor. Doğrudan Gemini bağlantısı ve diğer yedek sağlayıcılar deneniyor.",
+      message: "Gemini isteği sağlayıcı tarafından reddedildi. Google AI Studio API anahtarını ve Gemini API erişimini kontrol et.",
       httpStatus: 503,
     };
   }
   if (status === 403 && (message.includes("credit card") || message.includes("billing") || message.includes("add a card") || signal.includes("billing"))) {
     return {
       code: "AI_BILLING",
-      message: "Vercel AI Gateway isteği reddetti: takım hesabına geçerli bir ödeme yöntemi eklenmesi gerekiyor. Gemini gibi doğrudan sağlayıcı yedekleri deneniyor.",
+      message: "Gemini API isteği ödeme veya faturalandırma nedeniyle reddedildi. Google AI Studio projesinin faturalandırma ayarlarını kontrol et.",
       httpStatus: 503,
     };
   }
@@ -79,7 +77,7 @@ function mapProviderFailure(
   if (status === 401) {
     return {
       code: "AI_AUTH",
-      message: "Yapay zekâ kimlik doğrulaması başarısız. API anahtarını veya Vercel OIDC erişimini kontrol et.",
+      message: "Gemini kimlik doğrulaması başarısız. GEMINI_API_KEY değerini ve Google AI Studio proje anahtarını kontrol et.",
       httpStatus: 503,
     };
   }
@@ -133,53 +131,17 @@ function mapProviderFailure(
 }
 
 async function getCredentials(): Promise<ProviderCredential[]> {
-  const candidates: ProviderCredential[] = [];
-
-  // Pamuk Eller is configured around Vercel AI Gateway (see README). Prefer
-  // the explicit Gateway key, then Vercel OIDC, and only then direct-provider
-  // keys. Keep direct keys as real fallbacks so a Gateway permission problem
-  // cannot hide a working Gemini/OpenAI integration.
-  const gatewayKey = process.env.AI_GATEWAY_API_KEY?.trim();
-  if (gatewayKey) {
-    candidates.push({
-      provider: "vercel-ai-gateway",
-      authMethod: "gateway_api_key",
-      baseUrl: "https://ai-gateway.vercel.sh",
-      token: gatewayKey,
-    });
-  } else {
-    const oidcToken = await getVercelOidcToken().catch(() => null);
-    if (typeof oidcToken === "string" && oidcToken.trim()) {
-      candidates.push({
-        provider: "vercel-ai-gateway",
-        authMethod: "oidc",
-        baseUrl: "https://ai-gateway.vercel.sh",
-        token: oidcToken.trim(),
-      });
-    }
-  }
-
+  // Pamuk Eller uses Google Gemini only. Never fall back to Vercel AI Gateway,
+  // OIDC, or OpenAI, even if their environment variables are present.
   const geminiKey = process.env.GEMINI_API_KEY?.trim();
-  if (geminiKey) {
-    candidates.push({
-      provider: "gemini",
-      authMethod: "gemini_api_key",
-      baseUrl: "https://generativelanguage.googleapis.com",
-      token: geminiKey,
-    });
-  }
+  if (!geminiKey) return [];
 
-  const openaiKey = process.env.OPENAI_API_KEY?.trim();
-  if (openaiKey) {
-    candidates.push({
-      provider: "openai",
-      authMethod: "openai_api_key",
-      baseUrl: "https://api.openai.com",
-      token: openaiKey,
-    });
-  }
-
-  return candidates;
+  return [{
+    provider: "gemini",
+    authMethod: "gemini_api_key",
+    baseUrl: "https://generativelanguage.googleapis.com",
+    token: geminiKey,
+  }];
 }
 
 export async function postAiRequest(
@@ -195,7 +157,7 @@ export async function postAiRequest(
       provider: null,
       failure: {
         code: "AI_KEY_MISSING",
-        message: "Yapay zekâ bağlantısı yapılandırılmamış. GEMINI_API_KEY ekle veya Vercel AI Gateway / OpenAI erişimini yapılandır.",
+        message: "Gemini bağlantısı yapılandırılmamış. Vercel ortam değişkenlerine GEMINI_API_KEY ekle.",
         httpStatus: 503,
       },
     };
@@ -213,14 +175,8 @@ export async function postAiRequest(
     const credential = credentials[index];
     lastProvider = credential.provider;
     const requestedModel = typeof payload.model === "string" ? payload.model : "";
-    const model = credential.provider === "gemini"
-      ? "gemini-3.8-flash"
-      : credential.provider === "openai"
-        ? requestedModel.replace(/^openai\//, "")
-        : requestedModel;
-    const providerEndpoint = credential.provider === "gemini"
-      ? "/v1beta/openai/chat/completions"
-      : endpoint;
+    const model = "gemini-3.8-flash";
+    const providerEndpoint = "/v1beta/openai/chat/completions";
 
     let response: Response;
     try {
