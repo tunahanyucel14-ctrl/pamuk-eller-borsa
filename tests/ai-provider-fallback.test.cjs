@@ -5,27 +5,34 @@ const path = require("node:path");
 
 const source = fs.readFileSync(path.join(__dirname, "../lib/ai-gateway.ts"), "utf8");
 
-test("AI gateway retries credentials for authentication, entitlement, quota, and transient upstream failures", () => {
-  assert.match(source, /\[401, 402, 403, 404, 408, 429, 500, 502, 503, 504\]\.includes\(response\.status\)/);
+test("Pamuk Eller prefers its documented Vercel AI Gateway key before direct-provider fallbacks", () => {
+  const gatewayKey = source.indexOf('const gatewayKey = process.env.AI_GATEWAY_API_KEY');
+  const geminiKey = source.indexOf('const geminiKey = process.env.GEMINI_API_KEY');
+  const openaiKey = source.indexOf('const openaiKey = process.env.OPENAI_API_KEY');
+  assert.notEqual(gatewayKey, -1);
+  assert.ok(gatewayKey < geminiKey, "Gateway key must be added before Gemini fallback");
+  assert.ok(geminiKey < openaiKey, "Gemini fallback must be added before OpenAI fallback");
 });
 
-test("AI gateway keeps the configured OpenAI direct-provider fallback", () => {
-  assert.ok(source.includes("process.env.OPENAI_API_KEY"));
-  assert.ok(source.includes('requestedModel.replace(/^openai\\//, "")'));
-});
-
-test("AI gateway tries the next credential after a network or timeout failure", () => {
-  assert.match(source, /if \(index < credentials.length - 1\) continue/);
-  assert.match(source, /A failed Gateway connection must not block a configured direct-provider fallback/);
-});
-
-test("AI gateway can classify plain-text upstream permission errors", () => {
-  assert.match(source, /response\.clone\(\)\.text\(\)/);
-  assert.match(source, /rawError\.replace\(/);
-});
-
-test("AI gateway prefers an explicit Gateway key and retains OIDC as a fallback", () => {
-  assert.match(source, /process\.env\.AI_GATEWAY_API_KEY/);
-  assert.match(source, /getVercelOidcToken\(\)/);
+test("AI Gateway OIDC is used when no explicit Gateway API key exists", () => {
+  assert.match(source, /if \(gatewayKey\)[\s\S]*?\} else \{[\s\S]*?getVercelOidcToken\(\)/);
   assert.match(source, /authMethod: "oidc"/);
+});
+
+test("Direct Gemini and OpenAI credentials remain available as fallbacks", () => {
+  assert.match(source, /process\.env\.GEMINI_API_KEY/);
+  assert.match(source, /process\.env\.OPENAI_API_KEY/);
+  assert.match(source, /requestedModel\.replace\(\/\^openai\\\/\/, ""\)/);
+});
+
+test("AI gateway proceeds to the next configured credential after upstream or connection failures", () => {
+  assert.match(source, /if \(index < credentials\.length - 1\) continue/);
+  assert.match(source, /attempts\.push\(\{ provider: credential\.provider/);
+});
+
+test("Provider diagnostics expose a bounded, redacted upstream error detail", () => {
+  assert.match(source, /function safeProviderMessage\(value: unknown\)/);
+  assert.match(source, /redacted-key/);
+  assert.match(source, /slice\(0, 240\)/);
+  assert.match(source, /detail: upstreamMessage/);
 });
