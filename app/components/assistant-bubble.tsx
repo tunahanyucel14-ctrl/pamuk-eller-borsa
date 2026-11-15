@@ -42,7 +42,7 @@ export default function AssistantBubble() {
         body: JSON.stringify({ message, history: lines.slice(-8) }),
       });
       const raw = await response.text();
-      let result: { error?: string; reply?: string; attempts?: { provider?: string; authMethod?: string; status?: number; code?: string }[] };
+      let result: { error?: string; reply?: string; attempts?: { provider?: string; authMethod?: string; status?: number; code?: string; detail?: string }[] };
       try { result = JSON.parse(raw); }
       catch {
         const detail = raw.replace(/\s+/g, " ").trim().slice(0, 180);
@@ -50,7 +50,7 @@ export default function AssistantBubble() {
       }
       if (!response.ok) {
         const trace = Array.isArray(result.attempts) && result.attempts.length
-          ? " Denenen bağlantı: " + result.attempts.map((item) => `${item.provider || "?"}/${item.authMethod || "?"} → HTTP ${item.status ?? item.code ?? "hata"}`).join("; ") + "."
+          ? " Denenen bağlantı: " + result.attempts.map((item) => `${item.provider || "?"}/${item.authMethod || "?"} → HTTP ${item.status ?? item.code ?? "hata"}${item.detail ? " (" + item.detail + ")" : ""}`).join("; ") + "."
           : "";
         throw new Error((result.error || `Asistan isteği başarısız (${response.status}).`) + trace);
       }
