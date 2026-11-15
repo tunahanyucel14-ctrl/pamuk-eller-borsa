@@ -10,6 +10,7 @@ export type AiFailure = {
   authMethod?: AiAuthMethod;
   upstreamErrorType?: string;
   upstreamErrorCode?: string;
+  attempts?: { provider: AiProviderName; authMethod: AiAuthMethod; status?: number; code?: string; upstreamErrorType?: string; upstreamErrorCode?: string }[];
 };
 
 export type AiRequestResult =
@@ -182,6 +183,7 @@ export async function postAiRequest(
     httpStatus: 502,
   };
   let lastProvider: AiProviderName | null = null;
+  const attempts: NonNullable<AiFailure["attempts"]> = [];
 
   for (let index = 0; index < credentials.length; index += 1) {
     const credential = credentials[index];
@@ -218,8 +220,9 @@ export async function postAiRequest(
         httpStatus: 504,
         authMethod: credential.authMethod,
       };
+      attempts.push({ provider: credential.provider, authMethod: credential.authMethod, code: lastFailure.code });
       if (index < credentials.length - 1) continue;
-      return { response: null, provider: credential.provider, failure: lastFailure };
+      return { response: null, provider: credential.provider, failure: { ...lastFailure, attempts } };
     }
 
     if (response.ok) {
@@ -245,10 +248,12 @@ export async function postAiRequest(
       ...(upstreamErrorCode ? { upstreamErrorCode } : {}),
     };
 
+    attempts.push({ provider: credential.provider, authMethod: credential.authMethod, status: response.status, code: lastFailure.code, ...(upstreamErrorType ? { upstreamErrorType } : {}), ...(upstreamErrorCode ? { upstreamErrorCode } : {}) });
+
     // Try the next configured provider after any upstream rejection.
     if (index < credentials.length - 1) continue;
-    return { response: null, provider: credential.provider, failure: lastFailure };
+    return { response: null, provider: credential.provider, failure: { ...lastFailure, attempts } };
   }
 
-  return { response: null, provider: lastProvider, failure: lastFailure };
+  return { response: null, provider: lastProvider, failure: { ...lastFailure, attempts } };
 }
