@@ -48,7 +48,12 @@ export default function AssistantBubble() {
         const detail = raw.replace(/\s+/g, " ").trim().slice(0, 180);
         throw new Error(response.ok ? "Asistan geçerli bir yanıt döndürmedi." : `Sunucu hatası (${response.status}): ${detail || "Yanıt okunamadı."}`);
       }
-      if (!response.ok) {\n        const trace = Array.isArray(result.attempts) && result.attempts.length\n          ? " Denenen bağlantı: " + result.attempts.map((item) => `${item.provider || "?"}/${item.authMethod || "?"} → HTTP ${item.status ?? item.code ?? "hata"}`).join("; ") + "."\n          : "";\n        throw new Error((result.error || `Asistan isteği başarısız (${response.status}).`) + trace);\n      }
+      if (!response.ok) {
+        const trace = Array.isArray(result.attempts) && result.attempts.length
+          ? " Denenen bağlantı: " + result.attempts.map((item) => `${item.provider || "?"}/${item.authMethod || "?"} → HTTP ${item.status ?? item.code ?? "hata"}`).join("; ") + "."
+          : "";
+        throw new Error((result.error || `Asistan isteği başarısız (${response.status}).`) + trace);
+      }
       if (typeof result.reply !== "string" || !result.reply.trim()) throw new Error("Asistan boş yanıt döndürdü.");
       setLines((old) => [...old, { role: "assistant", text: result.reply || "Asistan yanıt veremedi." }]);
     } catch (error) {
