@@ -175,6 +175,7 @@ export async function postAiRequest(
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), Math.min(timeoutMs, 30000));
     let upstream: Response;
+    let raw = "";
     try {
       upstream = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
         method: "POST",
@@ -191,11 +192,10 @@ export async function postAiRequest(
           },
         }),
       });
+      raw = await upstream.text();
     } finally {
       clearTimeout(timer);
     }
-
-    const raw = await upstream.text();
     let data: any = null;
     try { data = raw ? JSON.parse(raw) : null; } catch { /* invalid upstream payload */ }
     if (!upstream.ok) {
