@@ -62,6 +62,13 @@ function mapProviderFailure(
       httpStatus: 503,
     };
   }
+  if (status === 403 && (message.includes("credit card") || message.includes("billing") || message.includes("add a card") || signal.includes("billing"))) {
+    return {
+      code: "AI_BILLING",
+      message: "Vercel AI Gateway isteği reddetti: takım hesabına geçerli bir ödeme yöntemi eklenmesi gerekiyor. Gemini gibi doğrudan sağlayıcı yedekleri deneniyor.",
+      httpStatus: 503,
+    };
+  }
   if (status === 403 && (signal.includes("access_denied") || message.includes("access denied") || message.includes("not authorized") || message.includes("permission") || message.includes("forbidden"))) {
     return {
       code: "AI_ACCESS_DENIED",
@@ -237,7 +244,16 @@ export async function postAiRequest(
         httpStatus: 504,
         authMethod: credential.authMethod,
       };
-      attempts.push({ provider: credential.provider, authMethod: credential.authMethod, code: lastFailure.code });
+      const transportError = error instanceof Error ? error : new Error(String(error));
+      const cause = (transportError as Error & { cause?: unknown }).cause;
+      const causeRecord = cause && typeof cause === "object" ? cause as { code?: unknown; name?: unknown; message?: unknown } : null;
+      const transportDetail = safeProviderMessage([
+        transportError.name,
+        typeof causeRecord?.code === "string" ? causeRecord.code : "",
+        typeof causeRecord?.name === "string" ? causeRecord.name : "",
+        typeof causeRecord?.message === "string" ? causeRecord.message : transportError.message,
+      ].filter(Boolean).join(": "));
+      attempts.push({ provider: credential.provider, authMethod: credential.authMethod, code: lastFailure.code, ...(transportDetail ? { detail: transportDetail } : {}) });
       if (index < credentials.length - 1) continue;
       return { response: null, provider: credential.provider, failure: { ...lastFailure, attempts } };
     }
