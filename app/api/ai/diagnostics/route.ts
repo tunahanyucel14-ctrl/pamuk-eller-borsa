@@ -5,7 +5,7 @@ export const runtime = "nodejs";
 export const maxDuration = 45;
 
 export async function POST(request: Request) {
-  const token = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "").trim();
+  const token = request.headers.get("authorization")?.replace(/^Bearer\\s+/i, "").trim();
   if (!token || token.length > 4096) {
     return NextResponse.json({ ok: false, code: "AUTH_REQUIRED", message: "Oturum bulunamadı. Yeniden giriş yap." }, { status: 401 });
   }
@@ -58,6 +58,7 @@ export async function POST(request: Request) {
       code: "AI_EMPTY_RESPONSE",
       provider: result.provider,
       authMethod: result.authMethod,
+      model: result.model,
       message: "Sağlayıcıya erişildi ancak geçerli bir yanıt alınamadı.",
     }, { status: 502 });
   }
@@ -66,7 +67,7 @@ export async function POST(request: Request) {
     ok: true,
     provider: result.provider,
     authMethod: result.authMethod,
-    model: "openai/gpt-5.4",
+    model: result.model,
     message: "Yapay zekâ bağlantısı çalışıyor.",
   }, { headers: { "Cache-Control": "no-store" } });
 }
