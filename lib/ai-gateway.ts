@@ -114,7 +114,9 @@ function mapProviderFailure(
 async function getCredentials(): Promise<ProviderCredential[]> {
   const candidates: ProviderCredential[] = [];
 
-  // Direct Gemini first: this avoids depending on Vercel Gateway provider permissions.
+  // Prefer explicitly configured direct-provider keys. If one is present, do not
+  // silently switch to Vercel OIDC: an unrelated Gateway 403 can mask the real
+  // Gemini/OpenAI error and make the user troubleshoot the wrong integration.
   const geminiKey = process.env.GEMINI_API_KEY?.trim();
   if (geminiKey) {
     candidates.push({
@@ -125,6 +127,19 @@ async function getCredentials(): Promise<ProviderCredential[]> {
     });
   }
 
+  const openaiKey = process.env.OPENAI_API_KEY?.trim();
+  if (openaiKey) {
+    candidates.push({
+      provider: "openai",
+      authMethod: "openai_api_key",
+      baseUrl: "https://api.openai.com",
+      token: openaiKey,
+    });
+  }
+
+  // Direct credentials take precedence and remain isolated from Gateway/OIDC.
+  if (candidates.length) return candidates;
+
   const gatewayKey = process.env.AI_GATEWAY_API_KEY?.trim();
   if (gatewayKey) {
     candidates.push({
@@ -133,25 +148,16 @@ async function getCredentials(): Promise<ProviderCredential[]> {
       baseUrl: "https://ai-gateway.vercel.sh",
       token: gatewayKey,
     });
+    return candidates;
   }
 
   const oidcToken = await getVercelOidcToken().catch(() => null);
-  if (typeof oidcToken === "string" && oidcToken.trim() && !candidates.some((candidate) => candidate.token === oidcToken.trim())) {
+  if (typeof oidcToken === "string" && oidcToken.trim()) {
     candidates.push({
       provider: "vercel-ai-gateway",
       authMethod: "oidc",
       baseUrl: "https://ai-gateway.vercel.sh",
       token: oidcToken.trim(),
-    });
-  }
-
-  const openaiKey = process.env.OPENAI_API_KEY?.trim();
-  if (openaiKey) {
-    candidates.push({
-      provider: "openai",
-      authMethod: "openai_api_key",
-      baseUrl: "https://api.openai.com",
-      token: openaiKey,
     });
   }
 
