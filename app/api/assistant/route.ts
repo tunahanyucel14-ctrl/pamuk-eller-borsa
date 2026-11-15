@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { postAiRequest } from "@/lib/ai-gateway";
-export const maxDuration = 45;
+export const maxDuration = 60;
 
 export const runtime = "nodejs";
 
@@ -105,7 +105,7 @@ export async function POST(request: Request) {
       ],
       temperature: 0.3,
       max_tokens: 1100,
-    }, 30000);
+    }, 40000);
 
     if (aiCall.failure) {
       console.error("[assistant-ai] provider request failed", { provider: aiCall.provider, code: aiCall.failure.code, authMethod: aiCall.failure.authMethod, upstreamErrorType: aiCall.failure.upstreamErrorType, upstreamErrorCode: aiCall.failure.upstreamErrorCode });
