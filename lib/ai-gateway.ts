@@ -31,11 +31,11 @@ function safeProviderMessage(value: unknown): string {
   if (typeof value !== "string") return "";
   return value
     .replace(/AIza[0-9A-Za-z_-]{20,}/g, "[redacted-key]")
-    .replace(/(?:Bearer\\s+)[A-Za-z0-9._~-]{12,}/gi, "Bearer [redacted]")
+    .replace(/(?:Bearer\s+)[A-Za-z0-9._~-]{12,}/gi, "Bearer [redacted]")
     .replace(/(?:sk-[A-Za-z0-9_-]{12,})/g, "[redacted-key]")
-    .replace(/((?:api[_-]?key|token|secret)\\s*[:=]\\s*)[^\\s,;]+/gi, "$1[redacted]")
-    .replace(/https?:\\/\\/[^\\s]+/g, "[upstream-url]")
-    .replace(/\\s+/g, " ")
+    .replace(/((?:api[_-]?key|token|secret)\s*[:=]\s*)[^\s,;]+/gi, "$1[redacted]")
+    .replace(/https?:\/\/[^\s]+/g, "[upstream-url]")
+    .replace(/\s+/g, " ")
     .trim()
     .slice(0, 240);
 }
