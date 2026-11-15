@@ -109,7 +109,7 @@ export async function POST(request: Request) {
 
     if (aiCall.failure) {
       console.error("[assistant-ai] provider request failed", { provider: aiCall.provider, code: aiCall.failure.code, authMethod: aiCall.failure.authMethod, upstreamErrorType: aiCall.failure.upstreamErrorType, upstreamErrorCode: aiCall.failure.upstreamErrorCode });
-      return NextResponse.json({ error: aiCall.failure.message, code: aiCall.failure.code }, { status: aiCall.failure.httpStatus });
+      return NextResponse.json({ error: aiCall.failure.message, code: aiCall.failure.code, provider: aiCall.provider, attempts: aiCall.failure.attempts }, { status: aiCall.failure.httpStatus });
     }
 
     const data = await aiCall.response.json().catch(() => null) as any;
