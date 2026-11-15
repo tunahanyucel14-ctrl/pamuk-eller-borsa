@@ -104,8 +104,9 @@ export async function POST(request: Request) {
         { role: "user", content: message },
       ],
       temperature: 0.3,
-      max_tokens: 1100,
-    }, 40000);
+      reasoning_effort: "low",
+      max_tokens: 800,
+    }, 45000);
 
     if (aiCall.failure) {
       console.error("[assistant-ai] provider request failed", { provider: aiCall.provider, code: aiCall.failure.code, authMethod: aiCall.failure.authMethod, upstreamErrorType: aiCall.failure.upstreamErrorType, upstreamErrorCode: aiCall.failure.upstreamErrorCode });
