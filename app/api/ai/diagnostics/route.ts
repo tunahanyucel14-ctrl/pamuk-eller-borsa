@@ -44,6 +44,7 @@ export async function POST(request: Request) {
       authMethod: result.failure.authMethod,
       upstreamErrorType: result.failure.upstreamErrorType,
       upstreamErrorCode: result.failure.upstreamErrorCode,
+      attempts: result.failure.attempts,
       message: result.failure.message,
     }, { status: result.failure.httpStatus });
   }
