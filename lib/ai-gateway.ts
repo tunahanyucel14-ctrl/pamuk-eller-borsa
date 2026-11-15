@@ -16,6 +16,8 @@ export type AiRequestResult =
   | { response: Response; provider: AiProviderName; authMethod: AiAuthMethod; failure?: never }
   | { response: null; provider: AiProviderName | null; failure: AiFailure };
 
+type UpstreamErrorBody = { error?: { code?: unknown; type?: unknown; message?: unknown } };
+
 type ProviderCredential = {
   provider: AiProviderName;
   authMethod: AiAuthMethod;
@@ -212,9 +214,9 @@ export async function postAiRequest(
     }
 
     const rawError = await response.clone().text().catch(() => "");
-    let errorBody: { error?: { code?: unknown; type?: unknown; message?: unknown } } | null = null;
+    let errorBody: UpstreamErrorBody | null = null;
     try {
-      errorBody = rawError ? JSON.parse(rawError) as typeof errorBody : null;
+      errorBody = rawError ? JSON.parse(rawError) as UpstreamErrorBody : null;
     } catch {
       // Some gateways/proxies return plain text or HTML instead of JSON.
     }
