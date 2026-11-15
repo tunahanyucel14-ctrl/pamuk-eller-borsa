@@ -146,104 +146,91 @@ async function getCredentials(): Promise<ProviderCredential[]> {
 
 export async function postAiRequest(
   _request: Request,
-  endpoint: "/v1/chat/completions" | "/v1/responses",
+  _endpoint: "/v1/chat/completions" | "/v1/responses",
   payload: Record<string, unknown>,
   timeoutMs: number,
 ): Promise<AiRequestResult> {
   const credentials = await getCredentials();
-  if (!credentials.length) {
-    return {
-      response: null,
-      provider: null,
-      failure: {
-        code: "AI_KEY_MISSING",
-        message: "Gemini bağlantısı yapılandırılmamış. Vercel ortam değişkenlerine GEMINI_API_KEY ekle.",
-        httpStatus: 503,
-      },
-    };
+  const credential = credentials[0];
+  if (!credential) {
+    return { response: null, provider: null, failure: {
+      code: "AI_KEY_MISSING",
+      message: "Gemini bağlantısı yapılandırılmamış. Vercel ortam değişkenlerine GEMINI_API_KEY ekle.",
+      httpStatus: 503,
+    }};
   }
 
-  let lastFailure: AiFailure = {
-    code: "AI_PROVIDER",
-    message: "Yapay zekâ sağlayıcısına ulaşılamadı.",
-    httpStatus: 502,
-  };
-  let lastProvider: AiProviderName | null = null;
-  const attempts: NonNullable<AiFailure["attempts"]> = [];
+  const model = "gemini-3.8-flash";
+  const messages = Array.isArray(payload.messages) ? payload.messages as { role?: string; content?: unknown }[] : [];
+  const systemText = messages.filter(m => m.role === "system").map(m => typeof m.content === "string" ? m.content : "").join("\n");
+  const contents = messages.filter(m => m.role !== "system").map(m => ({
+    role: m.role === "assistant" ? "model" : "user",
+    parts: [{ text: typeof m.content === "string" ? m.content : JSON.stringify(m.content ?? "") }],
+  }));
+  if (!contents.length) {
+    return { response: null, provider: "gemini", failure: { code: "AI_BAD_REQUEST", message: "Yapay zekâya gönderilecek mesaj bulunamadı.", httpStatus: 400 }};
+  }
 
-  for (let index = 0; index < credentials.length; index += 1) {
-    const credential = credentials[index];
-    lastProvider = credential.provider;
-    const requestedModel = typeof payload.model === "string" ? payload.model : "";
-    const model = "gemini-3.8-flash";
-    const providerEndpoint = "/v1beta/openai/chat/completions";
-
-    let response: Response;
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), Math.min(timeoutMs, 30000));
+    let upstream: Response;
     try {
-      response = await fetch(credential.baseUrl + providerEndpoint, {
+      upstream = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
         method: "POST",
-        headers: {
-          Authorization: "Bearer " + credential.token,
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json", "x-goog-api-key": credential.token },
         cache: "no-store",
-        signal: AbortSignal.timeout(timeoutMs),
-        body: JSON.stringify({ ...payload, ...(model ? { model } : {}) }),
+        signal: controller.signal,
+        body: JSON.stringify({
+          systemInstruction: systemText ? { parts: [{ text: systemText }] } : undefined,
+          contents,
+          generationConfig: {
+            temperature: typeof payload.temperature === "number" ? payload.temperature : 0.3,
+            maxOutputTokens: typeof payload.max_tokens === "number" ? Math.min(payload.max_tokens, 1200) : 800,
+            thinkingConfig: { thinkingLevel: "low" },
+          },
+        }),
       });
-    } catch (error) {
-      const timedOut = error instanceof Error && (error.name === "TimeoutError" || error.name === "AbortError");
-      lastFailure = {
-        code: timedOut ? "AI_TIMEOUT" : "AI_CONNECTION",
-        message: timedOut
-          ? "Yapay zekâ isteği zaman aşımına uğradı. Daha küçük bir dosya veya içerikle tekrar dene."
-          : "Yapay zekâ servisine bağlantı kurulamadı. Servis bağlantısını tekrar dene.",
-        httpStatus: 504,
-        authMethod: credential.authMethod,
-      };
-      const transportError = error instanceof Error ? error : new Error(String(error));
-      const cause = (transportError as Error & { cause?: unknown }).cause;
-      const causeRecord = cause && typeof cause === "object" ? cause as { code?: unknown; name?: unknown; message?: unknown } : null;
-      const transportDetail = safeProviderMessage([
-        transportError.name,
-        typeof causeRecord?.code === "string" ? causeRecord.code : "",
-        typeof causeRecord?.name === "string" ? causeRecord.name : "",
-        typeof causeRecord?.message === "string" ? causeRecord.message : transportError.message,
-      ].filter(Boolean).join(": "));
-      attempts.push({ provider: credential.provider, authMethod: credential.authMethod, code: lastFailure.code, ...(transportDetail ? { detail: transportDetail } : {}) });
-      if (index < credentials.length - 1) continue;
-      return { response: null, provider: credential.provider, failure: { ...lastFailure, attempts } };
+    } finally {
+      clearTimeout(timer);
     }
 
-    if (response.ok) {
-      return { response, provider: credential.provider, authMethod: credential.authMethod, model };
+    const raw = await upstream.text();
+    let data: any = null;
+    try { data = raw ? JSON.parse(raw) : null; } catch { /* invalid upstream payload */ }
+    if (!upstream.ok) {
+      const detail = safeProviderMessage(data?.error?.message || raw);
+      const mapped = mapProviderFailure(upstream.status, "", String(data?.error?.status || ""), detail);
+      return { response: null, provider: "gemini", failure: {
+        ...mapped, authMethod: "gemini_api_key",
+        ...(data?.error?.status ? { upstreamErrorType: safeProviderLabel(data.error.status) } : {}),
+        ...(data?.error?.code ? { upstreamErrorCode: String(data.error.code) } : {}),
+        ...(detail ? { upstreamMessage: detail } : {}),
+        attempts: [{ provider: "gemini", authMethod: "gemini_api_key", status: upstream.status, code: mapped.code, ...(detail ? { detail } : {}) }],
+      }};
     }
 
-    const rawError = await response.clone().text().catch(() => "");
-    let errorBody: UpstreamErrorBody | null = null;
-    try {
-      errorBody = rawError ? JSON.parse(rawError) as UpstreamErrorBody : null;
-    } catch {
-      // Some gateways/proxies return plain text or HTML instead of JSON.
+    const text = Array.isArray(data?.candidates?.[0]?.content?.parts)
+      ? data.candidates[0].content.parts.map((part: any) => typeof part.text === "string" ? part.text : "").join("")
+      : "";
+    if (!text.trim()) {
+      return { response: null, provider: "gemini", failure: {
+        code: "AI_EMPTY_RESPONSE", message: "Gemini boş yanıt döndürdü.", httpStatus: 502, authMethod: "gemini_api_key",
+      }};
     }
-    const upstreamErrorType = safeProviderLabel(errorBody?.error?.type);
-    const upstreamErrorCode = safeProviderLabel(errorBody?.error?.code);
-    const upstreamMessage = safeProviderMessage(typeof errorBody?.error?.message === "string"
-      ? errorBody.error.message
-      : rawError.replace(/<[^>]*>/g, " "));
-    lastFailure = {
-      ...mapProviderFailure(response.status, upstreamErrorType, upstreamErrorCode, upstreamMessage),
-      authMethod: credential.authMethod,
-      ...(upstreamErrorType ? { upstreamErrorType } : {}),
-      ...(upstreamErrorCode ? { upstreamErrorCode } : {}),
-      ...(upstreamMessage ? { upstreamMessage } : {}),
-    };
-
-    attempts.push({ provider: credential.provider, authMethod: credential.authMethod, status: response.status, code: lastFailure.code, ...(upstreamErrorType ? { upstreamErrorType } : {}), ...(upstreamErrorCode ? { upstreamErrorCode } : {}), ...(upstreamMessage ? { detail: upstreamMessage } : {}) });
-
-    // Try the next configured provider after any upstream rejection.
-    if (index < credentials.length - 1) continue;
-    return { response: null, provider: credential.provider, failure: { ...lastFailure, attempts } };
+    const normalized = new Response(JSON.stringify({ choices: [{ message: { content: text } }] }), {
+      status: 200, headers: { "Content-Type": "application/json" },
+    });
+    return { response: normalized, provider: "gemini", authMethod: "gemini_api_key", model };
+  } catch (error) {
+    const timedOut = error instanceof Error && (error.name === "TimeoutError" || error.name === "AbortError");
+    const detail = safeProviderMessage(error instanceof Error ? error.message : String(error));
+    return { response: null, provider: "gemini", failure: {
+      code: timedOut ? "AI_TIMEOUT" : "AI_CONNECTION",
+      message: timedOut ? "Gemini 30 saniye içinde yanıt vermedi. Tekrar dene." : "Gemini API bağlantısı kurulamadı.",
+      httpStatus: timedOut ? 504 : 502,
+      authMethod: "gemini_api_key",
+      attempts: [{ provider: "gemini", authMethod: "gemini_api_key", code: timedOut ? "AI_TIMEOUT" : "AI_CONNECTION", ...(detail ? { detail } : {}) }],
+    }};
   }
-
-  return { response: null, provider: lastProvider, failure: { ...lastFailure, attempts } };
 }
