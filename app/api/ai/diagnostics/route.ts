@@ -26,8 +26,9 @@ export async function POST(request: Request) {
     model: "openai/gpt-5.4",
     messages: [{ role: "user", content: "Reply with exactly: OK" }],
     temperature: 0,
-    max_tokens: 5,
-  }, 30000);
+    reasoning_effort: "low",
+    max_tokens: 8,
+  }, 20000);
 
   if (result.failure) {
     console.error("[ai-diagnostics] provider check failed", {
