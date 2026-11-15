@@ -5,7 +5,7 @@ export const runtime = "nodejs";
 export const maxDuration = 45;
 
 export async function POST(request: Request) {
-  const token = request.headers.get("authorization")?.replace(/^Bearer\\s+/i, "").trim();
+  const token = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "").trim();
   if (!token || token.length > 4096) {
     return NextResponse.json({ ok: false, code: "AUTH_REQUIRED", message: "Oturum bulunamadı. Yeniden giriş yap." }, { status: 401 });
   }
