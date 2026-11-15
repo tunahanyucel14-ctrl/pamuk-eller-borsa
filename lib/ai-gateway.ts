@@ -1,7 +1,7 @@
 import { getVercelOidcToken } from "@vercel/oidc";
 
-export type AiProviderName = "vercel-ai-gateway" | "openai";
-export type AiAuthMethod = "oidc" | "gateway_api_key" | "openai_api_key";
+export type AiProviderName = "gemini" | "vercel-ai-gateway" | "openai";
+export type AiAuthMethod = "gemini_api_key" | "oidc" | "gateway_api_key" | "openai_api_key";
 
 export type AiFailure = {
   code: string;
@@ -13,7 +13,7 @@ export type AiFailure = {
 };
 
 export type AiRequestResult =
-  | { response: Response; provider: AiProviderName; authMethod: AiAuthMethod; failure?: never }
+  | { response: Response; provider: AiProviderName; authMethod: AiAuthMethod; model: string; failure?: never }
   | { response: null; provider: AiProviderName | null; failure: AiFailure };
 
 type UpstreamErrorBody = { error?: { code?: unknown; type?: unknown; message?: unknown } };
@@ -43,35 +43,35 @@ function mapProviderFailure(
   if (status === 403 && (signal.includes("no_providers_available") || message.includes("restricted access to this provider"))) {
     return {
       code: "AI_PROVIDER_RESTRICTED",
-      message: "Vercel AI Gateway takım ayarları bu modelin sağlayıcısına izin vermiyor. AI Gateway > Settings bölümündeki Provider Allowlist ayarını kontrol etmek gerekiyor.",
+      message: "Vercel AI Gateway takım ayarları bu modelin sağlayıcısına izin vermiyor. Doğrudan Gemini bağlantısı ve diğer yedek sağlayıcılar deneniyor.",
       httpStatus: 503,
     };
   }
   if (status === 403 && (signal.includes("access_denied") || message.includes("access denied") || message.includes("not authorized") || message.includes("permission") || message.includes("forbidden"))) {
     return {
       code: "AI_ACCESS_DENIED",
-      message: "Vercel AI Gateway isteği takım veya proje erişim izni nedeniyle reddetti. Proje bağlantısı, anahtar kapsamı ve takım erişimi kontrol edilmeli.",
+      message: "Yapay zekâ sağlayıcısı erişimi reddetti. API anahtarı kapsamını, proje erişimini ve sağlayıcı izinlerini kontrol et.",
       httpStatus: 503,
     };
   }
   if (status === 401) {
     return {
       code: "AI_AUTH",
-      message: "Yapay zekâ kimlik doğrulaması başarısız. Vercel OIDC erişimini veya AI_GATEWAY_API_KEY ayarını kontrol et.",
+      message: "Yapay zekâ kimlik doğrulaması başarısız. API anahtarını veya Vercel OIDC erişimini kontrol et.",
       httpStatus: 503,
     };
   }
   if (status === 403) {
     return {
       code: "AI_PERMISSION",
-      message: "Yapay zekâ sağlayıcısı erişim izni vermedi. Takım/proje yetkisi, API anahtarı kapsamı veya sağlayıcı kısıtlaması kontrol edilmeli.",
+      message: "Yapay zekâ sağlayıcısı erişim izni vermedi. Takım/proje yetkisi veya API anahtarı kapsamı kontrol edilmeli.",
       httpStatus: 503,
     };
   }
   if (status === 402 || signal.includes("budget_exceeded") || signal.includes("insufficient_quota")) {
     return {
       code: "AI_BILLING",
-      message: "Yapay zekâ servisinin bütçe veya ödeme limiti yetersiz. Vercel AI Gateway ve sağlayıcı faturalandırma ayarlarını kontrol et.",
+      message: "Yapay zekâ servisinin bütçe veya ödeme limiti yetersiz.",
       httpStatus: 503,
     };
   }
@@ -113,8 +113,17 @@ function mapProviderFailure(
 async function getCredentials(): Promise<ProviderCredential[]> {
   const candidates: ProviderCredential[] = [];
 
-  // Match Vercel's documented precedence: an explicitly configured Gateway
-  // API key wins over OIDC. Keep OIDC as a fallback if that key is rejected.
+  // Direct Gemini first: this avoids depending on Vercel Gateway provider permissions.
+  const geminiKey = process.env.GEMINI_API_KEY?.trim();
+  if (geminiKey) {
+    candidates.push({
+      provider: "gemini",
+      authMethod: "gemini_api_key",
+      baseUrl: "https://generativelanguage.googleapis.com",
+      token: geminiKey,
+    });
+  }
+
   const gatewayKey = process.env.AI_GATEWAY_API_KEY?.trim();
   if (gatewayKey) {
     candidates.push({
@@ -161,7 +170,7 @@ export async function postAiRequest(
       provider: null,
       failure: {
         code: "AI_KEY_MISSING",
-        message: "Yapay zekâ bağlantısı yapılandırılmamış. Vercel projesinde OIDC erişimini etkinleştir ya da AI_GATEWAY_API_KEY / OPENAI_API_KEY tanımla.",
+        message: "Yapay zekâ bağlantısı yapılandırılmamış. GEMINI_API_KEY ekle veya Vercel AI Gateway / OpenAI erişimini yapılandır.",
         httpStatus: 503,
       },
     };
@@ -178,13 +187,18 @@ export async function postAiRequest(
     const credential = credentials[index];
     lastProvider = credential.provider;
     const requestedModel = typeof payload.model === "string" ? payload.model : "";
-    const model = credential.provider === "openai"
-      ? requestedModel.replace(/^openai\//, "")
-      : requestedModel;
+    const model = credential.provider === "gemini"
+      ? "gemini-3.8-flash"
+      : credential.provider === "openai"
+        ? requestedModel.replace(/^openai\//, "")
+        : requestedModel;
+    const providerEndpoint = credential.provider === "gemini"
+      ? "/v1beta/openai/chat/completions"
+      : endpoint;
 
     let response: Response;
     try {
-      response = await fetch(credential.baseUrl + endpoint, {
+      response = await fetch(credential.baseUrl + providerEndpoint, {
         method: "POST",
         headers: {
           Authorization: "Bearer " + credential.token,
@@ -204,13 +218,12 @@ export async function postAiRequest(
         httpStatus: 504,
         authMethod: credential.authMethod,
       };
-      // A failed Gateway connection must not block a configured direct-provider fallback.
       if (index < credentials.length - 1) continue;
       return { response: null, provider: credential.provider, failure: lastFailure };
     }
 
     if (response.ok) {
-      return { response, provider: credential.provider, authMethod: credential.authMethod };
+      return { response, provider: credential.provider, authMethod: credential.authMethod, model };
     }
 
     const rawError = await response.clone().text().catch(() => "");
@@ -232,13 +245,8 @@ export async function postAiRequest(
       ...(upstreamErrorCode ? { upstreamErrorCode } : {}),
     };
 
-    // Gateway auth, entitlement, budget, or quota failures should not prevent a
-    // configured direct OpenAI key from being tried as a fallback.
-    // A Gateway model/route 404 can still be served by the next configured credential/provider.
-    if ([401, 402, 403, 404, 408, 429, 500, 502, 503, 504].includes(response.status) && index < credentials.length - 1) {
-      continue;
-    }
-
+    // Try the next configured provider after any upstream rejection.
+    if (index < credentials.length - 1) continue;
     return { response: null, provider: credential.provider, failure: lastFailure };
   }
 
