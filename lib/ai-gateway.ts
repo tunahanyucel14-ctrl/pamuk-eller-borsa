@@ -144,14 +144,14 @@ async function getCredentials(): Promise<ProviderCredential[]> {
   }];
 }
 
-async function postEvrenRequest(payload: Record<string, unknown>, timeoutMs: number): Promise<AiRequestResult | null> {
+async function postEvrenRequest(payload: Record<string, unknown>, endpoint: "/v1/chat/completions" | "/v1/responses", timeoutMs: number): Promise<AiRequestResult | null> {
   const apiKey = process.env.EVREN_API_KEY?.trim();
   if (!apiKey) return null;
 
-  const baseUrl = (process.env.EVREN_BASE_URL || "https://evren-llmapi.ssyz.org.tr").replace(/\/+$/, "");
-  const model = process.env.EVREN_MODEL?.trim() || "deepseek-v4.1-flash";
+  const baseUrl = (process.env.EVREN_BASE_URL || "https://evren-llmapi.ssyz.org.tr").replace(/\/+$/, "").replace(/\/v1$/i, "");
+  const model = typeof payload.model === "string" && payload.model.trim() ? payload.model.trim() : (process.env.EVREN_MODEL?.trim() || "deepseek-v4.1-flash");
   const messages = Array.isArray(payload.messages) ? payload.messages : [];
-  if (!messages.length) {
+  if (endpoint === "/v1/chat/completions" && !messages.length) {
     return { response: null, provider: null, failure: {
       code: "AI_BAD_REQUEST",
       message: "Yapay zekâya gönderilecek mesaj bulunamadı.",
@@ -162,7 +162,7 @@ async function postEvrenRequest(payload: Record<string, unknown>, timeoutMs: num
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), Math.min(timeoutMs, 45000));
   try {
-    const upstream = await fetch(`${baseUrl}/v1/chat/completions`, {
+    const upstream = await fetch(`${baseUrl}${endpoint}`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -170,13 +170,9 @@ async function postEvrenRequest(payload: Record<string, unknown>, timeoutMs: num
       },
       cache: "no-store",
       signal: controller.signal,
-      body: JSON.stringify({
-        model,
-        messages,
-        temperature: typeof payload.temperature === "number" ? payload.temperature : 0.3,
-        max_tokens: typeof payload.max_tokens === "number" ? Math.min(payload.max_tokens, 1200) : 800,
-        stream: false,
-      }),
+      body: JSON.stringify(endpoint === "/v1/responses"
+        ? { ...payload, model, stream: false }
+        : { ...payload, model, messages, temperature: typeof payload.temperature === "number" ? payload.temperature : 0.3, max_tokens: typeof payload.max_tokens === "number" ? Math.min(payload.max_tokens, 20000) : 800, stream: false }),
     });
 
     if (!upstream.ok) {
@@ -198,6 +194,9 @@ async function postEvrenRequest(payload: Record<string, unknown>, timeoutMs: num
       return { response: null, provider: null, failure: { ...mapped, upstreamMessage: safeDetail || undefined } };
     }
 
+    if (endpoint === "/v1/responses") {
+      return { response: upstream, provider: "evren", authMethod: "evren_api_key", model };
+    }
     const data = await upstream.json().catch(() => null) as any;
     const content = data?.choices?.[0]?.message?.content;
     if (typeof content !== "string" || !content.trim()) {
@@ -230,11 +229,11 @@ async function postEvrenRequest(payload: Record<string, unknown>, timeoutMs: num
 
 export async function postAiRequest(
   _request: Request,
-  _endpoint: "/v1/chat/completions" | "/v1/responses",
+  endpoint: "/v1/chat/completions" | "/v1/responses",
   payload: Record<string, unknown>,
   timeoutMs: number,
 ): Promise<AiRequestResult> {
-  const evrenResult = await postEvrenRequest(payload, timeoutMs);
+  const evrenResult = await postEvrenRequest(payload, endpoint, timeoutMs);
   if (evrenResult) return evrenResult;
 
   const credentials = await getCredentials();
