@@ -207,7 +207,7 @@ export async function POST(request: Request) {
         }]
       }, 50000)
     : await postAiRequest(request, "/v1/chat/completions", {
-        model: "openai/gpt-5.4",
+        model: "qwen3-vl-30b",
         temperature: 0,
         max_tokens: 6000,
         messages: [
