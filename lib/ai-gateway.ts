@@ -144,12 +144,99 @@ async function getCredentials(): Promise<ProviderCredential[]> {
   }];
 }
 
+async function postEvrenRequest(payload: Record<string, unknown>, timeoutMs: number): Promise<AiRequestResult | null> {
+  const apiKey = process.env.EVREN_API_KEY?.trim();
+  if (!apiKey) return null;
+
+  const baseUrl = (process.env.EVREN_BASE_URL || "https://evren-llmapi.ssyz.org.tr").replace(/\\/+$/, "");
+  const model = process.env.EVREN_MODEL?.trim() || "deepseek-v4.1-flash";
+  const messages = Array.isArray(payload.messages) ? payload.messages : [];
+  if (!messages.length) {
+    return { response: null, provider: null, failure: {
+      code: "AI_BAD_REQUEST",
+      message: "Yapay zekâya gönderilecek mesaj bulunamadı.",
+      httpStatus: 400,
+    }};
+  }
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), Math.min(timeoutMs, 45000));
+  try {
+    const upstream = await fetch(`${baseUrl}/v1/chat/completions`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": apiKey,
+      },
+      cache: "no-store",
+      signal: controller.signal,
+      body: JSON.stringify({
+        model,
+        messages,
+        temperature: typeof payload.temperature === "number" ? payload.temperature : 0.3,
+        max_tokens: typeof payload.max_tokens === "number" ? Math.min(payload.max_tokens, 1200) : 800,
+        stream: false,
+      }),
+    });
+
+    if (!upstream.ok) {
+      const raw = await upstream.text().catch(() => "");
+      let parsed: any = null;
+      try { parsed = raw ? JSON.parse(raw) : null; } catch { /* ignore invalid error body */ }
+      const safeDetail = safeProviderMessage(parsed?.error?.message || parsed?.message || raw);
+      const status = upstream.status;
+      const mapped = status === 401
+        ? { code: "AI_AUTH", message: "EVREN API anahtarı geçersiz veya yetkisiz.", httpStatus: 503 }
+        : status === 429
+          ? { code: "AI_LIMIT", message: "EVREN kullanım kotası veya hız sınırı doldu. Biraz sonra tekrar dene.", httpStatus: 503 }
+          : status === 404
+            ? { code: "AI_MODEL", message: "EVREN model kimliği bulunamadı veya kullanılamıyor.", httpStatus: 503 }
+            : status >= 500
+              ? { code: "AI_PROVIDER", message: "EVREN şu anda geçici bir hata verdi. Biraz sonra tekrar dene.", httpStatus: 502 }
+              : { code: "AI_BAD_REQUEST", message: "EVREN isteği kabul etmedi. Model ve mesaj biçimini kontrol et.", httpStatus: 422 };
+      console.error("[assistant-ai] EVREN request failed", { status, model, detail: safeDetail });
+      return { response: null, provider: null, failure: { ...mapped, upstreamMessage: safeDetail || undefined } };
+    }
+
+    const data = await upstream.json().catch(() => null) as any;
+    const content = data?.choices?.[0]?.message?.content;
+    if (typeof content !== "string" || !content.trim()) {
+      return { response: null, provider: null, failure: {
+        code: "AI_EMPTY_RESPONSE",
+        message: "EVREN boş veya okunamayan bir yanıt döndürdü.",
+        httpStatus: 502,
+      }};
+    }
+    return {
+      response: new Response(JSON.stringify({ choices: [{ message: { content } }] }), {
+        status: 200,
+        headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
+      }),
+      provider: "openai",
+      authMethod: "openai_api_key",
+      model,
+    };
+  } catch (error) {
+    const timedOut = error instanceof Error && (error.name === "TimeoutError" || error.name === "AbortError");
+    return { response: null, provider: null, failure: {
+      code: timedOut ? "AI_TIMEOUT" : "AI_CONNECTION",
+      message: timedOut ? "EVREN yanıt süresi doldu. Biraz sonra tekrar dene." : "EVREN API bağlantısı kurulamadı.",
+      httpStatus: timedOut ? 504 : 502,
+    }};
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 export async function postAiRequest(
   _request: Request,
   _endpoint: "/v1/chat/completions" | "/v1/responses",
   payload: Record<string, unknown>,
   timeoutMs: number,
 ): Promise<AiRequestResult> {
+  const evrenResult = await postEvrenRequest(payload, timeoutMs);
+  if (evrenResult) return evrenResult;
+
   const credentials = await getCredentials();
   const credential = credentials[0];
   if (!credential) {
