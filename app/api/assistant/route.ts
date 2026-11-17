@@ -47,15 +47,38 @@ export async function POST(request: Request) {
   let financeContext = "Finans verisi bulunamadı; rakam uydurma.";
   try {
     const q = encodeURIComponent(familyId);
-    const [transactions, accounts, debts, bills, incomes, investments, categories] = await Promise.all([
-      rest(`fin_transactions?family_id=eq.${q}&tx_date=gte.${startDate}&select=kind,amount,tx_date,category_id,description,account_id&order=tx_date.desc&limit=3000`),
-      rest(`account_balances?family_id=eq.${q}&select=account_id,balance,currency`),
-      rest(`family_debts?family_id=eq.${q}&remaining_amount=gt.0&select=name,remaining_amount,monthly_payment,annual_interest_rate`),
-      rest(`family_bills?family_id=eq.${q}&active=eq.true&select=name,amount,category`),
-      rest(`family_income_rules?family_id=eq.${q}&active=eq.true&select=name,expected_amount`),
-      rest(`family_investments?family_id=eq.${q}&select=asset_name,quantity,current_price,currency`).catch(() => []),
-      rest(`categories?family_id=eq.${q}&select=id,name`),
+    const readOptional = async (name: string, path: string) => {
+      try { return { rows: await rest(path), failed: false }; }
+      catch (error) {
+        console.error("[assistant-ai] finance table read failed", { table: name, errorName: error instanceof Error ? error.name : "UnknownError" });
+        return { rows: [] as Record<string, unknown>[], failed: true };
+      }
+    };
+    const [txResult, accountResult, debtResult, billResult, incomeResult, investmentResult, categoryResult] = await Promise.all([
+      readOptional("fin_transactions", `fin_transactions?family_id=eq.${q}&tx_date=gte.${startDate}&select=kind,amount,tx_date,category_id,description,account_id&order=tx_date.desc&limit=3000`),
+      readOptional("account_balances", `account_balances?family_id=eq.${q}&select=account_id,balance,currency`),
+      readOptional("family_debts", `family_debts?family_id=eq.${q}&remaining_amount=gt.0&select=name,remaining_amount,monthly_payment,annual_interest_rate`),
+      readOptional("family_bills", `family_bills?family_id=eq.${q}&active=eq.true&select=name,amount,category`),
+      readOptional("family_income_rules", `family_income_rules?family_id=eq.${q}&active=eq.true&select=name,expected_amount`),
+      readOptional("family_investments", `family_investments?family_id=eq.${q}&select=asset_name,quantity,current_price,currency`),
+      readOptional("categories", `categories?family_id=eq.${q}&select=id,name`),
     ]);
+    const transactions = txResult.rows;
+    const accounts = accountResult.rows;
+    const debts = debtResult.rows;
+    const bills = billResult.rows;
+    const incomes = incomeResult.rows;
+    const investments = investmentResult.rows;
+    const categories = categoryResult.rows;
+    const unavailableTables = [
+      txResult.failed && "fin_transactions",
+      accountResult.failed && "account_balances",
+      debtResult.failed && "family_debts",
+      billResult.failed && "family_bills",
+      incomeResult.failed && "family_income_rules",
+      investmentResult.failed && "family_investments",
+      categoryResult.failed && "categories",
+    ].filter(Boolean);
     const catNames = new Map(categories.map(c => [String(c.id), String(c.name)]));
     const accountCurrency = new Map(accounts.map(a => [String(a.account_id), String(a.currency || "UNKNOWN").toUpperCase()]));
     const months = new Map<string, { currency: string; income: number; expense: number }>();
@@ -88,7 +111,9 @@ export async function POST(request: Request) {
       plannedMonthlyIncome: incomes,
       investments: investments.map(i => ({ asset: i.asset_name, quantity: i.quantity, currentPrice: i.current_price, currency: i.currency })),
       investmentValueByCurrency: investmentsByCurrency.map(([currency, amount]) => ({ currency, amount })),
-      limitations: ["Yalnızca uygulamaya girilmiş kayıtlar dahil.", "Farklı para birimleri birbirine eklenmemiştir; her toplam kendi para birimindedir.", "Gelir ve giderler eksik veya gecikmeli girilmiş olabilir."]
+      transactionCount: transactions.length,
+      unavailableTables,
+      limitations: ["Yalnızca uygulamaya girilmiş kayıtlar dahil.", "Farklı para birimleri birbirine eklenmemiştir; her toplam kendi para birimindedir.", "Gelir ve giderler eksik veya gecikmeli girilmiş olabilir.", ...(unavailableTables.length ? ["Okunamayan tablolar: " + unavailableTables.join(", ") + ". Bu alanlar analizde eksik kabul edilmelidir."] : [])]
     });
   } catch {
     financeContext = "Finans verileri geçici olarak okunamadı. Rakam veya kişisel durum uydurma; kullanıcıdan daha sonra tekrar denemesini iste.";
