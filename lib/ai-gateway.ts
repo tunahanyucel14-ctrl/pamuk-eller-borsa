@@ -1,5 +1,5 @@
-export type AiProviderName = "gemini" | "vercel-ai-gateway" | "openai";
-export type AiAuthMethod = "gemini_api_key" | "oidc" | "gateway_api_key" | "openai_api_key";
+export type AiProviderName = "gemini" | "vercel-ai-gateway" | "openai" | "evren";
+export type AiAuthMethod = "gemini_api_key" | "oidc" | "gateway_api_key" | "openai_api_key" | "evren_api_key";
 
 export type AiFailure = {
   code: string;
@@ -212,8 +212,8 @@ async function postEvrenRequest(payload: Record<string, unknown>, timeoutMs: num
         status: 200,
         headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
       }),
-      provider: "openai",
-      authMethod: "openai_api_key",
+      provider: "evren",
+      authMethod: "evren_api_key",
       model,
     };
   } catch (error) {
