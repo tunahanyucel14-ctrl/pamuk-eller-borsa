@@ -149,7 +149,8 @@ async function postEvrenRequest(payload: Record<string, unknown>, endpoint: "/v1
   if (!apiKey) return null;
 
   const baseUrl = (process.env.EVREN_BASE_URL || "https://evren-llmapi.ssyz.org.tr").replace(/\/+$/, "").replace(/\/v1$/i, "");
-  const model = typeof payload.model === "string" && payload.model.trim() ? payload.model.trim() : (process.env.EVREN_MODEL?.trim() || "deepseek-v4.1-flash");
+  const requestedModel = typeof payload.model === "string" ? payload.model.trim() : "";
+  const model = requestedModel && !requestedModel.startsWith("openai/") ? requestedModel : (process.env.EVREN_MODEL?.trim() || "deepseek-v4.1-flash");
   const messages = Array.isArray(payload.messages) ? payload.messages : [];
   if (endpoint === "/v1/chat/completions" && !messages.length) {
     return { response: null, provider: null, failure: {
