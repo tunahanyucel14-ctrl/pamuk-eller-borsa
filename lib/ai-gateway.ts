@@ -148,7 +148,7 @@ async function postEvrenRequest(payload: Record<string, unknown>, timeoutMs: num
   const apiKey = process.env.EVREN_API_KEY?.trim();
   if (!apiKey) return null;
 
-  const baseUrl = (process.env.EVREN_BASE_URL || "https://evren-llmapi.ssyz.org.tr").replace(/\\/+$/, "");
+  const baseUrl = (process.env.EVREN_BASE_URL || "https://evren-llmapi.ssyz.org.tr").replace(/\/+$/, "");
   const model = process.env.EVREN_MODEL?.trim() || "deepseek-v4.1-flash";
   const messages = Array.isArray(payload.messages) ? payload.messages : [];
   if (!messages.length) {
