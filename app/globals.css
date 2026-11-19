@@ -802,3 +802,45 @@ html[data-photo="mountain"] .bg-card,html[data-photo="ocean"] .bg-card,html[data
 @media (prefers-reduced-motion:reduce) { main {animation:none!important;} }
 
 html[data-photo="mountain"] body > *,html[data-photo="ocean"] body > *,html[data-photo="sunrise"] body > * { position:relative;z-index:1; }
+
+
+/* Modern Finans: sakin, erişilebilir ve yüksek okunabilirlikte varsayılan arayüz. */
+[data-theme="modern"] {
+  color-scheme: light;
+  --bg:#f4f7f6; --side:#fbfcfc; --card:#ffffff; --inner:#eef3f1; --line:#e1e9e6;
+  --fg:#182522; --muted:#73817c; --accent:#0f766e; --accent-fg:#ffffff;
+  --up:#16805d; --down:#c64b52; --positive-soft:#e8f5ef; --negative-soft:#fbecee;
+  --surface-highlight:#eef8f5; --kpi-glow:rgba(15,118,110,.08); --accent-soft:rgba(15,118,110,.1);
+  --radius-card:1.1rem; --radius-control:.75rem;
+}
+html[data-theme="modern"] body {
+  background:linear-gradient(145deg,#f8faf9 0%,#f1f5f3 55%,#f5f7f6 100%);
+  font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;letter-spacing:-.012em;
+}
+html[data-theme="modern"] body::before { content:none; }
+html[data-theme="modern"] .app-sidebar { position:sticky;top:0;height:100dvh;align-self:flex-start;overflow:hidden;background:rgba(251,252,252,.92);border-color:#e5ece9; }
+html[data-theme="modern"] .app-sidebar-nav { min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:0 .2rem .75rem 0;scrollbar-width:thin;scrollbar-color:#cbd8d3 transparent; }
+html[data-theme="modern"] .app-sidebar-nav a { border:1px solid transparent;min-height:2.55rem; }
+html[data-theme="modern"] .app-sidebar-nav a[aria-current="page"] { background:#e7f3f0;color:#0b625b;box-shadow:inset 3px 0 #0f766e;font-weight:750; }
+html[data-theme="modern"] .app-sidebar-nav a[aria-current="page"]:hover { background:#e7f3f0;color:#0b625b; }
+html[data-theme="modern"] .app-sidebar-nav a:not([aria-current="page"]):hover { background:#f0f5f3;border-color:#e6eeea; }
+html[data-theme="modern"] .app-header { background:rgba(255,255,255,.88);border-color:#e5ece9; }
+html[data-theme="modern"] main { animation:none; }
+html[data-theme="modern"] .rounded-2xl.border.bg-card,
+html[data-theme="modern"] .rounded-3xl.border.bg-card,
+html[data-theme="modern"] .dashboard-stat { border-color:#e4ebe8;border-radius:1.1rem;box-shadow:0 2px 8px rgba(20,48,40,.035),0 12px 28px rgba(20,48,40,.035); }
+html[data-theme="modern"] .financial-highlight { border-color:#dceae5;background:linear-gradient(145deg,#f3faf7,#fff 72%);box-shadow:0 8px 24px rgba(20,48,40,.055); }
+html[data-theme="modern"] .financial-kpi { color:#155e54;text-shadow:none; }
+html[data-theme="modern"] button.bg-accent,html[data-theme="modern"] a.bg-accent { box-shadow:0 2px 5px rgba(15,118,110,.17); }
+html[data-theme="modern"] button.bg-accent:hover,html[data-theme="modern"] a.bg-accent:hover { filter:brightness(.96); }
+html[data-theme="modern"] input:not([type="checkbox"]):not([type="radio"]),html[data-theme="modern"] select,html[data-theme="modern"] textarea { background-color:#fff;border-color:#dce6e2; }
+html[data-theme="modern"] input:focus,html[data-theme="modern"] select:focus,html[data-theme="modern"] textarea:focus { border-color:#62a99e;box-shadow:0 0 0 3px rgba(15,118,110,.12); }
+html[data-theme="modern"] table tbody tr:hover { background:rgba(15,118,110,.045); }
+html[data-theme="modern"] header nav { scrollbar-width:none;scrollbar-gutter:auto; }
+html[data-theme="modern"] header nav::-webkit-scrollbar { display:none; }
+@media (max-width:1023px) {
+  html[data-theme="modern"] .app-header { background:rgba(255,255,255,.96); }
+  html[data-theme="modern"] header nav { scroll-snap-type:x proximity; }
+  html[data-theme="modern"] header nav a { scroll-snap-align:start; }
+}
+@media (prefers-reduced-motion:reduce) { html[data-theme="modern"] * { scroll-behavior:auto; } }

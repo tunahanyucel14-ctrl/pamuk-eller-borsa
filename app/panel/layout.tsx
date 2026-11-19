@@ -107,14 +107,14 @@ export default function PanelLayout({ children }: { children: React.ReactNode })
   return <AileSaglayici value={{ aileId: aile.id, aileAdi: aile.ad, rol: aile.rol, kullaniciId, yazabilir, yonetebilir, yenile: yukle }}>
     <div className="min-h-screen bg-bg text-fg">
       <div className="mx-auto flex min-h-screen max-w-[1600px]">
-        <aside className="hidden w-[258px] shrink-0 flex-col border-r border-line bg-side/95 px-4 py-6 lg:flex">
+        <aside className="app-sidebar hidden w-[264px] shrink-0 flex-col border-r border-line bg-side/95 px-4 py-6 lg:flex">
           <Link href="/panel" className="mb-8 flex items-center gap-3 px-2">
             <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-accent text-accent-fg shadow-lg"><Wallet size={22}/></span>
             <span><span className="block text-lg font-black tracking-tight">pamuk eller</span><span className="block text-[10px] font-bold uppercase tracking-[.2em] text-muted">kişisel finans alanın</span></span>
           </Link>
           <div className="mb-3 px-3 text-[10px] font-bold uppercase tracking-[.2em] text-muted">Çalışma alanı</div>
-          <nav className="flex flex-1 flex-col gap-1">
-            {menu.map((m) => { const aktif = m.href === "/panel" ? yol === "/panel" : yol.startsWith(m.href); const Icon = m.icon; return <Link key={m.href} href={m.href} className={"group flex items-center gap-3 rounded-xl px-3 py-2.5 text-[13px] font-semibold " + (aktif ? "bg-accent text-accent-fg shadow-md" : "text-muted hover:bg-inner hover:text-fg")}><Icon size={17}/><span>{m.ad}</span>{aktif && <span className="ml-auto h-1.5 w-1.5 rounded-full bg-current"/>}</Link>; })}
+          <nav aria-label="Ana gezinme" className="app-sidebar-nav flex flex-1 flex-col gap-1">
+            {menu.map((m) => { const aktif = m.href === "/panel" ? yol === "/panel" : yol.startsWith(m.href); const Icon = m.icon; return <Link key={m.href} href={m.href} aria-current={aktif ? "page" : undefined} className={"group flex items-center gap-3 rounded-xl px-3 py-2.5 text-[13px] font-semibold " + (aktif ? "bg-accent text-accent-fg shadow-md" : "text-muted hover:bg-inner hover:text-fg")}><Icon size={17}/><span>{m.ad}</span>{aktif && <span className="ml-auto h-1.5 w-1.5 rounded-full bg-current"/>}</Link>; })}
           </nav>
           <div className="mt-3 border-t border-line pt-3">
             <div className={"flex items-center gap-3 rounded-xl px-3 py-2.5 text-[13px] font-semibold " + (yol.startsWith("/panel/ayarlar") ? "bg-accent/10 text-accent" : "text-muted")}>
@@ -130,13 +130,13 @@ export default function PanelLayout({ children }: { children: React.ReactNode })
           </div>
         </aside>
         <div className="min-w-0 flex-1">
-          <header className="sticky top-0 z-30 border-b border-line bg-side/90 backdrop-blur-xl">
+          <header className="app-header sticky top-0 z-30 border-b border-line bg-side/90 backdrop-blur-xl">
             <div className="flex items-center justify-between gap-3 px-4 py-3 sm:px-6">
               <div className="flex items-center gap-3 lg:hidden"><span className="flex h-9 w-9 items-center justify-center rounded-xl bg-accent text-accent-fg"><Wallet size={19}/></span><div><p className="text-sm font-black">pamuk eller</p><p className="text-[10px] text-muted">{aile.ad} · {ROL_ADI[aile.rol]}</p></div></div>
               <div className="hidden lg:block"><p className="text-xs font-semibold text-muted">KİŞİSEL FİNANS KOKPİTİ</p><p className="text-sm font-bold">Merhaba, finansal kontrol sende.</p></div>
               <div className="flex items-center gap-2"><Link href="/borsa" className="rounded-xl border border-line px-3 py-2 text-xs font-semibold hover:border-accent hover:text-accent"><Trophy className="mr-1 inline" size={14}/> Borsa Arenası</Link><Link href="/panel/ayarlar" className="rounded-xl border border-line p-2.5 text-muted hover:text-accent" aria-label="Görünüm ve ayarlar"><Settings size={17}/></Link></div>
             </div>
-            <nav className="flex gap-1 overflow-x-auto px-3 pb-3 lg:hidden">{menu.map((m) => { const aktif = m.href === "/panel" ? yol === "/panel" : yol.startsWith(m.href); return <Link key={m.href} href={m.href} className={"whitespace-nowrap rounded-lg px-3 py-2 text-xs font-semibold " + (aktif ? "bg-accent text-accent-fg" : "text-muted hover:text-fg")}>{m.ad}</Link>; })}<Link href="/panel/ayarlar" className={"whitespace-nowrap rounded-lg px-3 py-2 text-xs font-semibold " + (yol.startsWith("/panel/ayarlar") ? "bg-accent text-accent-fg" : "text-muted hover:text-fg")}>⚙ Ayarlar</Link></nav>
+            <nav aria-label="Mobil gezinme" className="app-mobile-nav flex gap-1 overflow-x-auto px-3 pb-3 lg:hidden">{menu.map((m) => { const aktif = m.href === "/panel" ? yol === "/panel" : yol.startsWith(m.href); return <Link key={m.href} href={m.href} className={"whitespace-nowrap rounded-lg px-3 py-2 text-xs font-semibold " + (aktif ? "bg-accent text-accent-fg" : "text-muted hover:text-fg")}>{m.ad}</Link>; })}<Link href="/panel/ayarlar" className={"whitespace-nowrap rounded-lg px-3 py-2 text-xs font-semibold " + (yol.startsWith("/panel/ayarlar") ? "bg-accent text-accent-fg" : "text-muted hover:text-fg")}>⚙ Ayarlar</Link></nav>
           </header>
           <main className="mx-auto w-full max-w-[1380px] p-4 sm:p-6 xl:p-8">{children}</main>
         </div>

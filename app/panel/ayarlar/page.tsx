@@ -5,6 +5,7 @@ import { ArrowDown, ArrowUp, Check, GripVertical, Palette, RotateCcw, Type, Imag
 import { supabase } from "../../../lib/supabase";
 
 const THEMES = [
+  { id: "modern", name: "Modern Finans", desc: "Temiz yüzeyler, yüksek okunabilirlik ve sakin zümrüt vurgu", colors: ["#f4f7f6", "#ffffff", "#0f766e"], tag: "Önerilen" },
   { id: "retro", name: "Kaset Kulübü", desc: "Analog sıcaklık, kâğıt dokusu ve canlı kiremit", colors: ["#f4ecd9", "#fff9ed", "#d95743"], tag: "İmza tema" },
   { id: "zumrut", name: "Zümrüt Gece", desc: "Derin lacivert ve zümrüt vurgular", colors: ["#080d18", "#111b2c", "#34d399"] },
   { id: "okyanus", name: "Okyanus", desc: "Serin mavi tonlar", colors: ["#06101f", "#0f2542", "#38bdf8"] },
@@ -45,7 +46,7 @@ const MENU_ITEMS = [
 const ORDER_KEY = "pamuk-menu-order";
 
 export default function AyarlarSayfasi() {
-  const [theme, setTheme] = useState("retro");
+  const [theme, setTheme] = useState("modern");
   const [font, setFont] = useState("modern");
   const [order, setOrder] = useState<string[]>(MENU_ITEMS.map((x) => x[1]));
   const [saved, setSaved] = useState(false);
@@ -86,7 +87,8 @@ export default function AyarlarSayfasi() {
   }
 
   useEffect(() => {
-    setTheme(localStorage.getItem("pamuk-tema") || "retro");
+    const storedTheme = localStorage.getItem("pamuk-tema") || "modern";
+    setTheme(storedTheme === "retro" ? "modern" : storedTheme);
     setFont(localStorage.getItem("pamuk-font") || "modern");
     const storedPhoto = localStorage.getItem("pamuk-photo") || "none"; setPhoto(storedPhoto); document.documentElement.setAttribute("data-photo", storedPhoto);
     const storedMotion = localStorage.getItem("pamuk-motion") || "full"; setMotion(storedMotion); document.documentElement.setAttribute("data-motion", storedMotion);
@@ -130,7 +132,7 @@ export default function AyarlarSayfasi() {
     setSaved(true); window.setTimeout(() => setSaved(false), 1800);
   }
   function reset() {
-    applyTheme("retro"); applyFont("modern");
+    applyTheme("modern"); applyFont("modern");
     setPhoto("none"); localStorage.setItem("pamuk-photo","none"); document.documentElement.setAttribute("data-photo","none");
     setMotion("full"); localStorage.setItem("pamuk-motion","full"); document.documentElement.setAttribute("data-motion","full");
     setDensity("comfortable"); localStorage.setItem("pamuk-density","comfortable"); document.documentElement.setAttribute("data-density","comfortable");
