@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { postAiRequest } from "@/lib/ai-gateway";
+import { getEvrenDiagnostics, postAiRequest } from "@/lib/ai-gateway";
 export const maxDuration = 60;
 
 export const runtime = "nodejs";
@@ -13,8 +13,9 @@ export async function POST(request: Request) {
   if (contentLength > 24_000) return NextResponse.json({ error: "Mesaj çok uzun." }, { status: 413 });
   const body = await request.json().catch(() => null);
   if (!body || typeof body !== "object" || Array.isArray(body)) return NextResponse.json({ error: "İstek geçersiz." }, { status: 400 });
+  const diagnosticsRequested = body.diagnostics === true;
   const message = typeof body.message === "string" ? body.message.trim() : "";
-  if (!message || message.length > 4000) return NextResponse.json({ error: "Mesaj 1–4.000 karakter olmalı." }, { status: 400 });
+  if (!diagnosticsRequested && (!message || message.length > 4000)) return NextResponse.json({ error: "Mesaj 1–4.000 karakter olmalı." }, { status: 400 });
   const history: ChatLine[] = Array.isArray(body.history) ? body.history.slice(-8).flatMap((item: unknown) => {
     if (!item || typeof item !== "object") return [];
     const line = item as { role?: unknown; text?: unknown };
@@ -40,6 +41,11 @@ export async function POST(request: Request) {
   const memberships = await rest(`family_members?user_id=eq.${encodeURIComponent(user.id)}${familyFilter}&select=family_id&limit=1`).catch(() => []);
   const familyId = memberships[0]?.family_id;
   if (typeof familyId !== "string") return NextResponse.json({ error: "Aile finans alanı bulunamadı veya erişim iznin yok." }, { status: 403 });
+
+  if (diagnosticsRequested) {
+    const diagnostics = await getEvrenDiagnostics();
+    return NextResponse.json(diagnostics, { status: diagnostics.configured && diagnostics.reachable && diagnostics.termsAccepted ? 200 : 503 });
+  }
 
   const start = new Date();
   start.setMonth(start.getMonth() - 6, 1);
@@ -232,7 +238,7 @@ export async function POST(request: Request) {
       ],
       temperature: 0.3,
       reasoning_effort: "low",
-      max_tokens: 800,
+      max_tokens: 4096,
     }, 45000);
 
     if (aiCall.failure) {
