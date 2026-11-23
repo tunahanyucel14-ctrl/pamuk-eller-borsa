@@ -237,7 +237,6 @@ export async function POST(request: Request) {
         { role: "user", content: message },
       ],
       temperature: 0.3,
-      reasoning_effort: "low",
       max_tokens: 4096,
     }, 45000);
 
