@@ -11,9 +11,13 @@ export default function AssistantBubble({ familyId, familyName }: { familyId: st
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
-  const [lines, setLines] = useState<ChatLine[]>([
-    { role: "assistant", text: `Merhaba! Ben EVREN, ${familyName} finans koçuyum. Bütçe, gelir-gider, tasarruf, borç ve yatırım kavramlarında yardımcı olabilirim. Ne öğrenmek istersin?` }
-  ]);
+  const welcomeMessage = `Merhaba! Ben EVREN, ${familyName} finans koçuyum. Bütçe, gelir-gider, tasarruf, borç ve yatırım kavramlarında yardımcı olabilirim. Ne öğrenmek istersin?`;
+  const [lines, setLines] = useState<ChatLine[]>([{ role: "assistant", text: welcomeMessage }]);
+
+  useEffect(() => {
+    setLines([{ role: "assistant", text: welcomeMessage }]);
+    setInput("");
+  }, [familyId, familyName]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
@@ -21,7 +25,7 @@ export default function AssistantBubble({ familyId, familyName }: { familyId: st
 
   function resetChat() {
     if (busy) return;
-    setLines([{ role: "assistant", text: "Merhaba! Ben Pamuk Eller finans asistanıyım. Bütçe, gelir-gider, tasarruf ve yatırım kavramlarında yardımcı olabilirim. Ne öğrenmek istersin?" }]);
+    setLines([{ role: "assistant", text: welcomeMessage }]);
     setInput("");
   }
 
