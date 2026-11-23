@@ -144,6 +144,67 @@ async function getCredentials(): Promise<ProviderCredential[]> {
   }];
 }
 
+async function postVercelGatewayRequest(payload: Record<string, unknown>, endpoint: "/v1/chat/completions" | "/v1/responses", timeoutMs: number): Promise<AiRequestResult | null> {
+  if (endpoint !== "/v1/chat/completions") return null;
+  const apiKey = process.env.AI_GATEWAY_API_KEY?.trim();
+  const oidcToken = process.env.VERCEL_OIDC_TOKEN?.trim();
+  const token = apiKey || oidcToken;
+  if (!token) return null;
+
+  const requestedModel = typeof payload.model === "string" ? payload.model.trim() : "";
+  const model = requestedModel.includes("/") ? requestedModel : (process.env.AI_GATEWAY_MODEL?.trim() || "openai/gpt-5.4");
+  const authMethod: AiAuthMethod = apiKey ? "gateway_api_key" : "oidc";
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), Math.min(timeoutMs, 12000));
+  try {
+    const upstream = await fetch("https://ai-gateway.vercel.sh/v1/chat/completions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      cache: "no-store",
+      signal: controller.signal,
+      body: JSON.stringify({ ...payload, model, stream: false }),
+    });
+    const raw = await upstream.text().catch(() => "");
+    if (!upstream.ok) {
+      let parsed: any = null;
+      try { parsed = raw ? JSON.parse(raw) : null; } catch { /* ignore invalid error body */ }
+      const detail = safeProviderMessage(parsed?.error?.message || parsed?.message || raw);
+      const status = upstream.status;
+      const mapped = status === 401
+        ? { code: "AI_GATEWAY_AUTH", message: "Vercel AI Gateway kimlik doğrulaması başarısız.", httpStatus: 503 }
+        : status === 402
+          ? { code: "AI_GATEWAY_BILLING", message: "Vercel AI Gateway kredi veya bütçe limiti yetersiz.", httpStatus: 503 }
+          : status === 403
+            ? { code: "AI_GATEWAY_ACCESS", message: "Vercel AI Gateway erişimi reddedildi. Proje ve takım izinlerini kontrol et.", httpStatus: 503 }
+            : status === 429
+              ? { code: "AI_GATEWAY_LIMIT", message: "Vercel AI Gateway kullanım sınırına ulaştı.", httpStatus: 503 }
+              : status >= 500
+                ? { code: "AI_GATEWAY_PROVIDER", message: "Vercel AI Gateway şu anda geçici olarak yanıt veremiyor.", httpStatus: 502 }
+                : { code: "AI_GATEWAY_REQUEST", message: "Vercel AI Gateway isteği kabul etmedi.", httpStatus: 502 };
+      console.error("[assistant-ai] Vercel AI Gateway request failed", { status, model, detail });
+      return { response: null, provider: null, failure: { ...mapped, authMethod, upstreamMessage: detail || undefined, attempts: [{ provider: "vercel-ai-gateway", authMethod, status, code: mapped.code, detail: detail || undefined }] } };
+    }
+
+    let data: any = null;
+    try { data = raw ? JSON.parse(raw) : null; } catch { /* invalid upstream payload */ }
+    const content = data?.choices?.[0]?.message?.content;
+    if (typeof content !== "string" || !content.trim()) {
+      return { response: null, provider: null, failure: { code: "AI_EMPTY_RESPONSE", message: "Vercel AI Gateway boş veya okunamayan bir yanıt döndürdü.", httpStatus: 502, authMethod, attempts: [{ provider: "vercel-ai-gateway", authMethod, status: upstream.status, code: "AI_EMPTY_RESPONSE" }] } };
+    }
+    return {
+      response: new Response(JSON.stringify({ choices: [{ message: { content } }] }), { status: 200, headers: { "Content-Type": "application/json", "Cache-Control": "no-store" } }),
+      provider: "vercel-ai-gateway", authMethod, model,
+    };
+  } catch (error) {
+    const timedOut = error instanceof Error && (error.name === "TimeoutError" || error.name === "AbortError");
+    return { response: null, provider: null, failure: {
+      code: timedOut ? "AI_GATEWAY_TIMEOUT" : "AI_GATEWAY_CONNECTION",
+      message: timedOut ? "Vercel AI Gateway yedek yanıt süresi doldu." : "Vercel AI Gateway bağlantısı kurulamadı.",
+      httpStatus: timedOut ? 504 : 502, authMethod,
+      attempts: [{ provider: "vercel-ai-gateway", authMethod, code: timedOut ? "AI_GATEWAY_TIMEOUT" : "AI_GATEWAY_CONNECTION" }],
+    } };
+  } finally { clearTimeout(timer); }
+}
 async function postEvrenRequest(payload: Record<string, unknown>, endpoint: "/v1/chat/completions" | "/v1/responses", timeoutMs: number): Promise<AiRequestResult | null> {
   const apiKey = process.env.EVREN_API_KEY?.trim();
   if (!apiKey) return null;
@@ -237,22 +298,33 @@ export async function postAiRequest(
 ): Promise<AiRequestResult> {
   const evrenResult = await postEvrenRequest(payload, endpoint, timeoutMs);
   if (evrenResult?.response) return evrenResult;
-
-  // EVREN is primary, but a configured-yet-unavailable EVREN service must not
-  // disable the Gemini backup. Keep the original failure if Gemini is not configured.
   const evrenFailure = evrenResult?.failure;
+
+  // Prefer deployment-native OIDC for the Vercel AI Gateway backup; no Gemini key is needed on Vercel.
+  const gatewayResult = await postVercelGatewayRequest(payload, endpoint, Math.min(timeoutMs, 12000));
+  if (gatewayResult?.response) return gatewayResult;
+  const gatewayFailure = gatewayResult?.failure;
+  const priorAttempts = [
+    ...(evrenFailure ? [{ provider: "evren" as const, authMethod: "evren_api_key" as const, code: evrenFailure.code, status: evrenFailure.httpStatus, detail: safeProviderMessage(evrenFailure.message) }] : []),
+    ...(gatewayFailure?.attempts || (gatewayFailure ? [{ provider: "vercel-ai-gateway" as const, authMethod: gatewayFailure.authMethod || "oidc" as const, code: gatewayFailure.code, status: gatewayFailure.httpStatus, detail: safeProviderMessage(gatewayFailure.message) }] : [])),
+  ];
+
   const credentials = await getCredentials();
   const credential = credentials[0];
   if (!credential) {
-    if (evrenFailure) return { response: null, provider: evrenResult?.provider ?? null, failure: {
-      ...evrenFailure,
-      message: `EVREN yanıt veremedi ve Gemini yedeği yapılandırılmamış. ${evrenFailure.message}`,
-    }};
+    if (evrenFailure || gatewayFailure) {
+      const primaryFailure = gatewayFailure || evrenFailure!;
+      return { response: null, provider: null, failure: {
+        ...primaryFailure,
+        message: `EVREN yanıt veremedi. ${gatewayFailure ? gatewayFailure.message : "Vercel AI Gateway yedeği yapılandırılmamış."} Gemini yedeği de yapılandırılmamış.`,
+        attempts: priorAttempts,
+      } };
+    }
     return { response: null, provider: null, failure: {
       code: "AI_KEY_MISSING",
-      message: "AI bağlantısı yapılandırılmamış. EVREN_API_KEY veya GEMINI_API_KEY ekle.",
+      message: "AI bağlantısı yapılandırılmamış. Vercel AI Gateway için VERCEL_OIDC_TOKEN/AI_GATEWAY_API_KEY veya Gemini için GEMINI_API_KEY gerekli.",
       httpStatus: 503,
-    }};
+    } };
   }
 
   const models = ["gemini-3.8-flash", "gemini-3.7-flash"] as const;
@@ -267,7 +339,7 @@ export async function postAiRequest(
   }
 
   const attempts: NonNullable<AiFailure["attempts"]> = [];
-  const totalBudgetMs = Math.min(timeoutMs, 22000);
+  const totalBudgetMs = Math.min(timeoutMs, gatewayFailure ? 10000 : 22000);
   const startedAt = Date.now();
   let lastFailure: AiFailure | null = null;
 
@@ -299,26 +371,15 @@ export async function postAiRequest(
       const timedOut = error instanceof Error && (error.name === "TimeoutError" || error.name === "AbortError");
       const detail = safeProviderMessage(error instanceof Error ? error.message : String(error));
       attempts.push({ provider: "gemini", authMethod: "gemini_api_key", code: timedOut ? "AI_TIMEOUT" : "AI_CONNECTION", detail: `${model}: ${detail}`.slice(0, 240) });
-      lastFailure = {
-        code: timedOut ? "AI_TIMEOUT" : "AI_CONNECTION",
-        message: timedOut ? "Gemini yanıt süresi doldu. Alternatif model deneniyor." : "Gemini API bağlantısı kurulamadı.",
-        httpStatus: timedOut ? 504 : 502,
-        authMethod: "gemini_api_key",
-      };
-    } finally {
-      clearTimeout(timer);
-    }
+      lastFailure = { code: timedOut ? "AI_TIMEOUT" : "AI_CONNECTION", message: timedOut ? "Gemini yanıt süresi doldu. Alternatif model deneniyor." : "Gemini API bağlantısı kurulamadı.", httpStatus: timedOut ? 504 : 502, authMethod: "gemini_api_key" };
+    } finally { clearTimeout(timer); }
 
     if (upstream?.ok) {
       let data: any = null;
       try { data = raw ? JSON.parse(raw) : null; } catch { /* invalid upstream payload */ }
-      const text = Array.isArray(data?.candidates?.[0]?.content?.parts)
-        ? data.candidates[0].content.parts.map((part: any) => typeof part.text === "string" ? part.text : "").join("")
-        : "";
+      const text = Array.isArray(data?.candidates?.[0]?.content?.parts) ? data.candidates[0].content.parts.map((part: any) => typeof part.text === "string" ? part.text : "").join("") : "";
       if (text.trim()) {
-        const normalized = new Response(JSON.stringify({ choices: [{ message: { content: text } }] }), {
-          status: 200, headers: { "Content-Type": "application/json" },
-        });
+        const normalized = new Response(JSON.stringify({ choices: [{ message: { content: text } }] }), { status: 200, headers: { "Content-Type": "application/json" } });
         return { response: normalized, provider: "gemini", authMethod: "gemini_api_key", model };
       }
       attempts.push({ provider: "gemini", authMethod: "gemini_api_key", status: upstream.status, code: "AI_EMPTY_RESPONSE", detail: model });
@@ -329,51 +390,23 @@ export async function postAiRequest(
       const detail = safeProviderMessage(data?.error?.message || raw);
       const providerStatus = safeProviderLabel(data?.error?.status);
       const mapped = mapProviderFailure(upstream.status, "", providerStatus, detail);
-      attempts.push({
-        provider: "gemini", authMethod: "gemini_api_key", status: upstream.status,
-        code: mapped.code, ...(detail ? { detail: `${model}: ${detail}`.slice(0, 240) } : {}),
-      });
-      lastFailure = {
-        ...mapped, authMethod: "gemini_api_key",
-        ...(providerStatus ? { upstreamErrorType: providerStatus } : {}),
-        ...(data?.error?.code ? { upstreamErrorCode: String(data.error.code) } : {}),
-        ...(detail ? { upstreamMessage: detail } : {}),
-      };
-      // A 503/502 is a provider-capacity or transient upstream failure. Try the
-      // previous stable Flash model before returning an error to the user.
+      attempts.push({ provider: "gemini", authMethod: "gemini_api_key", status: upstream.status, code: mapped.code, ...(detail ? { detail: `${model}: ${detail}`.slice(0, 240) } : {}) });
+      lastFailure = { ...mapped, authMethod: "gemini_api_key", ...(providerStatus ? { upstreamErrorType: providerStatus } : {}), ...(data?.error?.code ? { upstreamErrorCode: String(data.error.code) } : {}), ...(detail ? { upstreamMessage: detail } : {}) };
       if (![502, 503, 504].includes(upstream.status)) break;
     }
-
-    if (modelIndex < models.length - 1 && Date.now() - startedAt < totalBudgetMs - 2500) {
-      await new Promise(resolve => setTimeout(resolve, 350));
-    }
+    if (modelIndex < models.length - 1 && Date.now() - startedAt < totalBudgetMs - 2500) await new Promise(resolve => setTimeout(resolve, 350));
   }
 
   if (lastFailure) {
     const busy = attempts.some(a => a.status === 503);
-    const combinedAttempts = [
-      ...(evrenFailure ? [{ provider: "evren" as const, authMethod: "evren_api_key" as const, code: evrenFailure.code, status: evrenFailure.httpStatus, detail: safeProviderMessage(evrenFailure.message) }] : []),
-      ...attempts,
-    ];
     return { response: null, provider: "gemini", failure: {
       ...lastFailure,
-      ...(busy ? {
-        code: "AI_PROVIDER_BUSY",
-        message: "EVREN ve Gemini şu anda yanıt veremiyor. Biraz sonra yeniden dene.",
-        httpStatus: 503,
-      } : {}),
-      attempts: combinedAttempts,
+      ...(busy ? { code: "AI_PROVIDER_BUSY", message: "EVREN ve yedek yapay zekâ sağlayıcıları şu anda yanıt veremiyor. Biraz sonra yeniden dene.", httpStatus: 503 } : {}),
+      attempts: [...priorAttempts, ...attempts],
     }};
   }
-
   return { response: null, provider: "gemini", failure: {
-    code: "AI_TIMEOUT",
-    message: "EVREN ve Gemini yanıt süresi doldu. Biraz sonra tekrar dene.",
-    httpStatus: 504,
-    authMethod: "gemini_api_key",
-    attempts: [
-      ...(evrenFailure ? [{ provider: "evren" as const, authMethod: "evren_api_key" as const, code: evrenFailure.code, status: evrenFailure.httpStatus, detail: safeProviderMessage(evrenFailure.message) }] : []),
-      ...attempts,
-    ],
+    code: "AI_TIMEOUT", message: "EVREN ve yedek yapay zekâ sağlayıcılarının yanıt süresi doldu. Biraz sonra tekrar dene.", httpStatus: 504, authMethod: "gemini_api_key",
+    attempts: [...priorAttempts, ...attempts],
   }};
 }
