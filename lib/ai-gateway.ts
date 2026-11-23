@@ -161,7 +161,8 @@ async function postEvrenRequest(payload: Record<string, unknown>, endpoint: "/v1
   }
 
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), Math.min(timeoutMs, 45000));
+  // Reserve enough of the serverless request window for the Gemini backup.
+  const timer = setTimeout(() => controller.abort(), Math.min(timeoutMs, 25000));
   try {
     const upstream = await fetch(`${baseUrl}${endpoint}`, {
       method: "POST",
