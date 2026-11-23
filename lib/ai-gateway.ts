@@ -30,6 +30,44 @@ function safeProviderMessage(value: unknown): string {
     .slice(0, 240);
 }
 
+async function readEvrenChatStream(response: Response): Promise<{ content: string; model?: string }> {
+  if (!response.body) throw new Error("EVREN stream body missing");
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let content = "";
+  let actualModel: string | undefined;
+  let done = false;
+
+  const consumeLine = (line: string) => {
+    const trimmed = line.trim();
+    if (!trimmed.startsWith("data:")) return;
+    const data = trimmed.slice(5).trim();
+    if (!data || data === "[DONE]") return;
+    try {
+      const event = JSON.parse(data);
+      if (typeof event?.model === "string") actualModel = event.model;
+      if (typeof event?.usage?.evren?.routed_model === "string") actualModel = event.usage.evren.routed_model;
+      const choice = event?.choices?.[0];
+      const piece = choice?.delta?.content ?? choice?.message?.content;
+      if (typeof piece === "string") content += piece;
+    } catch {
+      // Ignore non-JSON SSE comments and keep-alive frames.
+    }
+  };
+
+  while (!done) {
+    const chunk = await reader.read();
+    done = chunk.done;
+    buffer += decoder.decode(chunk.value || new Uint8Array(), { stream: !done });
+    const lines = buffer.split(/\r?\n/);
+    buffer = lines.pop() || "";
+    for (const line of lines) consumeLine(line);
+  }
+  if (buffer) consumeLine(buffer);
+  return { content, model: actualModel };
+}
+
 async function postEvrenRequest(payload: Record<string, unknown>, endpoint: "/v1/chat/completions" | "/v1/responses", timeoutMs: number): Promise<AiRequestResult | null> {
   const apiKey = process.env.EVREN_API_KEY?.trim();
   if (!apiKey) return null;
@@ -48,7 +86,7 @@ async function postEvrenRequest(payload: Record<string, unknown>, endpoint: "/v1
 
   const controller = new AbortController();
   // EVREN reasoning models share the reasoning/final-answer token budget. Allow time for internal routing.
-  const timer = setTimeout(() => controller.abort(), Math.min(timeoutMs, 45000));
+  const timer = setTimeout(() => controller.abort(), Math.min(timeoutMs, 55000));
   try {
     const upstream = await fetch(`${baseUrl}${endpoint}`, {
       method: "POST",
@@ -61,7 +99,7 @@ async function postEvrenRequest(payload: Record<string, unknown>, endpoint: "/v1
       signal: controller.signal,
       body: JSON.stringify(endpoint === "/v1/responses"
         ? { ...payload, model, stream: false }
-        : { ...payload, model, messages, temperature: typeof payload.temperature === "number" ? payload.temperature : 0.3, max_tokens: Math.max(4096, typeof payload.max_tokens === "number" ? Math.min(payload.max_tokens, 20000) : 4096), stream: false }),
+        : { ...payload, model, messages, temperature: typeof payload.temperature === "number" ? payload.temperature : 0.3, max_tokens: Math.max(4096, typeof payload.max_tokens === "number" ? Math.min(payload.max_tokens, 20000) : 4096), stream: true, stream_options: { include_usage: true } }),
     });
 
     if (!upstream.ok) {
@@ -94,8 +132,9 @@ async function postEvrenRequest(payload: Record<string, unknown>, endpoint: "/v1
     if (endpoint === "/v1/responses") {
       return { response: upstream, provider: "evren", authMethod: "evren_api_key", model };
     }
-    const data = await upstream.json().catch(() => null) as any;
-    const content = data?.choices?.[0]?.message?.content;
+    const streamed = await readEvrenChatStream(upstream);
+    const content = streamed.content;
+    const actualModel = streamed.model || model;
     if (typeof content !== "string" || !content.trim()) {
       return { response: null, provider: null, failure: {
         code: "AI_EMPTY_RESPONSE",
@@ -104,19 +143,19 @@ async function postEvrenRequest(payload: Record<string, unknown>, endpoint: "/v1
       }};
     }
     return {
-      response: new Response(JSON.stringify({ choices: [{ message: { content } }] }), {
+      response: new Response(JSON.stringify({ model: actualModel, choices: [{ message: { content } }] }), {
         status: 200,
         headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
       }),
       provider: "evren",
       authMethod: "evren_api_key",
-      model,
+      model: actualModel,
     };
   } catch (error) {
     const timedOut = error instanceof Error && (error.name === "TimeoutError" || error.name === "AbortError");
     return { response: null, provider: null, failure: {
       code: timedOut ? "AI_TIMEOUT" : "AI_CONNECTION",
-      message: timedOut ? "EVREN API 45 saniye içinde yanıt vermedi. EVREN geçidi, seçili modelin yoğunluğu ve hesap kotası kontrol edilmeli." : "EVREN API bağlantısı kurulamadı.",
+      message: timedOut ? "EVREN API 55 saniye içinde yanıt vermedi. EVREN geçidi, seçili modelin yoğunluğu ve hesap kotası kontrol edilmeli." : "EVREN API bağlantısı kurulamadı.",
       httpStatus: timedOut ? 504 : 502,
       attempts: [{ provider: "evren", authMethod: "evren_api_key", code: timedOut ? "AI_TIMEOUT" : "AI_CONNECTION" }],
     }};

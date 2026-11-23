@@ -238,7 +238,7 @@ export async function POST(request: Request) {
       ],
       temperature: 0.3,
       max_tokens: 4096,
-    }, 45000);
+    }, 55000);
 
     if (aiCall.failure) {
       console.error("[assistant-ai] provider request failed", { provider: aiCall.provider, code: aiCall.failure.code, authMethod: aiCall.failure.authMethod, upstreamErrorType: aiCall.failure.upstreamErrorType, upstreamErrorCode: aiCall.failure.upstreamErrorCode });
@@ -250,7 +250,8 @@ export async function POST(request: Request) {
     if (typeof reply !== "string" || !reply.trim()) {
       return NextResponse.json({ error: "Yapay zekâ boş veya okunamayan bir yanıt döndürdü.", code: "AI_EMPTY_RESPONSE" }, { status: 502 });
     }
-    return NextResponse.json({ reply: reply.slice(0, 10000) });
+    const actualModel = typeof data?.model === "string" ? data.model : aiCall.model;
+    return NextResponse.json({ reply: reply.slice(0, 10000), model: actualModel });
   } catch (error) {
     console.error("[assistant-ai] request failed", { errorName: error instanceof Error ? error.name : "UnknownError" });
     return NextResponse.json({ error: "Yapay zekâ isteği tamamlanamadı. Tekrar dene.", code: "AI_REQUEST_FAILED" }, { status: 502 });
