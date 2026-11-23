@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { LayoutDashboard, ArrowLeftRight, Wallet, Tags, Users, Table2, CreditCard, Receipt, Target, TrendingUp, Activity, CalendarClock, WalletCards, BrainCircuit, Gauge, GraduationCap, ScanLine, FileUp, FileText, Settings, ChartNoAxesCombined, Trophy, UserRound, LogOut, ShieldCheck, Repeat } from "lucide-react";
 import { supabase } from "../../lib/supabase";
 import { AileSaglayici } from "../../lib/aile-baglami";
+import AssistantBubble from "../components/assistant-bubble";
 import { ROL_ADI } from "../../lib/tipler";
 import type { Rol } from "../../lib/tipler";
 import { girdi, dugme, kart, ikinci } from "../../lib/ui";
@@ -141,6 +142,7 @@ export default function PanelLayout({ children }: { children: React.ReactNode })
           <main className="mx-auto w-full max-w-[1380px] p-4 sm:p-6 xl:p-8">{children}</main>
         </div>
       </div>
+      <AssistantBubble familyId={aile.id} familyName={aile.ad} />
     </div>
   </AileSaglayici>;
 }
