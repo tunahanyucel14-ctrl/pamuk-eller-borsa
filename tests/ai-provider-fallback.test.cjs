@@ -18,6 +18,7 @@ test("Gemini is used when EVREN is unavailable, not only when its key is absent"
   assert.match(source, /provider: "gemini"/);
   assert.match(source, /provider: "evren" as const/);
   assert.match(source, /combinedAttempts/);
+  assert.match(source, /Math\.min\(timeoutMs, 25000\)/, "EVREN timeout must leave room for Gemini backup");
 });
 
 test("Gemini backup uses server-side credentials and fixed Google endpoint", () => {
