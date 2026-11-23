@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { supabase } from "../../lib/supabase";
-import AssistantBubble from "./assistant-bubble";
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const path = usePathname();
@@ -53,5 +52,5 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     );
   }
 
-  return <>{children}{path !== "/giris" && ready ? <AssistantBubble /> : null}</>;
+  return <>{children}</>;
 }
