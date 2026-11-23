@@ -27,7 +27,8 @@ test("Gemini remains an optional third fallback when EVREN and AI Gateway fail",
   assert.match(source, /Gemini yedeği de yapılandırılmamış/);
   assert.match(source, /provider: "gemini"/);
   assert.match(source, /provider: "evren" as const/);
-  assert.match(source, /combinedAttempts/);
+  assert.match(source, /const priorAttempts =/);
+  assert.match(source, /attempts: \[\.\.\.priorAttempts, \.\.\.attempts\]/);
   assert.match(source, /Math\.min\(timeoutMs, 18000\)/, "EVREN timeout is capped to preserve the route budget");
   assert.match(source, /Math\.min\(timeoutMs, 12000\)/, "AI Gateway fallback has a bounded timeout");
 });
