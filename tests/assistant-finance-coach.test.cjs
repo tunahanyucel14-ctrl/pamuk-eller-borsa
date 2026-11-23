@@ -23,3 +23,14 @@ test("EVREN finance coach prompt requires actionable plan and guards against fab
   assert.match(route, /güncelmiş gibi konuşma/);
   assert.match(route, /Farklı para birimlerini kur ve tarihli kaynak olmadan toplama/);
 });
+
+test("EVREN receives deterministic debt payoff estimates only when rate and payment are known", () => {
+  assert.match(route, /debtPayoffScenarios/);
+  assert.match(route, /estimatedMonths/);
+  assert.match(route, /estimatedTotalPayments/);
+  assert.match(route, /estimatedInterest/);
+  assert.match(route, /interest_rate_unknown/);
+  assert.match(route, /payment_not_covering_interest/);
+  assert.match(route, /banka kapama tutarı değildir/);
+  assert.match(route, /months < 600/);
+});
