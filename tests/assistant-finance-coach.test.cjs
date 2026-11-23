@@ -34,3 +34,12 @@ test("EVREN receives deterministic debt payoff estimates only when rate and paym
   assert.match(route, /banka kapama tutarı değildir/);
   assert.match(route, /months < 600/);
 });
+
+test("EVREN receives savings goal contribution estimates with explicit assumptions", () => {
+  assert.match(route, /savingsGoalScenarios/);
+  assert.match(route, /requiredMonthlyContribution/);
+  assert.match(route, /monthsRemaining/);
+  assert.match(route, /target_date_missing/);
+  assert.match(route, /Getiri veya enflasyon varsayımı içermez/);
+  assert.match(route, /family_goals/);
+});
