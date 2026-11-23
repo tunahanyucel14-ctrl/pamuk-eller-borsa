@@ -6,9 +6,11 @@ const path = require("node:path");
 const root = path.join(__dirname, "..");
 const settings = fs.readFileSync(path.join(root, "app/panel/ayarlar/page.tsx"), "utf8");
 const css = fs.readFileSync(path.join(root, "app/globals.css"), "utf8");
+const themeBlock = settings.match(/const THEMES = \[([\s\S]*?)\n\];/)?.[1] || "";
+const themeIds = [...themeBlock.matchAll(/\{\s*id:\s*"([^"]+)"/g)].map((match) => match[1]);
 
-test("Canva premium theme variants are selectable in settings and defined in CSS", () => {
-  const themes = [
+test("All Canva design themes are selectable and have global CSS tokens", () => {
+  const canvaThemes = [
     "aurora",
     "obsidyen",
     "obsidyen-gece",
@@ -16,24 +18,27 @@ test("Canva premium theme variants are selectable in settings and defined in CSS
     "cobalt",
     "sakura",
     "paper",
-    "retro",
+    "retro-futuristik",
   ];
 
-  for (const theme of themes) {
-    assert.match(settings, new RegExp('id: "' + theme + '"'), theme + " settings entry");
+  for (const theme of canvaThemes) {
+    assert.ok(themeIds.includes(theme), theme + " settings entry");
     assert.ok(css.includes('[data-theme="' + theme + '"]'), theme + " CSS token definition");
   }
 });
 
-test("Obsidyen Gece preserves the separate champagne Obsidyen theme and Canva lime accent", () => {
+test("Obsidyen Gece and Retro-Fütüristik retain their separate visual identities", () => {
   assert.match(settings, /id: "obsidyen", name: "Obsidyen"/);
   assert.match(settings, /id: "obsidyen-gece", name: "Obsidyen Gece"/);
+  assert.match(settings, /id: "retro-futuristik", name: "Retro-Fütüristik"/);
   assert.match(css, /--accent:\s*#C6FF00/i);
-  assert.match(css, /--bg:\s*#0B0D10/i);
+  assert.match(css, /--accent:\s*#FF5C8A/i);
 });
 
-test("Canva theme collection count label matches the selectable theme entries", () => {
-  const entries = [...settings.matchAll(/\{ id: "[^"]+", name: "/g)];
-  assert.equal(entries.length, 22);
-  assert.match(settings, /22 ayrı tasarım dili/);
+test("Every selectable theme has CSS variables and the displayed count is accurate", () => {
+  for (const id of themeIds) {
+    assert.ok(css.includes('[data-theme="' + id + '"]'), id + " must have CSS");
+  }
+  assert.equal(themeIds.length, 23);
+  assert.match(settings, /23 ayrı tasarım dili/);
 });
