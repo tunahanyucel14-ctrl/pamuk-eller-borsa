@@ -235,14 +235,21 @@ export async function postAiRequest(
   timeoutMs: number,
 ): Promise<AiRequestResult> {
   const evrenResult = await postEvrenRequest(payload, endpoint, timeoutMs);
-  if (evrenResult) return evrenResult;
+  if (evrenResult?.response) return evrenResult;
 
+  // EVREN is primary, but a configured-yet-unavailable EVREN service must not
+  // disable the Gemini backup. Keep the original failure if Gemini is not configured.
+  const evrenFailure = evrenResult?.failure;
   const credentials = await getCredentials();
   const credential = credentials[0];
   if (!credential) {
+    if (evrenFailure) return { ...evrenResult!, failure: {
+      ...evrenFailure,
+      message: `EVREN yanıt veremedi ve Gemini yedeği yapılandırılmamış. ${evrenFailure.message}`,
+    }};
     return { response: null, provider: null, failure: {
       code: "AI_KEY_MISSING",
-      message: "Gemini bağlantısı yapılandırılmamış. Vercel ortam değişkenlerine GEMINI_API_KEY ekle.",
+      message: "AI bağlantısı yapılandırılmamış. EVREN_API_KEY veya GEMINI_API_KEY ekle.",
       httpStatus: 503,
     }};
   }
@@ -343,22 +350,29 @@ export async function postAiRequest(
 
   if (lastFailure) {
     const busy = attempts.some(a => a.status === 503);
+    const combinedAttempts = [
+      ...(evrenFailure ? [{ provider: "evren" as const, authMethod: "evren_api_key" as const, code: evrenFailure.code, status: evrenFailure.httpStatus, detail: safeProviderMessage(evrenFailure.message) }] : []),
+      ...attempts,
+    ];
     return { response: null, provider: "gemini", failure: {
       ...lastFailure,
       ...(busy ? {
         code: "AI_PROVIDER_BUSY",
-        message: "Gemini şu anda yoğun. Sistem alternatif modeli de denedi; sağlayıcı tekrar yanıt verdiğinde otomatik çalışacaktır. Biraz sonra yeniden dene.",
+        message: "EVREN ve Gemini şu anda yanıt veremiyor. Biraz sonra yeniden dene.",
         httpStatus: 503,
       } : {}),
-      attempts,
+      attempts: combinedAttempts,
     }};
   }
 
   return { response: null, provider: "gemini", failure: {
     code: "AI_TIMEOUT",
-    message: "Gemini yanıt süresi doldu. Biraz sonra tekrar dene.",
+    message: "EVREN ve Gemini yanıt süresi doldu. Biraz sonra tekrar dene.",
     httpStatus: 504,
     authMethod: "gemini_api_key",
-    attempts,
+    attempts: [
+      ...(evrenFailure ? [{ provider: "evren" as const, authMethod: "evren_api_key" as const, code: evrenFailure.code, status: evrenFailure.httpStatus, detail: safeProviderMessage(evrenFailure.message) }] : []),
+      ...attempts,
+    ],
   }};
 }
