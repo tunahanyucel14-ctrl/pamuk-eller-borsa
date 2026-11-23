@@ -11,35 +11,35 @@ const receiptRoute = fs.readFileSync(path.join(root, "app/api/receipt/route.ts")
 const page = fs.readFileSync(path.join(root, "app/panel/aktarim/page.tsx"), "utf8");
 
 test("PDF upload is restricted to private, user-owned temporary storage", () => {
-  assert.match(page, /storage\\.from\\("receipts"\\)\\.upload/);
-  assert.match(route, /path\\.startsWith\\(user\\.id \\+ "\\/"\//);
-  assert.match(route, /object\\/authenticated\\/receipts/);
-  assert.match(route, /finally\\s*\\{[\\s\\S]*cleanupPaths\\.map/);
+  assert.match(page, /storage\.from\("receipts"\)\.upload/);
+  assert.match(route, /path\.startsWith\(user\.id \+ "\/"/);
+  assert.match(route, /object\/authenticated\/receipts/);
+  assert.match(route, /finally\s*\{[\s\S]*cleanupPaths\.map/);
   assert.match(route, /readLimitedBody/);
-  assert.match(route, /reader\\.cancel/);
-  assert.doesNotMatch(route, /stored\\.arrayBuffer/);
+  assert.match(route, /reader\.cancel/);
+  assert.doesNotMatch(route, /stored\.arrayBuffer/);
 });
 
 test("PDFs are sent as Responses API input_file data with visual page detail", () => {
-  assert.match(route, /type:\\s*"input_file"/);
+  assert.match(route, /type:\s*"input_file"/);
   assert.match(route, /file_data:/);
-  assert.match(route, /application\\/pdf;base64/);
-  assert.match(route, /detail:\\s*"high"/);
-  assert.match(route, /\\/v1\\/responses/);
+  assert.match(route, /application\/pdf;base64/);
+  assert.match(route, /detail:\s*"high"/);
+  assert.match(route, /\/v1\/responses/);
 });
 
 test("AI features use EVREN first and Gemini as the configured fallback", () => {
   assert.match(ai, /async function postEvrenRequest/);
-  assert.match(ai, /process\\.env\\.EVREN_API_KEY/);
+  assert.match(ai, /process\.env\.EVREN_API_KEY/);
   assert.match(ai, /const evrenResult = await postEvrenRequest/);
   assert.match(ai, /async function getCredentials/);
-  assert.match(ai, /process\\.env\\.GEMINI_API_KEY/);
+  assert.match(ai, /process\.env\.GEMINI_API_KEY/);
   assert.match(ai, /postAiRequest/);
-  assert.match(assistantRoute, /postAiRequest\\(request/);
-  assert.doesNotMatch(receiptRoute, /postAiRequest\\(request/);
-  assert.match(receiptRoute, /createWorker\\("tur\\+eng"/);
+  assert.match(assistantRoute, /postAiRequest\(request/);
+  assert.doesNotMatch(receiptRoute, /postAiRequest\(request/);
+  assert.match(receiptRoute, /createWorker\("tur\+eng"/);
   assert.match(receiptRoute, /tesseract-local-rules/);
-  assert.match(route, /postAiRequest\\(request/);
+  assert.match(route, /postAiRequest\(request/);
 });
 
 test("provider errors and timeouts return actionable messages without exposing secrets", () => {
@@ -54,11 +54,11 @@ test("provider errors and timeouts return actionable messages without exposing s
   assert.match(ai, /AI_CONNECTION/);
   assert.match(ai, /authMethod/);
   assert.match(ai, /upstreamErrorType/);
-  assert.doesNotMatch(ai, /console\\.log\\([^)]*token|console\\.log\\([^)]*base64/i);
+  assert.doesNotMatch(ai, /console\.log\([^)]*token|console\.log\([^)]*base64/i);
 });
 
 test("PDF OCR keeps preview-before-import and never auto-saves extracted transactions", () => {
-  assert.match(page, /setRows\\(extracted\\.map/);
+  assert.match(page, /setRows\(extracted\.map/);
   assert.match(page, /Onayla ve .* işlemi aktar/);
   assert.match(page, /async function importRows/);
 });
