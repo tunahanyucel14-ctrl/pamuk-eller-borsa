@@ -16,15 +16,6 @@ export type AiRequestResult =
   | { response: Response; provider: AiProviderName; authMethod: AiAuthMethod; model: string; failure?: never }
   | { response: null; provider: AiProviderName | null; failure: AiFailure };
 
-type UpstreamErrorBody = { error?: { code?: unknown; type?: unknown; message?: unknown } };
-
-type ProviderCredential = {
-  provider: AiProviderName;
-  authMethod: AiAuthMethod;
-  baseUrl: string;
-  token: string;
-};
-
 function safeProviderMessage(value: unknown): string {
   if (typeof value !== "string") return "";
   return value
@@ -36,98 +27,6 @@ function safeProviderMessage(value: unknown): string {
     .replace(/\s+/g, " ")
     .trim()
     .slice(0, 240);
-}
-
-function safeProviderLabel(value: unknown): string {
-  if (typeof value !== "string") return "";
-  const normalized = value.trim().toLowerCase();
-  return /^[a-z0-9_.-]{1,80}$/.test(normalized) ? normalized : "";
-}
-
-function mapProviderFailure(
-  status: number,
-  providerErrorType = "",
-  providerCode = "",
-  providerMessage = "",
-): Omit<AiFailure, "authMethod" | "upstreamErrorType" | "upstreamErrorCode"> {
-  const signal = [providerErrorType, providerCode].join(" ").toLowerCase();
-  const message = providerMessage.toLowerCase();
-
-  if (status === 403 && (signal.includes("no_providers_available") || message.includes("restricted access to this provider"))) {
-    return {
-      code: "AI_PROVIDER_RESTRICTED",
-      message: "Gemini isteği sağlayıcı tarafından reddedildi. Google AI Studio API anahtarını ve Gemini API erişimini kontrol et.",
-      httpStatus: 503,
-    };
-  }
-  if (status === 403 && (message.includes("credit card") || message.includes("billing") || message.includes("add a card") || signal.includes("billing"))) {
-    return {
-      code: "AI_BILLING",
-      message: "Gemini API isteği ödeme veya faturalandırma nedeniyle reddedildi. Google AI Studio projesinin faturalandırma ayarlarını kontrol et.",
-      httpStatus: 503,
-    };
-  }
-  if (status === 403 && (signal.includes("access_denied") || message.includes("access denied") || message.includes("not authorized") || message.includes("permission") || message.includes("forbidden"))) {
-    return {
-      code: "AI_ACCESS_DENIED",
-      message: "Yapay zekâ sağlayıcısı erişimi reddetti. API anahtarı kapsamını, proje erişimini ve sağlayıcı izinlerini kontrol et.",
-      httpStatus: 503,
-    };
-  }
-  if (status === 401) {
-    return {
-      code: "AI_AUTH",
-      message: "Gemini kimlik doğrulaması başarısız. GEMINI_API_KEY değerini ve Google AI Studio proje anahtarını kontrol et.",
-      httpStatus: 503,
-    };
-  }
-  if (status === 403) {
-    return {
-      code: "AI_PERMISSION",
-      message: "Yapay zekâ sağlayıcısı erişim izni vermedi. Takım/proje yetkisi veya API anahtarı kapsamı kontrol edilmeli.",
-      httpStatus: 503,
-    };
-  }
-  if (status === 402 || signal.includes("budget_exceeded") || signal.includes("insufficient_quota")) {
-    return {
-      code: "AI_BILLING",
-      message: "Yapay zekâ servisinin bütçe veya ödeme limiti yetersiz.",
-      httpStatus: 503,
-    };
-  }
-  if (status === 429 || signal.includes("quota") || signal.includes("rate")) {
-    return {
-      code: "AI_LIMIT",
-      message: "Yapay zekâ kullanım kotası veya hız sınırı doldu. Biraz sonra tekrar dene.",
-      httpStatus: 503,
-    };
-  }
-  if (status === 413 || signal.includes("too_large") || signal.includes("context_length")) {
-    return {
-      code: "AI_TOO_LARGE",
-      message: "Gönderilen dosya veya içerik yapay zekâ servisi için çok büyük.",
-      httpStatus: 413,
-    };
-  }
-  if (status === 404) {
-    return {
-      code: "AI_MODEL",
-      message: "Yapılandırılan yapay zekâ modeli bulunamadı veya bu hesapta kullanılamıyor.",
-      httpStatus: 503,
-    };
-  }
-  if (status === 400 || status === 415) {
-    return {
-      code: "AI_BAD_REQUEST",
-      message: "Yapay zekâ servisi isteği kabul etmedi. Dosya biçimini ve gönderilen içeriği kontrol et.",
-      httpStatus: 422,
-    };
-  }
-  return {
-    code: "AI_PROVIDER",
-    message: "Yapay zekâ sağlayıcısı geçici bir hata verdi. Biraz sonra tekrar dene.",
-    httpStatus: 502,
-  };
 }
 
 async function postEvrenRequest(payload: Record<string, unknown>, endpoint: "/v1/chat/completions" | "/v1/responses", timeoutMs: number): Promise<AiRequestResult | null> {
@@ -231,7 +130,7 @@ export async function getEvrenDiagnostics(): Promise<EvrenDiagnostics> {
   const apiKey = process.env.EVREN_API_KEY?.trim();
   const model = process.env.EVREN_MODEL?.trim() || "auto";
   if (!apiKey) return { configured: false, reachable: false, termsAccepted: null, model, message: "EVREN_API_KEY sunucu ortamında tanımlı değil." };
-  const baseUrl = (process.env.EVREN_BASE_URL || "https://evren-llmapi.ssyz.org.tr").replace(/\\/+$/, "").replace(/\\/v1$/i, "");
+  const baseUrl = (process.env.EVREN_BASE_URL || "https://evren-llmapi.ssyz.org.tr").replace(/\/+$/, "").replace(/\/v1$/i, "");
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 8000);
   try {
