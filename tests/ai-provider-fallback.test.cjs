@@ -35,7 +35,7 @@ test("Gemini remains an optional third fallback when EVREN and AI Gateway fail",
 
 test("Provider time budgets fit the assistant route serverless window", () => {
   assert.match(source, /Math\.min\(timeoutMs, 18000\)/);
-  assert.match(source, /Math\.min\(timeoutMs, 22000\)/);
+  assert.match(source, /Math\.min\(timeoutMs, gatewayFailure \? 10000 : 22000\)/);
 });
 
 test("Gemini backup uses server-side credentials and fixed Google endpoint", () => {
