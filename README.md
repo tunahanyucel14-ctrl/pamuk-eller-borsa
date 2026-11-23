@@ -7,7 +7,7 @@ Türkiye'deki bireyler ve aileler için gelir-gider, hesap, borç, abonelik, yat
 - Tailwind CSS 4, lucide-react
 - Supabase Auth, PostgreSQL ve Row Level Security
 - EVREN LLM API (birincil AI sağlayıcısı; sohbet ve banka ekstresi PDF/görsel okuma)
-- Google Gemini API (EVREN yapılandırılmadığında yedek AI sağlayıcısı)
+- Google Gemini API (EVREN yapılandırılmadığında veya yanıt veremediğinde yedek AI sağlayıcısı)
 - Tesseract.js (Türkçe/İngilizce fiş OCR; AI sağlayıcısından bağımsız)
 - ExcelJS (tarayıcıda XLSX ekstresi okuma)
 - Harici veri kaynakları: TCMB, Dünya Bankası, Binance, CoinGecko ve Yahoo Finance
@@ -37,7 +37,7 @@ Aşağıdaki değerleri Vercel veya yerel `.env.local` ortamında tanımla:
 - `EVREN_API_KEY` (birincil AI sağlayıcısı)
 - `EVREN_BASE_URL` (isteğe bağlı; varsayılan EVREN API adresi)
 - `EVREN_MODEL` (isteğe bağlı; varsayılan model)
-- `GEMINI_API_KEY` (EVREN yapılandırılmadığında yedek sağlayıcı için)
+- `GEMINI_API_KEY` (EVREN başarısız olduğunda devreye giren yedek sağlayıcı için)
 
 Supabase anahtarları yalnızca public/publishable türünde olmalıdır. Service-role anahtarı tarayıcıya veya `NEXT_PUBLIC_*` değişkenine konulmamalıdır. AI API anahtarları yalnızca sunucu ortam değişkenlerinde tutulmalı, istemciye gönderilmemelidir.
 
