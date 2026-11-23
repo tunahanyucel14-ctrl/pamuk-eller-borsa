@@ -7,8 +7,7 @@ Türkiye'deki bireyler ve aileler için gelir-gider, hesap, borç, abonelik, yat
 - Tailwind CSS 4, lucide-react
 - Supabase Auth, PostgreSQL ve Row Level Security
 - EVREN LLM API (birincil AI sağlayıcısı; sohbet ve banka ekstresi PDF/görsel okuma)
-- Vercel AI Gateway (EVREN yanıt veremediğinde Vercel OIDC veya API anahtarıyla otomatik yedek)
-- Google Gemini API (Vercel AI Gateway de kullanılamadığında isteğe bağlı ikinci yedek)
+- EVREN iç model yönlendirmesi (`auto`): EVREN platformunun hesabınıza açık modelleri arasından uygun modeli seçer
 - Tesseract.js (Türkçe/İngilizce fiş OCR; AI sağlayıcısından bağımsız)
 - ExcelJS (tarayıcıda XLSX ekstresi okuma)
 - Harici veri kaynakları: TCMB, Dünya Bankası, Binance, CoinGecko ve Yahoo Finance
@@ -37,13 +36,11 @@ Aşağıdaki değerleri Vercel veya yerel `.env.local` ortamında tanımla:
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY` (Supabase publishable/anon anahtarı)
 - `EVREN_API_KEY` (birincil AI sağlayıcısı)
 - `EVREN_BASE_URL` (isteğe bağlı; varsayılan EVREN API adresi)
-- `EVREN_MODEL` (isteğe bağlı; varsayılan model)
-- `AI_GATEWAY_API_KEY` (isteğe bağlı; Vercel AI Gateway için, Vercel dışı veya yerel ortamlar)
-- `VERCEL_OIDC_TOKEN` (Vercel dağıtımlarında AI Gateway etkinse Vercel tarafından sağlanır; elle ekleme)
-- `AI_GATEWAY_MODEL` (isteğe bağlı; varsayılan `openai/gpt-5.4`)
-- `GEMINI_API_KEY` (Vercel AI Gateway kullanılamazsa devreye giren isteğe bağlı ikinci yedek)
+- `EVREN_MODEL` (isteğe bağlı; varsayılan `auto`, EVREN iç yönlendirmesi)
+- `EVREN_BASE_URL` (isteğe bağlı; varsayılan `https://evren-llmapi.ssyz.org.tr`)
 
-Supabase anahtarları yalnızca public/publishable türünde olmalıdır. Service-role anahtarı tarayıcıya veya `NEXT_PUBLIC_*` değişkenine konulmamalıdır. AI API anahtarları yalnızca sunucu ortam değişkenlerinde tutulmalı, istemciye gönderilmemelidir. Vercel'de AI Gateway'i takım/proje için etkinleştir; Vercel dışı ortamlarda `AI_GATEWAY_API_KEY` kullan. Anahtarları kaynak koda veya sohbete ekleme. Sağlayıcı sırası EVREN → Vercel AI Gateway → isteğe bağlı Gemini şeklindedir.
+
+Supabase anahtarları yalnızca public/publishable türünde olmalıdır. Service-role anahtarı tarayıcıya veya `NEXT_PUBLIC_*` değişkenine konulmamalıdır. AI API anahtarları yalnızca sunucu ortam değişkenlerinde tutulmalı, istemciye gönderilmemelidir. EVREN sitesinde API anahtarı oluşturduktan sonra aynı hesabın kullanım şartlarını okuyup onayla. Pamuk Eller varsayılan olarak `auto` modelini kullanır; böylece EVREN kendi iç model havuzundan yönlendirme yapar. Anahtarı yalnızca sunucu ortamında tut; kaynak koda veya sohbete ekleme. Asistan penceresindeki bağlantı kontrolü, API erişimini ve şart onayını doğrular.
 
 ## Veritabanı
 SQL dosyaları `supabase/` altında sıralıdır. Şema değişikliklerini mümkün olduğunda Supabase migration sistemiyle uygula ve canlı veritabanında doğrula. Mevcut finans kayıtlarını silen veya yeniden oluşturan komutları kullanıcı onayı olmadan çalıştırma.
