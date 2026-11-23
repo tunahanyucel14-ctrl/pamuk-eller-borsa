@@ -18,10 +18,10 @@ test("Gemini is used when EVREN is unavailable, not only when its key is absent"
   assert.match(source, /provider: "gemini"/);
   assert.match(source, /provider: "evren" as const/);
   assert.match(source, /combinedAttempts/);
-  assert.match(source, /Math\.min\(timeoutMs, 25000\)/, "EVREN timeout must leave room for Gemini backup");
+  assert.match(source, /Math\.min\(timeoutMs, 18000\)/, "EVREN timeout is capped to preserve the 60-second route budget");
 });
 
-test("Gemini backup uses server-side credentials and fixed Google endpoint", () => {
+test("Provider time budgets fit the assistant route serverless window", () => {\n  assert.match(source, /Math\\.min\\(timeoutMs, 18000\\)/);\n  assert.match(source, /Math\\.min\\(timeoutMs, 22000\\)/);\n});\n\ntest("Gemini backup uses server-side credentials and fixed Google endpoint", () => {
   assert.match(source, /process\.env\.GEMINI_API_KEY/);
   assert.match(source, /https:\/\/generativelanguage\.googleapis\.com/);
   assert.match(source, /x-goog-api-key/);
