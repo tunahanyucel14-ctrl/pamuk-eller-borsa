@@ -20,6 +20,7 @@ const THEMES = [
   { id: "aurora", name: "Aurora", desc: "Kuzey ışıkları, derin petrol ve turkuaz", colors: ["#07131a", "#102a32", "#6ee7c2"], tag: "01 · Atmosferik" },
   { id: "obsidyen", name: "Obsidyen", desc: "Siyah taş, bronz ve mücevher hissi", colors: ["#101012", "#202023", "#d6a66b"], tag: "02 · Lüks" },
   { id: "obsidyen-gece", name: "Obsidyen Gece", desc: "Kömür siyahı, metal yüzeyler ve elektrik lime vurgusu", colors: ["#0B0D10", "#1A1D22", "#C6FF00"], tag: "Canva · Gece" },
+  { id: "retro-futuristik", name: "Retro-Fütüristik", desc: "Gece laciverti, neon mercan ve krom ışıklar", colors: ["#100D2C", "#211B4B", "#FF5C8A"], tag: "Canva · Neon" },
   { id: "terracotta", name: "Terra", desc: "Toprak, kiremit ve doğal dokular", colors: ["#f1e5d8", "#fff8ef", "#bd5b3f"], tag: "03 · Organik" },
   { id: "cobalt", name: "Kobalt", desc: "Gece mavisi ve elektrikli mavi", colors: ["#080f27", "#142454", "#80a7ff"], tag: "04 · Dinamik" },
   { id: "sakura", name: "Sakura", desc: "Pudra, gül ve yumuşak kontrast", colors: ["#f8edf1", "#fff9fb", "#c66b91"], tag: "05 · Zarif" },
@@ -151,7 +152,7 @@ export default function AyarlarSayfasi() {
     </section>
 
     <section id="gorunum" className="scroll-mt-28 rounded-3xl border border-line bg-card p-5 shadow-sm sm:p-7">
-      <div className="mb-5 flex items-center gap-3"><span className="rounded-2xl bg-accent/10 p-3 text-accent"><Palette size={21}/></span><div><h2 className="text-lg font-bold">Renk teması</h2><p className="text-xs text-muted">22 ayrı tasarım dili arasından seçimini yap.</p></div></div>
+      <div className="mb-5 flex items-center gap-3"><span className="rounded-2xl bg-accent/10 p-3 text-accent"><Palette size={21}/></span><div><h2 className="text-lg font-bold">Renk teması</h2><p className="text-xs text-muted">23 ayrı tasarım dili arasından seçimini yap.</p></div></div>
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
         {THEMES.map((t) => <button key={t.id} onClick={() => applyTheme(t.id)} className={"group rounded-2xl border p-3 text-left transition hover:-translate-y-0.5 hover:shadow-md " + (theme === t.id ? "border-accent ring-2 ring-accent/20" : "border-line")}>
           <div className="relative flex h-28 overflow-hidden rounded-xl border border-black/5 p-2.5" style={{ background: t.colors[0] }}>
