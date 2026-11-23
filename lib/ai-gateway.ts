@@ -162,7 +162,7 @@ async function postEvrenRequest(payload: Record<string, unknown>, endpoint: "/v1
 
   const controller = new AbortController();
   // Reserve enough of the serverless request window for the Gemini backup.
-  const timer = setTimeout(() => controller.abort(), Math.min(timeoutMs, 25000));
+  const timer = setTimeout(() => controller.abort(), Math.min(timeoutMs, 18000));
   try {
     const upstream = await fetch(`${baseUrl}${endpoint}`, {
       method: "POST",
@@ -267,7 +267,7 @@ export async function postAiRequest(
   }
 
   const attempts: NonNullable<AiFailure["attempts"]> = [];
-  const totalBudgetMs = Math.min(timeoutMs, 30000);
+  const totalBudgetMs = Math.min(timeoutMs, 22000);
   const startedAt = Date.now();
   let lastFailure: AiFailure | null = null;
 
