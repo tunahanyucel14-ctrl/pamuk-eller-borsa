@@ -856,3 +856,53 @@ html[data-theme="obsidyen-gece"] .financial-highlight {
   box-shadow: 0 16px 42px rgba(0,0,0,.3),inset 0 1px rgba(233,220,198,.08);
 }
 html[data-theme="obsidyen-gece"] .financial-kpi { color: #D5FF45; }
+
+
+/* Canva · Retro-Fütüristik: synthwave gece, neon mercan ve krom mavi */
+[data-theme="retro-futuristik"] {
+  color-scheme: dark;
+  --bg: #100D2C;
+  --side: #17133A;
+  --card: #211B4B;
+  --inner: #18143B;
+  --line: rgba(151, 157, 255, .22);
+  --fg: #F5F3FF;
+  --muted: #B0ADD0;
+  --accent: #FF5C8A;
+  --accent-fg: #26091B;
+  --up: #48E0C1;
+  --down: #FF718A;
+  --radius-card: 1.15rem;
+  --accent-soft: rgba(255,92,138,.15);
+}
+html[data-theme="retro-futuristik"] body {
+  background-image: radial-gradient(ellipse at 12% -5%,rgba(255,92,138,.23),transparent 34rem),radial-gradient(ellipse at 100% 85%,rgba(77,135,255,.2),transparent 34rem),linear-gradient(145deg,#100D2C,#17133A 55%,#100D2C);
+}
+html[data-theme="retro-futuristik"] .dashboard-hero {
+  color: #F5F3FF;
+  border-color: rgba(255,92,138,.32);
+  background: radial-gradient(ellipse at 90% 0%,rgba(255,92,138,.28),transparent 38%),linear-gradient(125deg,#100D2C,#29205C 62%,#17133A);
+  box-shadow: 0 24px 70px rgba(5,3,25,.42);
+}
+html[data-theme="retro-futuristik"] .dashboard-kicker,
+html[data-theme="retro-futuristik"] .dashboard-highlight,
+html[data-theme="retro-futuristik"] .financial-kpi { color: #FF8EAD; }
+html[data-theme="retro-futuristik"] .financial-highlight {
+  background: linear-gradient(125deg,rgba(255,92,138,.13),transparent 58%),#211B4B;
+  border-color: rgba(151,157,255,.24);
+  box-shadow: 0 16px 42px rgba(5,3,25,.32),inset 0 1px rgba(255,255,255,.07);
+}
+html[data-theme="retro-futuristik"] .dashboard-primary-action,
+html[data-theme="retro-futuristik"] .bg-accent {
+  background-image: linear-gradient(115deg,#FF5C8A,#FF8EAD);
+  color: #26091B;
+}
+
+/* Canva temalarının dashboard kahraman alanları da kendi karakterini taşır. */
+html[data-theme="aurora"] .dashboard-hero { background:radial-gradient(ellipse at 90% 0%,rgba(110,231,194,.2),transparent 36%),linear-gradient(125deg,#07131a,#16343b 64%,#102a32); border-color:rgba(110,231,194,.22); }
+html[data-theme="obsidyen"] .dashboard-hero { background:radial-gradient(ellipse at 90% 0%,rgba(214,166,107,.2),transparent 36%),linear-gradient(125deg,#101012,#29231c 64%,#171719); border-color:rgba(214,166,107,.25); }
+html[data-theme="terracotta"] .dashboard-hero { background:radial-gradient(ellipse at 90% 0%,rgba(189,91,63,.16),transparent 36%),linear-gradient(125deg,#f1e5d8,#fff8ef 64%,#e6d4c3); border-color:rgba(189,91,63,.2); color:#392b25; }
+html[data-theme="cobalt"] .dashboard-hero { background:radial-gradient(ellipse at 90% 0%,rgba(128,167,255,.24),transparent 36%),linear-gradient(125deg,#080f27,#1a2d60 64%,#142454); border-color:rgba(128,167,255,.25); }
+html[data-theme="sakura"] .dashboard-hero { background:radial-gradient(ellipse at 90% 0%,rgba(198,107,145,.2),transparent 36%),linear-gradient(125deg,#f8edf1,#fff9fb 64%,#f0dfe7); border-color:rgba(198,107,145,.22); color:#402b37; }
+html[data-theme="paper"] .dashboard-hero { background:linear-gradient(135deg,rgba(69,107,85,.1),transparent 55%),linear-gradient(125deg,#f2f0e9,#fffef9 64%,#e8e5dc); border-color:rgba(69,107,85,.2); color:#28332d; }
+html[data-theme="obsidyen-gece"] .dashboard-hero { background:radial-gradient(ellipse at 90% 0%,rgba(198,255,0,.15),transparent 36%),linear-gradient(125deg,#0B0D10,#20262C 62%,#151A1F); }
