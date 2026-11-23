@@ -60,7 +60,7 @@ async function readEvrenChatStream(response: Response): Promise<{ content: strin
     const chunk = await reader.read();
     done = chunk.done;
     buffer += decoder.decode(chunk.value || new Uint8Array(), { stream: !done });
-    const lines = buffer.split(/\\r?\\n/);
+    const lines = buffer.split(/\r?\n/);
     buffer = lines.pop() || "";
     for (const line of lines) consumeLine(line);
   }
