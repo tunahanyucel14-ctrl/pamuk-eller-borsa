@@ -71,7 +71,7 @@ export default function AssistantBubble({ familyId, familyName }: { familyId: st
         body: JSON.stringify({ message, history: lines.slice(-8), familyId }),
       });
       const raw = await response.text();
-      let result: { error?: string; reply?: string };
+      let result: { error?: string; reply?: string; model?: string };
       try { result = JSON.parse(raw); }
       catch {
         const detail = raw.replace(/\s+/g, " ").trim().slice(0, 180);
@@ -81,7 +81,7 @@ export default function AssistantBubble({ familyId, familyName }: { familyId: st
         throw new Error(result.error || `Asistan isteği başarısız (${response.status}).`);
       }
       if (typeof result.reply !== "string" || !result.reply.trim()) throw new Error("Asistan boş yanıt döndürdü.");
-      const modelNote = result.model ? `\\n\\n<EVREN yönlendirmesi: ${result.model}>` : "";
+      const modelNote = result.model ? `\n\n<EVREN yönlendirmesi: ${result.model}>` : "";
       setLines((old) => [...old, { role: "assistant", text: (result.reply || "Asistan yanıt veremedi.") + modelNote }]);
     } catch (error) {
       setLines((old) => [...old, { role: "assistant", text: error instanceof Error ? error.message : "Bağlantı hatası." }]);
