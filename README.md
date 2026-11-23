@@ -35,12 +35,11 @@ Aşağıdaki değerleri Vercel veya yerel `.env.local` ortamında tanımla:
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY` (Supabase publishable/anon anahtarı)
 - `EVREN_API_KEY` (birincil AI sağlayıcısı)
-- `EVREN_BASE_URL` (isteğe bağlı; varsayılan EVREN API adresi)
 - `EVREN_MODEL` (isteğe bağlı; varsayılan `auto`, EVREN iç yönlendirmesi)
 - `EVREN_BASE_URL` (isteğe bağlı; varsayılan `https://evren-llmapi.ssyz.org.tr`)
 
 
-Supabase anahtarları yalnızca public/publishable türünde olmalıdır. Service-role anahtarı tarayıcıya veya `NEXT_PUBLIC_*` değişkenine konulmamalıdır. AI API anahtarları yalnızca sunucu ortam değişkenlerinde tutulmalı, istemciye gönderilmemelidir. EVREN sitesinde API anahtarı oluşturduktan sonra aynı hesabın kullanım şartlarını okuyup onayla. Pamuk Eller varsayılan olarak `auto` modelini kullanır; böylece EVREN kendi iç model havuzundan yönlendirme yapar. Anahtarı yalnızca sunucu ortamında tut; kaynak koda veya sohbete ekleme. Asistan penceresindeki bağlantı kontrolü, API erişimini ve şart onayını doğrular.
+Supabase anahtarları yalnızca public/publishable türünde olmalıdır. Service-role anahtarı tarayıcıya veya `NEXT_PUBLIC_*` değişkenine konulmamalıdır. AI API anahtarları yalnızca sunucu ortam değişkenlerinde tutulmalı, istemciye gönderilmemelidir. EVREN sitesinde API anahtarı oluşturduktan sonra aynı hesabın kullanım şartlarını okuyup onayla. Pamuk Eller varsayılan olarak `auto` modelini kullanır; böylece EVREN kendi iç model havuzundan yönlendirme yapar. Akıl yürütme modelleri için en az 4096 çıktı token bütçesi ve 45 saniyeye kadar sunucu zaman aşımı kullanılır. Anahtarı yalnızca sunucu ortamında tut; kaynak koda veya sohbete ekleme. Asistan penceresindeki dalga/aktivite simgeli bağlantı kontrolü, API erişimini ve şart onayını doğrular.
 
 ## Veritabanı
 SQL dosyaları `supabase/` altında sıralıdır. Şema değişikliklerini mümkün olduğunda Supabase migration sistemiyle uygula ve canlı veritabanında doğrula. Mevcut finans kayıtlarını silen veya yeniden oluşturan komutları kullanıcı onayı olmadan çalıştırma.
