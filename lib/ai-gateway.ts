@@ -243,7 +243,7 @@ export async function postAiRequest(
   const credentials = await getCredentials();
   const credential = credentials[0];
   if (!credential) {
-    if (evrenFailure) return { ...evrenResult!, failure: {
+    if (evrenFailure) return { response: null, provider: evrenResult?.provider ?? null, failure: {
       ...evrenFailure,
       message: `EVREN yanıt veremedi ve Gemini yedeği yapılandırılmamış. ${evrenFailure.message}`,
     }};
