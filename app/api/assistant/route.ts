@@ -250,7 +250,8 @@ export async function POST(request: Request) {
     if (typeof reply !== "string" || !reply.trim()) {
       return NextResponse.json({ error: "Yapay zekâ boş veya okunamayan bir yanıt döndürdü.", code: "AI_EMPTY_RESPONSE" }, { status: 502 });
     }
-    return NextResponse.json({ reply: reply.slice(0, 10000) });
+    const actualModel = typeof data?.model === "string" ? data.model : aiCall.model;
+    return NextResponse.json({ reply: reply.slice(0, 10000), model: actualModel });
   } catch (error) {
     console.error("[assistant-ai] request failed", { errorName: error instanceof Error ? error.name : "UnknownError" });
     return NextResponse.json({ error: "Yapay zekâ isteği tamamlanamadı. Tekrar dene.", code: "AI_REQUEST_FAILED" }, { status: 502 });
