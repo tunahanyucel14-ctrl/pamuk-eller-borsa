@@ -28,12 +28,12 @@ test("PDFs are sent as Responses API input_file data with visual page detail", (
   assert.match(route, /\/v1\/responses/);
 });
 
-test("AI features use EVREN first and Gemini as the configured fallback", () => {
+test("AI features use EVREN internal model routing", () => {
   assert.match(ai, /async function postEvrenRequest/);
   assert.match(ai, /process\.env\.EVREN_API_KEY/);
-  assert.match(ai, /const evrenResult = await postEvrenRequest/);
-  assert.match(ai, /async function getCredentials/);
-  assert.match(ai, /process\.env\.GEMINI_API_KEY/);
+  assert.match(ai, /process\.env\.EVREN_MODEL\?\.trim\(\) \|\| "auto"/);
+  assert.match(ai, /getEvrenDiagnostics/);
+  assert.doesNotMatch(ai, /GEMINI_API_KEY|postVercelGatewayRequest/);
   assert.match(ai, /postAiRequest/);
   assert.match(assistantRoute, /postAiRequest\(request/);
   assert.doesNotMatch(receiptRoute, /postAiRequest\(request/);
@@ -42,18 +42,18 @@ test("AI features use EVREN first and Gemini as the configured fallback", () => 
   assert.match(route, /postAiRequest\(request/);
 });
 
-test("provider errors and timeouts return actionable messages without exposing secrets", () => {
+test("EVREN errors and timeouts return actionable messages without exposing secrets", () => {
   assert.match(ai, /AI_AUTH/);
-  assert.match(ai, /AI_PERMISSION/);
-  assert.match(ai, /AI_PROVIDER_RESTRICTED/);
-  assert.match(ai, /AI_ACCESS_DENIED/);
-  assert.match(ai, /AI_BILLING/);
+  assert.match(ai, /EVREN_ACCESS/);
+  assert.match(ai, /EVREN_TERMS_NOT_ACCEPTED/);
   assert.match(ai, /AI_LIMIT/);
+  assert.match(ai, /AI_MODEL/);
   assert.match(ai, /AI_BAD_REQUEST/);
   assert.match(ai, /AI_TIMEOUT/);
   assert.match(ai, /AI_CONNECTION/);
   assert.match(ai, /authMethod/);
   assert.match(ai, /upstreamErrorType/);
+  assert.match(ai, /evren_llm_/);
   assert.doesNotMatch(ai, /console\.log\([^)]*token|console\.log\([^)]*base64/i);
 });
 
