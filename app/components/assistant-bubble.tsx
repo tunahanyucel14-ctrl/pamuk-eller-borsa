@@ -6,13 +6,13 @@ import { supabase } from "../../lib/supabase";
 
 type ChatLine = { role: "user" | "assistant"; text: string };
 
-export default function AssistantBubble() {
+export default function AssistantBubble({ familyId, familyName }: { familyId: string; familyName: string }) {
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const [lines, setLines] = useState<ChatLine[]>([
-    { role: "assistant", text: "Merhaba! Ben Pamuk Eller finans asistanıyım. Bütçe, gelir-gider, tasarruf ve yatırım kavramlarında yardımcı olabilirim. Ne öğrenmek istersin?" }
+    { role: "assistant", text: `Merhaba! Ben EVREN, ${familyName} finans koçuyum. Bütçe, gelir-gider, tasarruf, borç ve yatırım kavramlarında yardımcı olabilirim. Ne öğrenmek istersin?` }
   ]);
 
   useEffect(() => {
@@ -39,20 +39,17 @@ export default function AssistantBubble() {
       const response = await fetch("/api/assistant", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ message, history: lines.slice(-8) }),
+        body: JSON.stringify({ message, history: lines.slice(-8), familyId }),
       });
       const raw = await response.text();
-      let result: { error?: string; reply?: string; attempts?: { provider?: string; authMethod?: string; status?: number; code?: string; detail?: string }[] };
+      let result: { error?: string; reply?: string };
       try { result = JSON.parse(raw); }
       catch {
         const detail = raw.replace(/\s+/g, " ").trim().slice(0, 180);
         throw new Error(response.ok ? "Asistan geçerli bir yanıt döndürmedi." : `Sunucu hatası (${response.status}): ${detail || "Yanıt okunamadı."}`);
       }
       if (!response.ok) {
-        const trace = Array.isArray(result.attempts) && result.attempts.length
-          ? " Denenen bağlantı: " + result.attempts.map((item) => `${item.provider || "?"}/${item.authMethod || "?"} → HTTP ${item.status ?? item.code ?? "hata"}${item.detail ? " (" + item.detail + ")" : ""}`).join("; ") + "."
-          : "";
-        throw new Error((result.error || `Asistan isteği başarısız (${response.status}).`) + trace);
+        throw new Error(result.error || `Asistan isteği başarısız (${response.status}).`);
       }
       if (typeof result.reply !== "string" || !result.reply.trim()) throw new Error("Asistan boş yanıt döndürdü.");
       setLines((old) => [...old, { role: "assistant", text: result.reply || "Asistan yanıt veremedi." }]);
@@ -70,7 +67,7 @@ export default function AssistantBubble() {
       </button>
       {open && <section className="fixed bottom-20 right-4 z-50 flex h-[min(620px,75vh)] w-[min(390px,calc(100vw-2rem))] flex-col overflow-hidden rounded-2xl border border-line bg-card shadow-2xl">
         <header className="flex items-center justify-between bg-side px-4 py-3">
-          <div className="flex items-center gap-2"><span className="rounded-xl bg-accent/15 p-2 text-accent"><Bot size={20}/></span><div><b className="text-sm">Pamuk Eller AI</b><p className="text-xs text-muted">Finans yol arkadaşın</p></div></div>
+          <div className="flex items-center gap-2"><span className="rounded-xl bg-accent/15 p-2 text-accent"><Bot size={20}/></span><div><b className="text-sm">Pamuk Eller AI</b><p className="text-xs text-muted">{familyName} · EVREN finans koçu</p></div></div>
           <div className="flex items-center gap-1"><button onClick={resetChat} disabled={busy} aria-label="Sohbeti temizle" title="Sohbeti temizle" className="rounded-lg p-2 text-muted hover:bg-inner disabled:opacity-40"><RotateCcw size={16}/></button><button onClick={() => setOpen(false)} aria-label="Kapat" className="rounded-lg p-2 text-muted hover:bg-inner"><X size={18}/></button></div>
         </header>
         <div className="flex-1 space-y-3 overflow-y-auto p-3">
