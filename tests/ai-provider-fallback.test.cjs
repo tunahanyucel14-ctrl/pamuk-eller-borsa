@@ -3,47 +3,46 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
 
-const source = fs.readFileSync(path.join(__dirname, "../lib/ai-gateway.ts"), "utf8");
+const root = path.resolve(__dirname, "..");
+const source = fs.readFileSync(path.join(root, "lib/ai-gateway.ts"), "utf8");
+const route = fs.readFileSync(path.join(root, "app/api/assistant/route.ts"), "utf8");
+const bubble = fs.readFileSync(path.join(root, "app/components/assistant-bubble.tsx"), "utf8");
 
-test("EVREN is attempted before the Gemini backup", () => {
-  assert.match(source, /postEvrenRequest\(payload, endpoint, timeoutMs\)/);
-  assert.match(source, /if \(evrenResult\?\.response\) return evrenResult/);
-  assert.ok(source.indexOf("postEvrenRequest(payload, endpoint, timeoutMs)") < source.indexOf("const credentials = await getCredentials()"));
+test("Pamuk Eller calls the EVREN gateway and uses its internal auto router by default", () => {
   assert.match(source, /process\.env\.EVREN_API_KEY/);
+  assert.match(source, /https:\/\/evren-llmapi\.ssyz\.org\.tr/);
+  assert.match(source, /process\.env\.EVREN_MODEL\?\.trim\(\) \|\| "auto"/);
+  assert.match(source, /"x-api-key": apiKey/);
+  assert.match(source, /Authorization: `Bearer \$\{apiKey\}`/);
+  assert.doesNotMatch(source, /postVercelGatewayRequest|GEMINI_API_KEY|generativelanguage\.googleapis\.com/);
 });
 
-test("Vercel AI Gateway is tried after EVREN and before Gemini", () => {
-  assert.match(source, /postVercelGatewayRequest\(payload, endpoint, Math\.min\(timeoutMs, 12000\)\)/);
-  assert.ok(source.indexOf("postVercelGatewayRequest(payload, endpoint") < source.indexOf("const credentials = await getCredentials()"));
-  assert.match(source, /process\.env\.AI_GATEWAY_API_KEY/);
-  assert.match(source, /process\.env\.VERCEL_OIDC_TOKEN/);
-  assert.match(source, /https:\/\/ai-gateway\.vercel\.sh\/v1\/chat\/completions/);
-  assert.match(source, /Authorization: `Bearer \$\{token\}`/);
-  assert.match(source, /provider: "vercel-ai-gateway"/);
+test("EVREN reasoning requests have a sufficient token budget and timeout", () => {
+  assert.match(source, /max_tokens: Math\.max\(4096/);
+  assert.match(source, /Math\.min\(timeoutMs, 45000\)/);
+  assert.match(route, /max_tokens: 4096/);
 });
 
-test("Gemini remains an optional third fallback when EVREN and AI Gateway fail", () => {
-  assert.match(source, /const evrenFailure = evrenResult\?\.failure/);
-  assert.match(source, /Gemini yedeği de yapılandırılmamış/);
-  assert.match(source, /provider: "gemini"/);
-  assert.match(source, /provider: "evren" as const/);
-  assert.match(source, /const priorAttempts =/);
-  assert.match(source, /attempts: \[\.\.\.priorAttempts, \.\.\.attempts\]/);
-  assert.match(source, /Math\.min\(timeoutMs, 18000\)/, "EVREN timeout is capped to preserve the route budget");
-  assert.match(source, /Math\.min\(timeoutMs, 12000\)/, "AI Gateway fallback has a bounded timeout");
+test("EVREN terms acceptance is diagnosed without exposing the API key", () => {
+  assert.match(source, /getEvrenDiagnostics/);
+  assert.match(source, /\/v1\/terms\/status/);
+  assert.match(source, /termsAccepted: data\?\.accepted === true/);
+  assert.match(source, /EVREN_TERMS_NOT_ACCEPTED/);
+  assert.match(route, /diagnosticsRequested/);
+  assert.match(route, /getEvrenDiagnostics\(\)/);
+  assert.doesNotMatch(source, /return .*apiKey|message: .*apiKey/);
 });
 
-test("Provider time budgets fit the assistant route serverless window", () => {
-  assert.match(source, /Math\.min\(timeoutMs, 18000\)/);
-  assert.match(source, /Math\.min\(timeoutMs, gatewayFailure \? 10000 : 22000\)/);
+test("EVREN connection test is available from the assistant interface", () => {
+  assert.match(bubble, /checkEvren/);
+  assert.match(bubble, /diagnostics: true/);
+  assert.match(bubble, /EVREN bağlantısını test et/);
 });
 
-test("Gemini backup uses server-side credentials and fixed Google endpoint", () => {
-  assert.match(source, /process\.env\.GEMINI_API_KEY/);
-  assert.match(source, /https:\/\/generativelanguage\.googleapis\.com/);
-  assert.match(source, /x-goog-api-key/);
-  assert.match(source, /process\.env\.AI_GATEWAY_API_KEY/);
-  assert.doesNotMatch(source, /process\.env\.OPENAI_API_KEY/);
+test("EVREN errors distinguish authentication, terms, quota, model and timeout", () => {
+  for (const code of ["AI_AUTH", "EVREN_TERMS_NOT_ACCEPTED", "AI_LIMIT", "AI_MODEL", "EVREN_ACCESS", "EVREN_CAPACITY", "AI_TIMEOUT", "AI_KEY_MISSING"]) {
+    assert.ok(source.includes(code), `expected error mapping for ${code}`);
+  }
 });
 
 test("Provider diagnostics redact secrets and bound upstream messages", () => {
@@ -51,10 +50,4 @@ test("Provider diagnostics redact secrets and bound upstream messages", () => {
   assert.match(source, /redacted-key/);
   assert.match(source, /slice\(0, 240\)/);
   assert.match(source, /Bearer \[redacted\]/);
-});
-
-test("Provider errors are mapped to safe, actionable application errors", () => {
-  for (const code of ["AI_AUTH", "AI_LIMIT", "AI_MODEL", "AI_CONNECTION", "AI_TIMEOUT", "AI_KEY_MISSING"]) {
-    assert.ok(source.includes(code), `expected error mapping for ${code}`);
-  }
 });
