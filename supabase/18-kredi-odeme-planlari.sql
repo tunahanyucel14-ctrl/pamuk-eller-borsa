@@ -8,6 +8,7 @@ create table if not exists public.family_loan_plans (
   currency text not null default 'TRY' check (currency ~ '^[A-Z]{3}$'),
   principal_amount numeric(18,2) not null check (principal_amount > 0),
   annual_interest_rate numeric(9,4) check (annual_interest_rate is null or (annual_interest_rate >= 0 and annual_interest_rate <= 200)),
+  monthly_interest_rate numeric(9,4) check (monthly_interest_rate is null or (monthly_interest_rate >= 0 and monthly_interest_rate <= 20)),
   installment_count integer not null check (installment_count between 1 and 600),
   first_due_date date not null,
   last_due_date date not null,
@@ -20,6 +21,8 @@ create table if not exists public.family_loan_plans (
   check (last_due_date >= first_due_date),
   check (storage_path is null or (length(storage_path) <= 320 and split_part(storage_path,'/',1) = created_by::text))
 );
+
+alter table public.family_loan_plans add column if not exists monthly_interest_rate numeric(9,4) check (monthly_interest_rate is null or (monthly_interest_rate >= 0 and monthly_interest_rate <= 20));
 
 create index if not exists idx_family_loan_plans_family on public.family_loan_plans(family_id, status, first_due_date);
 create index if not exists idx_family_loan_plans_debt on public.family_loan_plans(debt_id);
@@ -97,6 +100,7 @@ declare
   v_currency text;
   v_principal numeric(18,2);
   v_rate numeric(9,4);
+  v_monthly_rate numeric(9,4);
   v_schedule jsonb;
   v_count integer;
   v_first date;
@@ -130,6 +134,7 @@ begin
   v_currency := upper(coalesce(p_plan->>'currency','TRY'));
   v_principal := (p_plan->>'principal_amount')::numeric(18,2);
   v_rate := nullif(p_plan->>'annual_interest_rate','')::numeric(9,4);
+  v_monthly_rate := nullif(p_plan->>'monthly_interest_rate','')::numeric(9,4);
   v_schedule := p_plan->'schedule';
   v_file := left(coalesce(p_plan->>'file_name',''),255);
   v_path := nullif(p_plan->>'storage_path','');
@@ -139,6 +144,7 @@ begin
   if v_currency !~ '^[A-Z]{3}$' then raise exception 'Para birimi kodu geçersiz.'; end if;
   if v_principal is null or v_principal <= 0 then raise exception 'Kredi anaparası sıfırdan büyük olmalı.'; end if;
   if v_rate is not null and (v_rate < 0 or v_rate > 200) then raise exception 'Yıllık faiz oranı geçersiz.'; end if;
+  if v_monthly_rate is not null and (v_monthly_rate < 0 or v_monthly_rate > 20) then raise exception 'Aylık faiz oranı geçersiz.'; end if;
   if v_schedule is null or jsonb_typeof(v_schedule) is distinct from 'array' then raise exception 'Aylık ödeme tablosu bulunamadı.'; end if;
   v_count := jsonb_array_length(v_schedule);
   if v_count < 1 or v_count > 600 then raise exception 'Ödeme tablosu 1–600 taksit içermeli.'; end if;
@@ -179,7 +185,7 @@ begin
           original_amount = v_principal,
           remaining_amount = v_remaining,
           monthly_payment = v_monthly,
-          annual_interest_rate = coalesce(v_rate,0),
+          annual_interest_rate = coalesce(v_rate,v_monthly_rate * 12,0),
           due_day = v_due_day,
           start_date = v_first,
           end_date = v_last,
@@ -194,8 +200,8 @@ begin
     returning id into v_debt_id;
   end if;
 
-  insert into public.family_loan_plans(family_id,debt_id,bank_name,loan_type,currency,principal_amount,annual_interest_rate,installment_count,first_due_date,last_due_date,file_name,storage_path,created_by)
-  values(p_family_id,v_debt_id,v_bank,v_type,v_currency,v_principal,v_rate,v_count,v_first,v_last,v_file,v_path,auth.uid())
+  insert into public.family_loan_plans(family_id,debt_id,bank_name,loan_type,currency,principal_amount,annual_interest_rate,monthly_interest_rate,installment_count,first_due_date,last_due_date,file_name,storage_path,created_by)
+  values(p_family_id,v_debt_id,v_bank,v_type,v_currency,v_principal,v_rate,v_monthly_rate,v_count,v_first,v_last,v_file,v_path,auth.uid())
   returning id into v_plan_id;
 
   for v_row in select value from jsonb_array_elements(v_schedule) loop
