@@ -24,7 +24,7 @@ const sayi = (v: string) => {
   if (/^\d{1,3}(\.\d{3})+$/.test(s)) return Number(s.replace(/\./g, ""));
   return Number(s);
 };
-function hesapla(anapara: number, vade: number, teklif: Teklif): Sonuc {
+function teklifGecerli(teklif: Teklif): boolean {\n  const faiz = sayi(teklif.aylikFaiz), tahsis = sayi(teklif.tahsis), sigorta = sayi(teklif.sigorta), bsmv = sayi(teklif.bsmv), kkdf = sayi(teklif.kkdf);\n  return Number.isFinite(faiz) && faiz >= 0 && faiz <= 20 && Number.isFinite(tahsis) && tahsis >= 0 && tahsis <= 10 && Number.isFinite(sigorta) && sigorta >= 0 && sigorta <= 10000000 && Number.isFinite(bsmv) && bsmv >= 0 && bsmv <= 100 && Number.isFinite(kkdf) && kkdf >= 0 && kkdf <= 100;\n}\nfunction hesapla(anapara: number, vade: number, teklif: Teklif): Sonuc {
   const nominal = Math.max(0, sayi(teklif.aylikFaiz) || 0) / 100;
   const bsmv = Math.max(0, sayi(teklif.bsmv) || 0) / 100;
   const kkdf = Math.max(0, sayi(teklif.kkdf) || 0) / 100;
@@ -48,7 +48,7 @@ export default function KrediHesaplamaPage() {
   const [tabloAcik, setTabloAcik] = useState(false);
   const anapara = sayi(tutar);
   const ay = Number(vade);
-  const gecerli = Number.isFinite(anapara) && anapara > 0 && Number.isInteger(ay) && ay > 0 && ay <= 240;
+  const temelGecerli = Number.isFinite(anapara) && anapara > 0 && Number.isInteger(ay) && ay > 0 && ay <= 240;\n  const gecerli = temelGecerli && teklifler.every(teklifGecerli);
   const sonuclar = useMemo(() => teklifler.map((t) => hesapla(anapara, ay, t)), [anapara, ay, teklifler]);
   const guncelle = (index: number, alan: keyof Teklif, deger: string) => setTeklifler((onceki) => onceki.map((t, i) => i === index ? { ...t, [alan]: deger } : t));
   const seciliTur = TURLER.find((x) => x.id === tur)!;
@@ -75,7 +75,7 @@ export default function KrediHesaplamaPage() {
       <div><label className={etiket}>Kredi tutarı (TL)</label><input className={girdi} inputMode="decimal" value={tutar} onChange={(e) => setTutar(e.target.value)} placeholder="2.500.000"/></div>
       <div><label className={etiket}>Vade (ay)</label><input className={girdi} type="number" min="1" max="240" value={vade} onChange={(e) => setVade(e.target.value)}/><p className="mt-1 text-xs text-muted">{seciliTur.ad} için seçili başlangıç vadesi: {seciliTur.vade} ay. Banka koşullarını ayrıca kontrol et.</p></div>
     </section>
-    {!gecerli && <p className="text-sm text-down">Geçerli bir kredi tutarı ve 1–240 ay arasında vade gir.</p>}
+    {!temelGecerli && <p className="text-sm text-down">Geçerli bir kredi tutarı ve 1–240 ay arasında vade gir.</p>}\n    {temelGecerli && !gecerli && <p className="text-sm text-down">Faiz, vergi ve masraf alanlarına geçerli değerler gir. Aylık faiz en fazla %20, tahsis ücreti en fazla %10 olmalı.</p>}
     <section className="grid gap-4 xl:grid-cols-2">
       {teklifler.map((t, index) => <article key={index} className={kart + " space-y-3"}>
         <div className="flex items-center justify-between gap-2"><div><p className="text-xs font-bold uppercase tracking-wider text-accent">Teklif {index + 1}</p><input aria-label="Banka adı" className="mt-1 w-full border-b border-line bg-transparent py-1 text-lg font-bold outline-none focus:border-accent" value={t.banka} onChange={(e) => guncelle(index, "banka", e.target.value)} /></div><button onClick={() => setAktif(index)} className={"rounded-lg px-3 py-2 text-xs font-semibold " + (aktif === index ? "bg-accent text-accent-fg" : "bg-inner text-muted")}>{aktif === index ? "Detay seçili" : "Detayları gör"}</button></div>
@@ -95,7 +95,7 @@ export default function KrediHesaplamaPage() {
         {([["Aylık taksit", "taksit"], ["Toplam faiz", "faiz"], ["Vergi tahmini", "vergi"], ["Tahsis + sigorta", "masraf"], ["Toplam geri ödeme", "toplam"]] as const).map(([label, key]) => <tr key={key} className="border-b border-line/70"><td className="py-3 text-muted">{label}</td>{sonuclar.map((s, i) => <td key={i} className="py-3 text-right font-semibold">{tl(s[key])}</td>)}</tr>)}
       </tbody></table></div>
       <div className="flex flex-wrap items-center justify-between gap-3"><button onClick={() => setTabloAcik(!tabloAcik)} className="rounded-xl border border-line px-4 py-2 text-sm font-semibold hover:border-accent">{tabloAcik ? "Ödeme planını gizle" : "Aylık ödeme planını göster"}</button><p className="text-xs text-muted">Detay: {teklifler[aktif].banka || "Banka"} · {ay} ay</p></div>
-      {tabloAcik && <div className="max-h-[420px] overflow-auto rounded-xl border border-line"><table className="w-full min-w-[460px] text-xs"><thead className="sticky top-0 bg-inner"><tr className="text-left text-muted"><th className="p-3">Ay</th><th className="p-3 text-right">Taksit</th><th className="p-3 text-right">Anapara</th><th className="p-3 text-right">Faiz</th><th className="p-3 text-right">Kalan anapara</th></tr></thead><tbody>{taksitler.map((x) => <tr key={x.ay} className="border-t border-line/70"><td className="p-3">{x.ay}</td><td className="p-3 text-right">{tl(x.taksit)}</td><td className="p-3 text-right">{tl(x.anapara)}</td><td className="p-3 text-right">{tl(x.faiz)}</td><td className="p-3 text-right">{tl(x.bakiye)}</td></tr>)}</tbody></table></div>}
+      {tabloAcik && <div className="max-h-[420px] overflow-auto rounded-xl border border-line"><table className="w-full min-w-[460px] text-xs"><thead className="sticky top-0 bg-inner"><tr className="text-left text-muted"><th className="p-3">Ay</th><th className="p-3 text-right">Taksit</th><th className="p-3 text-right">Anapara</th><th className="p-3 text-right">Faiz + vergi</th><th className="p-3 text-right">Kalan anapara</th></tr></thead><tbody>{taksitler.map((x) => <tr key={x.ay} className="border-t border-line/70"><td className="p-3">{x.ay}</td><td className="p-3 text-right">{tl(x.taksit)}</td><td className="p-3 text-right">{tl(x.anapara)}</td><td className="p-3 text-right">{tl(x.faiz)}</td><td className="p-3 text-right">{tl(x.bakiye)}</td></tr>)}</tbody></table></div>}
     </section>}
     <aside className="rounded-2xl border border-line bg-inner/70 p-4 text-xs leading-6 text-muted"><Info size={16} className="mr-2 inline text-accent"/><b className="text-fg">Hesaplama notu:</b> Bu araç eşit taksitli (anüite) ödeme varsayımıyla tahmini hesap yapar. Aylık faiz, kullanıcı tarafından girilen nominal orana BSMV ve KKDF oranları eklenerek modellenir; bu vergi alanları varsayılan olarak %0'dır. Tahsis ücreti kredi tutarının yüzdesi, sigorta/diğer masraflar peşin TL olarak toplam maliyete eklenir; krediye eklenip taksitlendirildiği varsayılmaz. Bankaların güncel kampanyaları, kredi tahsis sınırları, ekspertiz, ipotek, hayat sigortası, efektif yıllık maliyet, değişken faiz, ara ödeme ve erken kapama koşulları bu tahmine dahil değildir. Bankanın resmi ödeme planı ve sözleşmesi esas alınmalıdır.</aside>
   </div>;
