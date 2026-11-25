@@ -23,6 +23,15 @@ import { ayAraligi, bugunAy, tarihTR, tl } from "../../lib/finans";
 import type { Bakiye, Islem, Kategori } from "../../lib/tipler";
 import { kart, girdi, baslik } from "../../lib/ui";
 
+function paraBirimi(tutar: number, currency: string) {
+  const code = String(currency || "TRY").toUpperCase();
+  try {
+    return new Intl.NumberFormat("tr-TR", { style: "currency", currency: code, maximumFractionDigits: 2 }).format(tutar);
+  } catch {
+    return `${Number(tutar).toLocaleString("tr-TR", { maximumFractionDigits: 2 })} ${code}`;
+  }
+}
+
 function StatCard({
   title,
   value,
@@ -261,9 +270,9 @@ export default function GenelBakis() {
         <>
           <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <StatCard
-              title="Toplam varlık"
+              title="Toplam TL bakiye"
               value={tl(toplamVarlik)}
-              note={`${bakiyeler.length} aktif hesap`}
+              note="Döviz hesapları ayrı para biriminde gösterilir"
               icon={CircleDollarSign}
             />
             <StatCard
@@ -370,13 +379,13 @@ export default function GenelBakis() {
                         <span className="rounded-xl bg-accent/10 p-2 text-accent"><Wallet size={16} /></span>
                         <span className="truncate text-sm font-medium">{h.name}</span>
                       </div>
-                      <span className="shrink-0 text-sm font-bold">{tl(h.balance)}</span>
+                      <span className="shrink-0 text-sm font-bold">{paraBirimi(h.balance, h.currency || "TRY")}</span>
                     </div>
                   ))}
                 </div>
               )}
               <div className="mt-4 flex items-center justify-between border-t border-line pt-3 text-sm">
-                <span className="text-muted">Toplam bakiye</span>
+                <span className="text-muted">Toplam TL bakiye</span>
                 <span className="font-black">{tl(toplamVarlik)}</span>
               </div>
             </div>
