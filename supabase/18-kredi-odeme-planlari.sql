@@ -234,7 +234,7 @@ grant execute on function public.save_family_loan_plan(uuid,jsonb) to authentica
 create or replace function public.mark_family_loan_installment_paid(p_installment_id uuid)
 returns jsonb
 language plpgsql
-security invoker
+security definer
 set search_path = ''
 as $$
 declare
@@ -266,6 +266,14 @@ begin
     return jsonb_build_object('already_paid', true, 'balance_updated', true, 'remaining_amount', v_plan_remaining);
   end if;
   if v_status <> 'pending' then raise exception 'Yalnızca bekleyen taksitler ödenmiş işaretlenebilir.'; end if;
+  if exists (
+    select 1 from public.family_loan_installments earlier
+    where earlier.plan_id = v_plan_id
+      and earlier.installment_no < (select current.installment_no from public.family_loan_installments current where current.id = p_installment_id)
+      and earlier.status = 'pending'
+  ) then
+    raise exception 'Önce önceki taksitleri ödendi olarak işaretle. Böylece kalan borç doğru hesaplanır.';
+  end if;
 
   if v_remaining_part is not null then
     v_new_remaining := v_remaining_part;
