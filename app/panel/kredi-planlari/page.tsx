@@ -97,7 +97,7 @@ export default function KrediPlanlariPage() {
 
   async function removeUploads(paths = uploads) {
     const list = paths.map(x => x.path);
-    if (list.length) await supabase.storage.from("receipts").remove(list);
+    if (list.length) { const { error } = await supabase.storage.from("receipts").remove(list); if (error) throw error; }
   }
 
   async function analyze(files?: FileList | null) {
@@ -114,10 +114,10 @@ export default function KrediPlanlariPage() {
     const pdfs = selected.filter(f => mimeFor(f) === "application/pdf");
     if (pdfs.length > 1 || (pdfs.length && selected.length > 1)) { setError("PDF dosyasını tek başına yükle; birden fazla görseli birlikte seçebilirsin."); return; }
     setBusy(true);
-    await removeUploads();
-    setUploads([]); setPlan(null); setWarnings([]);
     const uploaded: UploadRef[] = [];
     try {
+      await removeUploads();
+      setUploads([]); setPlan(null); setWarnings([]);
       const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
       if (sessionError || !sessionData.session?.access_token) throw new Error("Oturumun doğrulanamadı. Yeniden giriş yap.");
       for (const file of selected) {
@@ -160,7 +160,7 @@ export default function KrediPlanlariPage() {
       setUploads(uploaded);
       setExistingDebtId("");
     } catch (e) {
-      await removeUploads(uploaded);
+      await removeUploads(uploaded).catch(() => undefined);
       setError(e instanceof Error ? e.message : "Kredi planı analiz edilemedi.");
     } finally {
       setBusy(false);
@@ -280,9 +280,12 @@ export default function KrediPlanlariPage() {
   async function cancelPlan() {
     if (busy) return;
     setBusy(true);
-    await removeUploads();
-    setUploads([]); setPlan(null); setWarnings([]); setFileName(""); setExistingDebtId("");
-    setBusy(false);
+    try {
+      await removeUploads();
+      setUploads([]); setPlan(null); setWarnings([]); setFileName(""); setExistingDebtId("");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Yüklenen belge silinemedi.");
+    } finally { setBusy(false); }
   }
 
   return <div className="space-y-5">
