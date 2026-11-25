@@ -136,7 +136,7 @@ export default function KrediPlanlariPage() {
       setPlan({
         bank_name: raw.bank_name || "",
         loan_type: raw.loan_type || "diger",
-        currency: raw.currency || "TRY",
+        currency: raw.currency || "",
         principal_amount: raw.principal_amount === null ? "" : String(raw.principal_amount),
         annual_interest_rate: raw.annual_interest_rate === null ? "" : String(raw.annual_interest_rate),
         monthly_interest_rate: raw.monthly_interest_rate === null ? "" : String(raw.monthly_interest_rate),
@@ -179,6 +179,8 @@ export default function KrediPlanlariPage() {
     if (!/^[A-Z]{3}$/.test(plan.currency)) { setError("Geçerli bir para birimi seç."); return; }
     if (!Number.isFinite(principal) || principal <= 0) { setError("Kredi anaparasını kontrol et."); return; }
     if (!plan.schedule.length || plan.schedule.length > 600) { setError("Ödeme tablosu 1–600 taksit içermeli."); return; }
+    const optionalFields = plan.schedule.flatMap(row => [row.principal_amount, row.interest_amount, row.fees_amount, row.remaining_principal]).filter(value => value.trim());
+    if (optionalFields.some(value => { const parsed = numberFromTR(value); return !Number.isFinite(parsed) || parsed < 0; })) { setError("Taksit anapara/faiz/masraf alanlarında geçersiz değer var."); return; }
     const schedule = plan.schedule.map((row, index) => {
       const amount = numberFromTR(row.installment_amount);
       const optional = (value: string) => value.trim() ? optionalNumber(value) : null;
@@ -270,7 +272,7 @@ export default function KrediPlanlariPage() {
       <div className="grid gap-3 sm:grid-cols-2">
         <div><label className={etiket}>Banka adı</label><input className={girdi} value={plan.bank_name} onChange={e=>updatePlan("bank_name",e.target.value)} placeholder="Örn. Garanti BBVA"/></div>
         <div><label className={etiket}>Kredi türü</label><select className={girdi} value={plan.loan_type} onChange={e=>updatePlan("loan_type",e.target.value as LoanPlan["loan_type"])}>{TYPES.map(x=><option key={x.value} value={x.value}>{x.label}</option>)}</select></div>
-        <div><label className={etiket}>Para birimi</label><select className={girdi} value={plan.currency} onChange={e=>updatePlan("currency",e.target.value)}>{["TRY","USD","EUR","GBP","CHF"].map(x=><option key={x}>{x}</option>)}</select></div>
+        <div><label className={etiket}>Para birimi</label><select className={girdi} value={plan.currency} onChange={e=>updatePlan("currency",e.target.value)}><option value="">Para birimi seç</option>{["TRY","USD","EUR","GBP","CHF"].map(x=><option key={x} value={x}>{x}</option>)}</select></div>
         <div><label className={etiket}>İlk kredi anaparası</label><input className={girdi} inputMode="decimal" value={plan.principal_amount} onChange={e=>updatePlan("principal_amount",e.target.value)} placeholder="Örn. 1.500.000"/></div>
         <div><label className={etiket}>Aylık nominal faiz (%)</label><input className={girdi} inputMode="decimal" value={plan.monthly_interest_rate} onChange={e=>updatePlan("monthly_interest_rate",e.target.value)} placeholder="Belgede varsa"/></div>
         <div><label className={etiket}>Yıllık nominal faiz (%)</label><input className={girdi} inputMode="decimal" value={plan.annual_interest_rate} onChange={e=>updatePlan("annual_interest_rate",e.target.value)} placeholder="Belgede varsa"/></div>
