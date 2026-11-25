@@ -9,6 +9,8 @@ import { kart, girdi, dugme, baslik, etiket } from "../../../lib/ui";
 
 type Bill = { id: string; name: string; amount: number; due_day: number; category: string; active: boolean };
 type Debt = { id: string; name: string; monthly_payment: number; due_day: number | null; remaining_amount: number };
+type LoanInstallment = { id: string; plan_id: string; installment_no: number; due_date: string; installment_amount: number; status: string; family_loan_plans: { bank_name: string; loan_type: string; currency: string } | { bank_name: string; loan_type: string; currency: string }[] | null };
+type LoanPlanLink = { id: string; debt_id: string | null };
 type ReminderSettings = { salaryDay: string; leadDays: number };
 const SETTINGS_KEY = "pamuk-reminder-settings-v1";
 const SENT_KEY = "pamuk-reminder-sent-v1";
@@ -29,6 +31,8 @@ export default function OdemelerPage() {
   const { aileId, kullaniciId, yazabilir, yonetebilir } = useAile();
   const [rows, setRows] = useState<Bill[]>([]);
   const [debts, setDebts] = useState<Debt[]>([]);
+  const [loanInstallments, setLoanInstallments] = useState<LoanInstallment[]>([]);
+  const [loanPlanLinks, setLoanPlanLinks] = useState<LoanPlanLink[]>([]);
   const [name, setName] = useState("");
   const [amount, setAmount] = useState("");
   const [day, setDay] = useState("1");
@@ -41,12 +45,24 @@ export default function OdemelerPage() {
   const [upcoming, setUpcoming] = useState<{ title: string; detail: string; date: Date; kind: "salary" | "bill" | "debt" }[]>([]);
 
   const load = useCallback(async () => {
-    const [billsResult, debtsResult] = await Promise.all([
+    const now = new Date();
+    const start = new Date(now.getFullYear(), now.getMonth(), 1);
+    const end = new Date(now.getFullYear(), now.getMonth() + 2, 0);
+    const dateKey = (d: Date) => d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+    const [billsResult, debtsResult, plansResult, installmentsResult] = await Promise.all([
       supabase.from("family_bills").select("*").eq("family_id", aileId).eq("active", true).order("due_day"),
       supabase.from("family_debts").select("id,name,monthly_payment,due_day,remaining_amount").eq("family_id", aileId),
+      supabase.from("family_loan_plans").select("id,debt_id").eq("family_id", aileId).eq("status", "active"),
+      supabase.from("family_loan_installments").select("id,plan_id,installment_no,due_date,installment_amount,status,family_loan_plans(bank_name,loan_type,currency)").eq("family_id", aileId).eq("status", "pending").gte("due_date", dateKey(start)).lte("due_date", dateKey(end)).order("due_date").limit(200),
     ]);
-    if (billsResult.error || debtsResult.error) setError((billsResult.error || debtsResult.error)?.message || "Kayıtlar yüklenemedi.");
-    else { setRows((billsResult.data || []) as Bill[]); setDebts((debtsResult.data || []) as Debt[]); }
+    const failure = billsResult.error || debtsResult.error || plansResult.error || installmentsResult.error;
+    if (failure) setError(failure.message || "Kayıtlar yüklenemedi.");
+    else {
+      setRows((billsResult.data || []) as Bill[]);
+      setDebts((debtsResult.data || []) as Debt[]);
+      setLoanPlanLinks((plansResult.data || []) as LoanPlanLink[]);
+      setLoanInstallments((installmentsResult.data || []) as LoanInstallment[]);
+    }
   }, [aileId]);
 
   useEffect(() => { void load(); }, [load]);
@@ -62,19 +78,31 @@ export default function OdemelerPage() {
     setPermission("Notification" in window ? Notification.permission : "unsupported");
   }, []);
 
-  const total = rows.reduce((sum, row) => sum + Number(row.amount), 0) + debts.filter(row=>Number(row.remaining_amount)>0).reduce((sum, row) => sum + Number(row.monthly_payment), 0);
-  const debtsWithoutDueDate=debts.filter(row=>Number(row.remaining_amount)>0&&Number(row.monthly_payment)>0&&!row.due_day).length;
+  const linkedDebtIds = new Set(loanPlanLinks.map(row => row.debt_id).filter((id): id is string => Boolean(id)));
+  const unplannedDebtMonthly = debts.filter(row => Number(row.remaining_amount) > 0 && !linkedDebtIds.has(row.id)).reduce((sum, row) => sum + Number(row.monthly_payment), 0);
+  const monthKey = new Date().getFullYear() + "-" + String(new Date().getMonth() + 1).padStart(2, "0");
+  const scheduledLoanMonthly = loanInstallments.filter(row => row.due_date.slice(0, 7) === monthKey).reduce((sum, row) => sum + Number(row.installment_amount), 0);
+  const total = rows.reduce((sum, row) => sum + Number(row.amount), 0) + unplannedDebtMonthly + scheduledLoanMonthly;
+  const debtsWithoutDueDate=debts.filter(row=>Number(row.remaining_amount)>0&&Number(row.monthly_payment)>0&&!row.due_day&&!linkedDebtIds.has(row.id)).length;
   const billEvents = rows.map(row => ({ title: row.name, detail: tl(Number(row.amount)), date: dateForDay(row.due_day), kind: "bill" as const }));
-  const debtEvents = debts.filter(row => Number(row.monthly_payment) > 0 && Number(row.remaining_amount) > 0 && row.due_day).map(row => ({
+  const debtEvents = debts.filter(row => Number(row.monthly_payment) > 0 && Number(row.remaining_amount) > 0 && row.due_day && !linkedDebtIds.has(row.id)).map(row => ({
     title: row.name + " taksiti", detail: tl(Number(row.monthly_payment)), date: dateForDay(Number(row.due_day)), kind: "debt" as const,
   }));
+  const loanEvents = loanInstallments.map(row => {
+    const plan = Array.isArray(row.family_loan_plans) ? row.family_loan_plans[0] : row.family_loan_plans;
+    const date = new Date(row.due_date + "T00:00:00");
+    const amount = Number(row.installment_amount);
+    let detail = tl(amount);
+    try { detail = new Intl.NumberFormat("tr-TR", { style: "currency", currency: plan?.currency || "TRY", maximumFractionDigits: 2 }).format(amount); } catch { /* TRY biçimi korunur. */ }
+    return { title: (plan?.bank_name || "Banka") + " · " + row.installment_no + ". taksit", detail, date, kind: "loan" as const };
+  });
   const salaryEvents = settings.salaryDay ? [{
     title: "Maaş günü",
     detail: "Maaşını kontrol etmeyi unutma.",
     date: dateForDay(Number(settings.salaryDay)),
     kind: "salary" as const,
   }] : [];
-  const events = [...billEvents, ...debtEvents, ...salaryEvents].sort((a, b) => a.date.getTime() - b.date.getTime());
+  const events = [...billEvents, ...debtEvents, ...loanEvents, ...salaryEvents].sort((a, b) => a.date.getTime() - b.date.getTime());
 
   useEffect(() => {
     const next = events.map(event => ({ ...event, days: daysUntil(event.date) })).filter(event => event.days >= 0 && event.days <= settings.leadDays);
@@ -88,7 +116,7 @@ export default function OdemelerPage() {
       if (sent.includes(eventKey)) continue;
       const timing = event.days === 0 ? "Bugün" : event.days + " gün sonra";
       try {
-        new Notification("Pamuk Eller · " + (event.kind === "salary" ? "Maaş hatırlatması" : event.kind === "debt" ? "Borç taksiti hatırlatması" : "Ödeme hatırlatması"), {
+        new Notification("Pamuk Eller · " + (event.kind === "salary" ? "Maaş hatırlatması" : event.kind === "loan" ? "Kredi taksiti hatırlatması" : event.kind === "debt" ? "Borç taksiti hatırlatması" : "Ödeme hatırlatması"), {
           body: event.title + " · " + timing + " (" + dateLabel(event.date) + ") · " + event.detail,
           icon: "/icon.svg",
           tag: eventKey,
@@ -99,7 +127,7 @@ export default function OdemelerPage() {
     if (changed) localStorage.setItem(SENT_KEY, JSON.stringify(sent.slice(-100)));
   // The list is intentionally rechecked when payment rows or reminder preferences change.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rows, debts, settings, permission]);
+  }, [rows, debts, loanInstallments, settings, permission]);
 
   function saveSettings() {
     setError("");
@@ -222,6 +250,23 @@ export default function OdemelerPage() {
           })}
         </div>}
       </section>
+
+      {loanInstallments.length > 0 && <section className={kart}>
+        <h2 className="mb-3 flex items-center gap-2 font-bold"><CalendarClock size={17} className="text-accent"/> Kredi taksit planı</h2>
+        <p className="mb-3 text-xs text-muted">Onayladığın banka ödeme planındaki taksitler, kendi vade tarihleriyle gösterilir. Bu taksitler ayrıca genel borç aylık ödemesine ikinci kez eklenmez.</p>
+        <div className="space-y-2">{loanInstallments.map(row => {
+          const plan = Array.isArray(row.family_loan_plans) ? row.family_loan_plans[0] : row.family_loan_plans;
+          const date = new Date(row.due_date + "T00:00:00");
+          const amount = Number(row.installment_amount);
+          let amountText = tl(amount);
+          try { amountText = new Intl.NumberFormat("tr-TR", { style: "currency", currency: plan?.currency || "TRY", maximumFractionDigits: 2 }).format(amount); } catch { /* TRY biçimi korunur. */ }
+          const left = daysUntil(date);
+          return <div key={row.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-inner p-3">
+            <div><b className="text-sm">{plan?.bank_name || "Banka"} · {row.installment_no}. taksit</b><p className="text-xs text-muted">{dateLabel(date)} · {left < 0 ? Math.abs(left) + " gün gecikmiş" : left === 0 ? "Bugün" : left + " gün kaldı"}</p></div>
+            <div className="flex items-center gap-3"><b className="text-sm">{amountText}</b>{yazabilir && <button disabled={saving} onClick={async () => { if (saving) return; setSaving(true); setError(""); const { error } = await supabase.from("family_loan_installments").update({ status: "paid", paid_at: new Date().toISOString() }).eq("id", row.id).eq("family_id", aileId); if (error) setError(error.message); else await load(); setSaving(false); }} className="rounded-lg border border-line px-3 py-2 text-xs font-semibold hover:border-up hover:text-up">Ödendi</button>}</div>
+          </div>;
+        })}</div>
+      </section>}
 
       {yazabilir && <form onSubmit={add} className={kart + " grid gap-3 sm:grid-cols-2"}>
         <h2 className="font-bold sm:col-span-2">Ödeme ekle</h2>
