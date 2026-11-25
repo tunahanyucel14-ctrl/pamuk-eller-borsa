@@ -26,6 +26,7 @@ alter table public.family_loan_plans add column if not exists monthly_interest_r
 
 create index if not exists idx_family_loan_plans_family on public.family_loan_plans(family_id, status, first_due_date);
 create index if not exists idx_family_loan_plans_debt on public.family_loan_plans(debt_id);
+create unique index if not exists idx_family_loan_plans_one_active_debt on public.family_loan_plans(debt_id) where debt_id is not null and status = 'active';
 
 create table if not exists public.family_loan_installments (
   id uuid primary key default gen_random_uuid(),
