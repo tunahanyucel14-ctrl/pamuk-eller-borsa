@@ -146,8 +146,13 @@ export default function HedeflerPage(){
  async function deleteGoal(id:string){
   if(!window.confirm("Bu hedef ve katkı geçmişi silinsin mi?"))return;
   setBusy(id);
+  const goal=rows.find(g=>g.id===id);
   const {error}=await supabase.from("family_goals").delete().eq("id",id).eq("family_id",aileId);
-  if(error)setError(error.message);else await load();
+  if(error)setError(error.message);
+  else{
+   if(goal?.image_path)await supabase.storage.from("goal-photos").remove([goal.image_path]);
+   await load();
+  }
   setBusy("");
  }
 
