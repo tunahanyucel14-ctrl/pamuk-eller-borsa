@@ -26,17 +26,19 @@ test("kredi ödeme planında bankayı tanır ve taksitleri kronolojik sıraya di
   assert.equal(result.schedule[0].due_date, "2026-12-15");
 });
 
-test("mükerrer taksit satırını dışarıda bırakıp uyarı üretir", () => {
-  const result = normalizeLoanPlan({
+test("mükerrer veya eksik taksit satırını reddeder", () => {
+  assert.throws(() => normalizeLoanPlan({
     bank_name: "Akbank", loan_type: "ihtiyac", currency: "TRY", principal_amount: 100000,
     schedule: [
       { installment_no: 1, due_date: "2026-12-01", installment_amount: 5000 },
       { installment_no: 1, due_date: "2027-01-01", installment_amount: 5000 }
     ]
-  });
-  assert.equal(result.schedule.length, 1);
-  assert.equal(result.skipped_rows, 1);
-  assert.ok(result.warnings.some(x => x.includes("doğrulanamadı")));
+  }), /taksit satırı doğrulanamadı/);
+  assert.throws(() => normalizeLoanPlan({
+    bank_name: "Akbank", loan_type: "ihtiyac", currency: "TRY", principal_amount: 100000,
+    installment_count: 2,
+    schedule: [{ installment_no: 1, due_date: "2026-12-01", installment_amount: 5000 }]
+  }), /taksit ile okunan/);
 });
 
 test("belgede bulunmayan banka ve para birimi için uyarı verir", () => {
