@@ -21,6 +21,7 @@ type SavedPlan = {
   id: string; debt_id: string | null; bank_name: string; loan_type: string; currency: string;
   principal_amount: number; installment_count: number; first_due_date: string; last_due_date: string; status: string;
 };
+type SavedInstallment = { id: string; installment_no: number; due_date: string; installment_amount: number; principal_amount: number | null; interest_amount: number | null; fees_amount: number | null; remaining_principal: number | null; status: string; paid_at: string | null };
 type UploadRef = { path: string; mimeType: string };
 
 const TYPES = [
@@ -70,6 +71,8 @@ export default function KrediPlanlariPage() {
   const [uploads, setUploads] = useState<UploadRef[]>([]);
   const [debts, setDebts] = useState<ExistingDebt[]>([]);
   const [savedPlans, setSavedPlans] = useState<SavedPlan[]>([]);
+  const [expandedPlanId, setExpandedPlanId] = useState("");
+  const [expandedInstallments, setExpandedInstallments] = useState<SavedInstallment[]>([]);
   const [existingDebtId, setExistingDebtId] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -238,6 +241,17 @@ export default function KrediPlanlariPage() {
 
   const availableDebts = debts.filter(debt => !savedPlans.some(saved => saved.debt_id === debt.id));
 
+  async function toggleSavedPlan(planId: string) {
+    if (expandedPlanId === planId) { setExpandedPlanId(""); setExpandedInstallments([]); return; }
+    setError("");
+    const { data, error } = await supabase.from("family_loan_installments")
+      .select("id,installment_no,due_date,installment_amount,principal_amount,interest_amount,fees_amount,remaining_principal,status,paid_at")
+      .eq("family_id", aileId).eq("plan_id", planId).order("installment_no").limit(600);
+    if (error) { setError(error.message); return; }
+    setExpandedInstallments((data || []) as SavedInstallment[]);
+    setExpandedPlanId(planId);
+  }
+
   async function cancelPlan() {
     if (busy) return;
     setBusy(true);
@@ -293,7 +307,15 @@ export default function KrediPlanlariPage() {
 
     <section className={kart + " space-y-3"}>
       <div className="flex items-center gap-2"><Landmark size={18} className="text-accent"/><h2 className="font-bold">Kayıtlı kredi planları</h2></div>
-      {savedPlans.length === 0 ? <p className="text-sm text-muted">Henüz onaylanmış kredi ödeme planı yok.</p> : <div className="space-y-2">{savedPlans.map(p=><article key={p.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-inner p-3"><div><b className="text-sm">{p.bank_name} · {TYPES.find(x=>x.value===p.loan_type)?.label || "Kredi"}</b><p className="mt-1 text-xs text-muted">{p.installment_count} taksit · {p.first_due_date} – {p.last_due_date}</p></div><div className="text-right"><b className="text-sm">{formatAmount(Number(p.principal_amount),p.currency)}</b><p className="text-xs text-muted">{p.status === "active" ? "Aktif plan" : p.status}</p></div></article>)}</div>}
+      {savedPlans.length === 0 ? <p className="text-sm text-muted">Henüz onaylanmış kredi ödeme planı yok.</p> : <div className="space-y-2">{savedPlans.map(p=><article key={p.id} className="rounded-xl bg-inner p-3">
+        <button type="button" onClick={()=>void toggleSavedPlan(p.id)} className="flex w-full flex-wrap items-center justify-between gap-3 text-left">
+          <div><b className="text-sm">{p.bank_name} · {TYPES.find(x=>x.value===p.loan_type)?.label || "Kredi"}</b><p className="mt-1 text-xs text-muted">{p.installment_count} taksit · {p.first_due_date} – {p.last_due_date}</p></div>
+          <div className="text-right"><b className="text-sm">{formatAmount(Number(p.principal_amount),p.currency)}</b><p className="text-xs text-accent">{expandedPlanId===p.id?"Tabloyu gizle":"Ay ay ödeme tablosunu aç"}</p></div>
+        </button>
+        {expandedPlanId===p.id && <div className="mt-3 max-h-[420px] overflow-auto rounded-xl border border-line bg-card">
+          <table className="w-full min-w-[650px] text-xs"><thead className="sticky top-0 bg-inner"><tr className="text-left text-muted"><th className="p-2">Taksit</th><th className="p-2">Vade tarihi</th><th className="p-2 text-right">Taksit tutarı</th><th className="p-2 text-right">Anapara</th><th className="p-2 text-right">Faiz</th><th className="p-2 text-right">Kalan anapara</th><th className="p-2">Durum</th></tr></thead><tbody>{expandedInstallments.map(row=><tr key={row.id} className="border-t border-line/70"><td className="p-2">{row.installment_no}</td><td className="p-2">{row.due_date}</td><td className="p-2 text-right font-semibold">{formatAmount(Number(row.installment_amount),p.currency)}</td><td className="p-2 text-right">{row.principal_amount===null?"—":formatAmount(Number(row.principal_amount),p.currency)}</td><td className="p-2 text-right">{row.interest_amount===null?"—":formatAmount(Number(row.interest_amount),p.currency)}</td><td className="p-2 text-right">{row.remaining_principal===null?"—":formatAmount(Number(row.remaining_principal),p.currency)}</td><td className="p-2">{row.status==="paid"?"Ödendi":row.status==="skipped"?"Atlandı":"Bekliyor"}</td></tr>)}</tbody></table>
+        </div>}
+      </article>)}</div>}
     </section>
   </div>;
 }
