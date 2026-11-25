@@ -102,3 +102,11 @@ test("taksit kalan anaparası ilk kredi anaparasını aşarsa reddeder", () => {
     schedule: [{ installment_no: 1, due_date: "2026-12-01", installment_amount: 5000, remaining_principal: 110000 }]
   }), /Taksit kalan anaparası ilk kredi anaparasından büyük olamaz/);
 });
+
+test("taksit kalan anaparası ilk kredi anaparasını aşarsa reddeder", () => {
+  assert.throws(() => normalizeLoanPlan({
+    bank_name: "Akbank", loan_type: "ihtiyac", currency: "TRY",
+    principal_amount: 100000,
+    schedule: [{ installment_no: 1, due_date: "2026-12-01", installment_amount: 5000, remaining_principal: 110000 }]
+  }), /Taksit kalan anaparası ilk kredi anaparasından büyük olamaz/);
+});
