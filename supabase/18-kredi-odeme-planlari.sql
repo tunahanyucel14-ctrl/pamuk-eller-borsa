@@ -116,8 +116,6 @@ declare
   v_interest numeric(18,2);
   v_fees numeric(18,2);
   v_remaining_part numeric(18,2);
-  v_sum_principal numeric(18,2) := 0;
-  v_has_principal boolean := true;
   v_monthly numeric(18,2);
   v_remaining numeric(18,2);
   v_due_day integer;
@@ -164,7 +162,7 @@ begin
     v_remaining_part := nullif(v_row->>'remaining_principal','')::numeric(18,2);
     if v_no is null or v_due is null or v_amount is null or v_no <> v_index then raise exception 'Taksit numaraları 1’den başlayarak sıralı olmalı.'; end if;
     if v_amount <= 0 then raise exception '% numaralı taksit tutarı geçersiz.',v_no; end if;
-    if v_principal_part is null then v_has_principal := false; else if v_principal_part < 0 then raise exception '% numaralı taksitin anapara payı negatif olamaz.',v_no; end if; v_sum_principal := v_sum_principal + v_principal_part; end if;
+    if v_principal_part is not null and v_principal_part < 0 then raise exception '% numaralı taksitin anapara payı negatif olamaz.',v_no; end if;
     if v_interest is not null and v_interest < 0 then raise exception '% numaralı taksitin faiz payı negatif olamaz.',v_no; end if;
     if v_fees is not null and v_fees < 0 then raise exception '% numaralı taksitin masrafı negatif olamaz.',v_no; end if;
     if v_remaining_part is not null and v_remaining_part < 0 then raise exception '% numaralı taksitin kalan anaparası negatif olamaz.',v_no; end if;
