@@ -8,6 +8,7 @@ test("kredi ödeme planında bankayı tanır ve taksitleri kronolojik sıraya di
     loan_type: "konut kredisi",
     currency: "TRY",
     principal_amount: 1500000,
+    remaining_amount: 1485000,
     monthly_interest_rate: 2.89,
     annual_interest_rate: null,
     installment_count: 2,
@@ -20,7 +21,7 @@ test("kredi ödeme planında bankayı tanır ve taksitleri kronolojik sıraya di
   assert.equal(result.bank_name, "Garanti BBVA");
   assert.equal(result.loan_type, "konut");
   assert.equal(result.monthly_interest_rate, 2.89);
-  assert.equal(result.remaining_amount, 1480000);
+  assert.equal(result.remaining_amount, 1485000);
   assert.equal(result.schedule[0].installment_no, 1);
   assert.equal(result.schedule[0].due_date, "2026-12-15");
 });
@@ -61,4 +62,16 @@ test("Türk lirası para birimini TRY olarak normalleştirir ve geçersiz tarihi
   assert.equal(result.loan_type, "ihtiyac");
   assert.equal(validDate("2026-02-29"), false);
   assert.equal(validDate("2026-12-10"), true);
+});
+
+test("son taksit sonrası kalan anaparayı güncel borç diye kullanmaz", () => {
+  const result = normalizeLoanPlan({
+    bank_name: "Akbank", loan_type: "ihtiyac", currency: "TRY", principal_amount: 100000,
+    schedule: [
+      { installment_no: 1, due_date: "2026-12-01", installment_amount: 5000, principal_amount: 4000, remaining_principal: 96000 },
+      { installment_no: 2, due_date: "2027-01-01", installment_amount: 5000, principal_amount: 5000, remaining_principal: 0 }
+    ]
+  });
+  assert.equal(result.remaining_amount, null);
+  assert.ok(result.warnings.some(x => x.includes("Kalan borç")));
 });
