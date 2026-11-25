@@ -142,7 +142,7 @@ export async function POST(request: Request) {
   return NextResponse.json({
     plan: {
       bank_name: parsed.bank_name, loan_type: parsed.loan_type, currency: parsed.currency,
-      principal_amount: parsed.principal_amount, annual_interest_rate: parsed.annual_interest_rate,
+      principal_amount: parsed.principal_amount, remaining_amount: parsed.remaining_amount, annual_interest_rate: parsed.annual_interest_rate,
       monthly_interest_rate: parsed.monthly_interest_rate, installment_count: parsed.installment_count,
       first_due_date: parsed.first_due_date, schedule: parsed.schedule
     },
