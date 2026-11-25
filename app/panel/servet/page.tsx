@@ -6,6 +6,7 @@ import {Activity,ArrowDownRight,ArrowUpRight,CalendarRange,ChartNoAxesCombined,C
 import {supabase} from "../../../lib/supabase";
 import {useAile} from "../../../lib/aile-baglami";
 import {tl} from "../../../lib/finans";
+import {calculateNetWorth} from "../../../lib/finans-motoru.cjs";
 import {kart,baslik} from "../../../lib/ui";
 
 type Tx={kind:string;amount:number;tx_date:string;category_id:string|null;account_id:string};
@@ -70,7 +71,7 @@ export default function ServetPage(){
    setCash(balanceRows.filter(x=>String(x.currency||"TRY").toUpperCase()==="TRY").reduce((sum,x)=>sum+(Number(x.balance)||0),0));
    setForeignCash(balanceRows.filter(x=>String(x.currency||"TRY").toUpperCase()!=="TRY").reduce<Record<string,number>>((acc,x)=>{const cur=String(x.currency||"TRY").toUpperCase();acc[cur]=(acc[cur]||0)+(Number(x.balance)||0);return acc;},{}));
    const investmentRows=(invR.data||[]).map((x:any)=>({...x,quantity:Number(x.quantity)||0,current_price:Number(x.current_price)||0,currency:String(x.currency||"TRY").toUpperCase()})) as Investment[];
-   setInvestments(investmentRows.filter(x=>x.currency==="TRY"));
+   setInvestments(investmentRows);
    setForeignPortfolio(investmentRows.filter(x=>x.currency!=="TRY").reduce<Record<string,number>>((acc,x)=>{acc[x.currency]=(acc[x.currency]||0)+x.quantity*x.current_price;return acc;},{}));
    setDebts((debtR.data||[]).map((x:any)=>({...x,remaining_amount:Number(x.remaining_amount)||0,monthly_payment:Number(x.monthly_payment)||0,annual_interest_rate:Number(x.annual_interest_rate)||0})) as Debt[]);
    setBills((billR.data||[]).map((x:any)=>({...x,amount:Number(x.amount)||0})) as Bill[]);
@@ -98,9 +99,14 @@ export default function ServetPage(){
   const monthlyDebt=debts.filter(x=>x.remaining_amount>0).reduce((s,x)=>s+x.monthly_payment,0);
   const variableExpense=Math.max(0,avgExpense-fixedBills-monthlyDebt);
   const monthlyExpense=fixedBills+monthlyDebt+variableExpense;
-  const portfolio=investments.reduce((s,x)=>s+x.quantity*x.current_price,0);
-  const debtTotal=debts.reduce((s,x)=>s+Math.max(0,x.remaining_amount),0);
-  const netWorth=cash+portfolio-debtTotal;
+  const portfolio=investments.filter(x=>x.currency==="TRY").reduce((s,x)=>s+x.quantity*x.current_price,0);
+  const netWorthByCurrency=calculateNetWorth({
+   accountBalances:[{currency:"TRY",balance:cash},...Object.entries(foreignCash).map(([currency,balance])=>({currency,balance}))],
+   assets:investments.map(x=>({currency:x.currency,market_value:x.quantity*x.current_price})),
+   debts:debts.map(x=>({currency:"TRY",remaining_amount:Math.max(0,x.remaining_amount)}))
+  });
+  const debtTotal=netWorthByCurrency.TRY?.liabilities??0;
+  const netWorth=netWorthByCurrency.TRY?.netWorth??0;
   const free=monthlyIncome-monthlyExpense;
   const forecast:Forecast[]=[];
   let projectedCash=cash;
