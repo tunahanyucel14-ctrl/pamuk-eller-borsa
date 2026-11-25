@@ -44,7 +44,7 @@ export default function OdemelerPage() {
   const [permission, setPermission] = useState<NotificationPermission | "unsupported">("default");
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [upcoming, setUpcoming] = useState<{ title: string; detail: string; date: Date; kind: "salary" | "bill" | "debt" }[]>([]);
+  const [upcoming, setUpcoming] = useState<{ title: string; detail: string; date: Date; kind: "salary" | "bill" | "debt" | "loan" }[]>([]);
 
   const load = useCallback(async () => {
     const now = new Date();
