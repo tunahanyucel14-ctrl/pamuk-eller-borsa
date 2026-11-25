@@ -4,6 +4,7 @@ import { Plus, Trash2, CreditCard, CalendarClock, Pencil } from "lucide-react";
 import { supabase } from "../../../lib/supabase";
 import { useAile } from "../../../lib/aile-baglami";
 import { tl } from "../../../lib/finans";
+import { simulateDebtPayoff } from "../../../lib/finans-motoru.cjs";
 import { kart, girdi, dugme, baslik, etiket } from "../../../lib/ui";
 type Debt={id:string;created_by?:string|null;name:string;creditor:string;debt_type:string;original_amount:number;remaining_amount:number;monthly_payment:number;annual_interest_rate:number;due_day:number|null;end_date:string|null;notes:string};
 function parseLocalNumber(raw:string):number{
@@ -15,21 +16,7 @@ function parseLocalNumber(raw:string):number{
  return Number(value);
 }
 function simulatePortfolio(debts:Debt[], extraBudget:number) {
- const balances=debts.map(d=>({name:d.name,balance:Math.max(0,Number(d.remaining_amount)||0),payment:Math.max(0,Number(d.monthly_payment)||0),rate:Math.max(0,Number(d.annual_interest_rate)||0)})).filter(d=>d.balance>0);
- const order=[...balances].sort((a,b)=>b.rate-a.rate);
- let interestTotal=0,paidTotal=0,months=0;
- if(!balances.length)return {months:0,interest:0,paid:0,stuck:false};
- for(let month=0;month<600;month++){
-   for(const debt of balances){const interest=debt.balance*debt.rate/1200;debt.balance+=interest;interestTotal+=interest;}
-   let progress=false;
-   for(const debt of balances){const payment=Math.min(debt.balance,debt.payment);if(payment>0){debt.balance-=payment;paidTotal+=payment;progress=true;}}
-   let extraLeft=Math.max(0,extraBudget);
-   for(const debt of order){if(extraLeft<=0)break;const payment=Math.min(debt.balance,extraLeft);if(payment>0){debt.balance-=payment;extraLeft-=payment;paidTotal+=payment;progress=true;}}
-   months=month+1;
-   if(balances.every(d=>d.balance<=0.01))return {months,interest:interestTotal,paid:paidTotal,stuck:false};
-   if(!progress)return {months:0,interest:interestTotal,paid:paidTotal,stuck:true};
- }
- return {months,interest:interestTotal,paid:paidTotal,stuck:balances.some(d=>d.balance>0.01)};
+ return simulateDebtPayoff(debts, extraBudget);
 }
 
 export default function BorclarPage(){

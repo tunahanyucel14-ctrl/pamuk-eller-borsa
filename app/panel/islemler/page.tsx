@@ -32,6 +32,7 @@ export default function Islemler() {
   const [aciklama, setAciklama] = useState("");
   const [hata, setHata] = useState("");
   const [bekle, setBekle] = useState(false);
+  const [requestKey, setRequestKey] = useState("");
   const [arama, setArama] = useState("");
   const [filtre, setFiltre] = useState<"hepsi" | IslemTuru>("hepsi");
 
@@ -106,8 +107,10 @@ export default function Islemler() {
       return;
     }
     setBekle(true);
+    const stableRequestKey = requestKey || crypto.randomUUID();
+    setRequestKey(stableRequestKey);
     try {
-      const { error } = await supabase.from("fin_transactions").insert({
+      const payload = {
         family_id: aileId,
         account_id: hesapId,
         to_account_id: tur === "transfer" ? hedefId : null,
@@ -116,10 +119,31 @@ export default function Islemler() {
         amount: Math.round(t * 100) / 100,
         description: aciklama.trim() || null,
         tx_date: tarih,
-      });
-      if (error) throw error;
+        idempotency_key: stableRequestKey,
+      };
+      const { error } = await supabase.from("fin_transactions").insert(payload);
+      if (error) {
+        if (error.code !== "23505") throw error;
+        const existing = await supabase.from("fin_transactions")
+          .select("id,account_id,to_account_id,category_id,kind,amount,description,tx_date")
+          .eq("family_id", aileId)
+          .eq("idempotency_key", stableRequestKey)
+          .maybeSingle();
+        if (existing.error) throw existing.error;
+        const row = existing.data;
+        const sameRequest = row
+          && row.account_id === payload.account_id
+          && row.to_account_id === payload.to_account_id
+          && row.category_id === payload.category_id
+          && row.kind === payload.kind
+          && Number(row.amount) === payload.amount
+          && row.description === payload.description
+          && row.tx_date === payload.tx_date;
+        if (!sameRequest) throw new Error("Bu kayıt anahtarı daha önce farklı bir işlem için kullanılmış. Yeni bir işlem anahtarı oluştur.");
+      }
       setTutar("");
       setAciklama("");
+      setRequestKey("");
       await yukle();
     } catch (error) {
       setHata(error instanceof Error ? error.message : "İşlem kaydedilemedi. Bağlantını kontrol edip tekrar dene.");
