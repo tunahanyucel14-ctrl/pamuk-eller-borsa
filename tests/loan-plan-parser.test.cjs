@@ -14,7 +14,7 @@ test("kredi ödeme planında bankayı tanır ve taksitleri kronolojik sıraya di
     installment_count: 2,
     first_due_date: "2026-12-15",
     schedule: [
-      { installment_no: 2, due_date: "2027-01-15", installment_amount: 45000, principal_amount: 10000, interest_amount: 35000, fees_amount: 0, remaining_principal: 1480000 },
+      { installment_no: 2, due_date: "2027-01-15", installment_amount: 45000, status: "paid", principal_amount: 10000, interest_amount: 35000, fees_amount: 0, remaining_principal: 1480000 },
       { installment_no: 1, due_date: "2026-12-15", installment_amount: 45000, principal_amount: 9000, interest_amount: 36000, fees_amount: 0, remaining_principal: 1491000 }
     ]
   });
@@ -24,6 +24,7 @@ test("kredi ödeme planında bankayı tanır ve taksitleri kronolojik sıraya di
   assert.equal(result.remaining_amount, 1485000);
   assert.equal(result.schedule[0].installment_no, 1);
   assert.equal(result.schedule[0].due_date, "2026-12-15");
+  assert.equal(result.schedule[1].status, "paid");
 });
 
 test("mükerrer veya eksik taksit satırını reddeder", () => {
