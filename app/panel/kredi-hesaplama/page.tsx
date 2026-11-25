@@ -24,7 +24,11 @@ const sayi = (v: string) => {
   if (/^\d{1,3}(\.\d{3})+$/.test(s)) return Number(s.replace(/\./g, ""));
   return Number(s);
 };
-function teklifGecerli(teklif: Teklif): boolean {\n  const faiz = sayi(teklif.aylikFaiz), tahsis = sayi(teklif.tahsis), sigorta = sayi(teklif.sigorta), bsmv = sayi(teklif.bsmv), kkdf = sayi(teklif.kkdf);\n  return Number.isFinite(faiz) && faiz >= 0 && faiz <= 20 && Number.isFinite(tahsis) && tahsis >= 0 && tahsis <= 10 && Number.isFinite(sigorta) && sigorta >= 0 && sigorta <= 10000000 && Number.isFinite(bsmv) && bsmv >= 0 && bsmv <= 100 && Number.isFinite(kkdf) && kkdf >= 0 && kkdf <= 100;\n}\nfunction hesapla(anapara: number, vade: number, teklif: Teklif): Sonuc {
+function teklifGecerli(teklif: Teklif): boolean {
+  const faiz = sayi(teklif.aylikFaiz), tahsis = sayi(teklif.tahsis), sigorta = sayi(teklif.sigorta), bsmv = sayi(teklif.bsmv), kkdf = sayi(teklif.kkdf);
+  return Number.isFinite(faiz) && faiz >= 0 && faiz <= 20 && Number.isFinite(tahsis) && tahsis >= 0 && tahsis <= 10 && Number.isFinite(sigorta) && sigorta >= 0 && sigorta <= 10000000 && Number.isFinite(bsmv) && bsmv >= 0 && bsmv <= 100 && Number.isFinite(kkdf) && kkdf >= 0 && kkdf <= 100;
+}
+function hesapla(anapara: number, vade: number, teklif: Teklif): Sonuc {
   const nominal = Math.max(0, sayi(teklif.aylikFaiz) || 0) / 100;
   const bsmv = Math.max(0, sayi(teklif.bsmv) || 0) / 100;
   const kkdf = Math.max(0, sayi(teklif.kkdf) || 0) / 100;
@@ -48,7 +52,8 @@ export default function KrediHesaplamaPage() {
   const [tabloAcik, setTabloAcik] = useState(false);
   const anapara = sayi(tutar);
   const ay = Number(vade);
-  const temelGecerli = Number.isFinite(anapara) && anapara > 0 && Number.isInteger(ay) && ay > 0 && ay <= 240;\n  const gecerli = temelGecerli && teklifler.every(teklifGecerli);
+  const temelGecerli = Number.isFinite(anapara) && anapara > 0 && Number.isInteger(ay) && ay > 0 && ay <= 240;
+  const gecerli = temelGecerli && teklifler.every(teklifGecerli);
   const sonuclar = useMemo(() => teklifler.map((t) => hesapla(anapara, ay, t)), [anapara, ay, teklifler]);
   const guncelle = (index: number, alan: keyof Teklif, deger: string) => setTeklifler((onceki) => onceki.map((t, i) => i === index ? { ...t, [alan]: deger } : t));
   const seciliTur = TURLER.find((x) => x.id === tur)!;
@@ -75,7 +80,8 @@ export default function KrediHesaplamaPage() {
       <div><label className={etiket}>Kredi tutarı (TL)</label><input className={girdi} inputMode="decimal" value={tutar} onChange={(e) => setTutar(e.target.value)} placeholder="2.500.000"/></div>
       <div><label className={etiket}>Vade (ay)</label><input className={girdi} type="number" min="1" max="240" value={vade} onChange={(e) => setVade(e.target.value)}/><p className="mt-1 text-xs text-muted">{seciliTur.ad} için seçili başlangıç vadesi: {seciliTur.vade} ay. Banka koşullarını ayrıca kontrol et.</p></div>
     </section>
-    {!temelGecerli && <p className="text-sm text-down">Geçerli bir kredi tutarı ve 1–240 ay arasında vade gir.</p>}\n    {temelGecerli && !gecerli && <p className="text-sm text-down">Faiz, vergi ve masraf alanlarına geçerli değerler gir. Aylık faiz en fazla %20, tahsis ücreti en fazla %10 olmalı.</p>}
+    {!temelGecerli && <p className="text-sm text-down">Geçerli bir kredi tutarı ve 1–240 ay arasında vade gir.</p>}
+    {temelGecerli && !gecerli && <p className="text-sm text-down">Faiz, vergi ve masraf alanlarına geçerli değerler gir. Aylık faiz en fazla %20, tahsis ücreti en fazla %10 olmalı.</p>}
     <section className="grid gap-4 xl:grid-cols-2">
       {teklifler.map((t, index) => <article key={index} className={kart + " space-y-3"}>
         <div className="flex items-center justify-between gap-2"><div><p className="text-xs font-bold uppercase tracking-wider text-accent">Teklif {index + 1}</p><input aria-label="Banka adı" className="mt-1 w-full border-b border-line bg-transparent py-1 text-lg font-bold outline-none focus:border-accent" value={t.banka} onChange={(e) => guncelle(index, "banka", e.target.value)} /></div><button onClick={() => setAktif(index)} className={"rounded-lg px-3 py-2 text-xs font-semibold " + (aktif === index ? "bg-accent text-accent-fg" : "bg-inner text-muted")}>{aktif === index ? "Detay seçili" : "Detayları gör"}</button></div>
