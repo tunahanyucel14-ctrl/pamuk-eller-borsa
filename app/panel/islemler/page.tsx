@@ -125,7 +125,7 @@ export default function Islemler() {
       if (error) {
         if (error.code !== "23505") throw error;
         const existing = await supabase.from("fin_transactions")
-          .select("id,account_id,to_account_id,kind,amount,tx_date")
+          .select("id,account_id,to_account_id,category_id,kind,amount,description,tx_date")
           .eq("family_id", aileId)
           .eq("idempotency_key", stableRequestKey)
           .maybeSingle();
@@ -134,8 +134,10 @@ export default function Islemler() {
         const sameRequest = row
           && row.account_id === payload.account_id
           && row.to_account_id === payload.to_account_id
+          && row.category_id === payload.category_id
           && row.kind === payload.kind
           && Number(row.amount) === payload.amount
+          && row.description === payload.description
           && row.tx_date === payload.tx_date;
         if (!sameRequest) throw new Error("Bu kayıt anahtarı daha önce farklı bir işlem için kullanılmış. Yeni bir işlem anahtarı oluştur.");
       }
