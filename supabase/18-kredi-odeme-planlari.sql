@@ -169,6 +169,7 @@ begin
     if v_interest is not null and v_interest < 0 then raise exception '% numaralı taksitin faiz payı negatif olamaz.',v_no; end if;
     if v_fees is not null and v_fees < 0 then raise exception '% numaralı taksitin masrafı negatif olamaz.',v_no; end if;
     if v_remaining_part is not null and v_remaining_part < 0 then raise exception '% numaralı taksitin kalan anaparası negatif olamaz.',v_no; end if;
+    if v_remaining_part is not null and v_remaining_part > v_principal then raise exception '% numaralı taksitin kalan anaparası ilk anaparadan büyük olamaz.',v_no; end if;
     if v_index = 1 then v_first := v_due; v_monthly := v_amount; end if;
     if v_previous is not null and v_due <= v_previous then raise exception 'Taksit tarihleri artan sırada olmalı.'; end if;
     v_previous := v_due;
@@ -301,6 +302,7 @@ begin
   end if;
 
   if v_remaining_part is not null then
+    if v_remaining_part > v_plan_remaining then raise exception 'Taksit tablosundaki kalan anapara güncel borçtan yüksek. Banka bakiyesini ve taksit tablosunu kontrol et.'; end if;
     v_new_remaining := v_remaining_part;
   elsif v_principal_part is not null then
     v_new_remaining := greatest(0, v_plan_remaining - v_principal_part);
