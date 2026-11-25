@@ -112,6 +112,7 @@ declare
   v_due date;
   v_no integer;
   v_amount numeric(18,2);
+  v_installment_status text;
   v_principal_part numeric(18,2);
   v_interest numeric(18,2);
   v_fees numeric(18,2);
@@ -156,12 +157,14 @@ begin
     v_no := (v_row->>'installment_no')::integer;
     v_due := (v_row->>'due_date')::date;
     v_amount := (v_row->>'installment_amount')::numeric(18,2);
+    v_installment_status := coalesce(v_row->>'status','pending');
     v_principal_part := nullif(v_row->>'principal_amount','')::numeric(18,2);
     v_interest := nullif(v_row->>'interest_amount','')::numeric(18,2);
     v_fees := nullif(v_row->>'fees_amount','')::numeric(18,2);
     v_remaining_part := nullif(v_row->>'remaining_principal','')::numeric(18,2);
     if v_no is null or v_due is null or v_amount is null or v_no <> v_index then raise exception 'Taksit numaraları 1’den başlayarak sıralı olmalı.'; end if;
     if v_amount <= 0 then raise exception '% numaralı taksit tutarı geçersiz.',v_no; end if;
+    if v_installment_status not in ('pending','paid') then raise exception '% numaralı taksitin durumu geçersiz.',v_no; end if;
     if v_principal_part is not null and v_principal_part < 0 then raise exception '% numaralı taksitin anapara payı negatif olamaz.',v_no; end if;
     if v_interest is not null and v_interest < 0 then raise exception '% numaralı taksitin faiz payı negatif olamaz.',v_no; end if;
     if v_fees is not null and v_fees < 0 then raise exception '% numaralı taksitin masrafı negatif olamaz.',v_no; end if;
@@ -207,14 +210,15 @@ begin
   returning id into v_plan_id;
 
   for v_row in select value from jsonb_array_elements(v_schedule) loop
-    insert into public.family_loan_installments(family_id,plan_id,installment_no,due_date,installment_amount,principal_amount,interest_amount,fees_amount,remaining_principal)
+    insert into public.family_loan_installments(family_id,plan_id,installment_no,due_date,installment_amount,status,principal_amount,interest_amount,fees_amount,remaining_principal,paid_at)
     values(
       p_family_id,v_plan_id,(v_row->>'installment_no')::integer,(v_row->>'due_date')::date,
-      (v_row->>'installment_amount')::numeric(18,2),
+      (v_row->>'installment_amount')::numeric(18,2),v_installment_status,
       nullif(v_row->>'principal_amount','')::numeric(18,2),
       nullif(v_row->>'interest_amount','')::numeric(18,2),
       nullif(v_row->>'fees_amount','')::numeric(18,2),
-      nullif(v_row->>'remaining_principal','')::numeric(18,2)
+      nullif(v_row->>'remaining_principal','')::numeric(18,2),
+      null
     );
   end loop;
 
