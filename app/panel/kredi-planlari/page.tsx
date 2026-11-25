@@ -8,7 +8,7 @@ import { tl } from "../../../lib/finans";
 import { kart, girdi, dugme, etiket, baslik } from "../../../lib/ui";
 
 type Installment = {
-  installment_no: number; due_date: string; installment_amount: string;
+  installment_no: number; due_date: string; installment_amount: string; status: "pending" | "paid";
   principal_amount: string; interest_amount: string; fees_amount: string; remaining_principal: string;
 };
 type LoanPlan = {
@@ -148,6 +148,7 @@ export default function KrediPlanlariPage() {
         schedule: raw.schedule.map((r: any) => ({
           installment_no: Number(r.installment_no), due_date: String(r.due_date),
           installment_amount: String(r.installment_amount),
+          status: r.status === "paid" ? "paid" : "pending",
           principal_amount: r.principal_amount === null ? "" : String(r.principal_amount),
           interest_amount: r.interest_amount === null ? "" : String(r.interest_amount),
           fees_amount: r.fees_amount === null ? "" : String(r.fees_amount),
@@ -195,6 +196,7 @@ export default function KrediPlanlariPage() {
         installment_no: row.installment_no,
         due_date: row.due_date,
         installment_amount: amount,
+        status: row.status,
         principal_amount: optional(row.principal_amount),
         interest_amount: optional(row.interest_amount),
         fees_amount: optional(row.fees_amount),
@@ -318,11 +320,11 @@ export default function KrediPlanlariPage() {
         <div><label className={etiket}>Yıllık nominal faiz (%)</label><input className={girdi} inputMode="decimal" value={plan.annual_interest_rate} onChange={e=>updatePlan("annual_interest_rate",e.target.value)} placeholder="Belgede varsa"/></div>
       </div>
       {plan.currency === "TRY" && availableDebts.length > 0 && <div><label className={etiket}>Mevcut kredi borcuyla eşleştir (isteğe bağlı)</label><select className={girdi} value={existingDebtId} onChange={e=>setExistingDebtId(e.target.value)}><option value="">Yeni kredi borcu oluştur</option>{availableDebts.map(d=><option key={d.id} value={d.id}>{d.creditor || d.name} · {d.name}</option>)}</select><p className="mt-1 text-xs text-muted">Mevcut kayıt seçilirse borç bilgileri yeni planla güncellenir; seçilmezse yeni bir borç kaydı açılır.</p></div>}
-      <div className="flex flex-wrap items-center justify-between gap-2"><h3 className="font-bold">Aylık taksit tablosu</h3><span className="text-xs text-muted">Tutarlar belgeye göre düzenlenebilir</span></div>
+      <div className="flex flex-wrap items-center justify-between gap-2"><h3 className="font-bold">Aylık taksit tablosu</h3><span className="text-xs text-muted">Tutar ve ödeme durumu kontrol edilebilir</span></div>
       <div className="max-h-[520px] overflow-auto rounded-xl border border-line">
         <table className="w-full min-w-[840px] text-xs">
-          <thead className="sticky top-0 bg-inner"><tr className="text-left text-muted"><th className="p-2">No</th><th className="p-2">Vade</th><th className="p-2 text-right">Taksit</th><th className="p-2 text-right">Anapara</th><th className="p-2 text-right">Faiz</th><th className="p-2 text-right">Masraf</th><th className="p-2 text-right">Kalan anapara</th></tr></thead>
-          <tbody>{plan.schedule.map((row,i)=><tr key={row.installment_no} className="border-t border-line/70"><td className="p-2 font-semibold">{row.installment_no}</td><td className="p-2"><input aria-label={row.installment_no+" vade tarihi"} type="date" className="w-36 rounded-lg border border-line bg-card px-2 py-1" value={row.due_date} onChange={e=>updateInstallment(i,"due_date",e.target.value)}/></td>{(["installment_amount","principal_amount","interest_amount","fees_amount","remaining_principal"] as const).map(key=><td key={key} className="p-2"><input aria-label={row.installment_no+" "+key} inputMode="decimal" className="w-28 rounded-lg border border-line bg-card px-2 py-1 text-right" value={row[key]} onChange={e=>updateInstallment(i,key,e.target.value)} placeholder="—"/></td>)}</tr>)}</tbody>
+          <thead className="sticky top-0 bg-inner"><tr className="text-left text-muted"><th className="p-2">No</th><th className="p-2">Vade</th><th className="p-2 text-right">Taksit</th><th className="p-2 text-right">Anapara</th><th className="p-2 text-right">Faiz</th><th className="p-2 text-right">Masraf</th><th className="p-2 text-right">Kalan anapara</th><th className="p-2">Durum</th></tr></thead>
+          <tbody>{plan.schedule.map((row,i)=><tr key={row.installment_no} className="border-t border-line/70"><td className="p-2 font-semibold">{row.installment_no}</td><td className="p-2"><input aria-label={row.installment_no+" vade tarihi"} type="date" className="w-36 rounded-lg border border-line bg-card px-2 py-1" value={row.due_date} onChange={e=>updateInstallment(i,"due_date",e.target.value)}/></td>{(["installment_amount","principal_amount","interest_amount","fees_amount","remaining_principal"] as const).map(key=><td key={key} className="p-2"><input aria-label={row.installment_no+" "+key} inputMode="decimal" className="w-28 rounded-lg border border-line bg-card px-2 py-1 text-right" value={row[key]} onChange={e=>updateInstallment(i,key,e.target.value)} placeholder="—"/></td>)}<td className="p-2"><select aria-label={row.installment_no+" taksit durumu"} className="rounded-lg border border-line bg-card px-2 py-1" value={row.status} onChange={e=>updateInstallment(i,"status",e.target.value as Installment["status"])}><option value="pending">Bekliyor</option><option value="paid">Ödendi</option></select></td></tr>)}</tbody>
         </table>
       </div>
       <div className="flex flex-wrap gap-2"><button type="button" disabled={busy} onClick={save} className={dugme}><Save size={16} className="mr-1 inline"/>{busy ? "Kaydediliyor..." : "Planı onayla ve takvime işle"}</button><button type="button" disabled={busy} onClick={()=>void cancelPlan()} className="rounded-xl border border-line px-4 py-3 text-sm font-semibold text-muted hover:text-down"><Trash2 size={16} className="mr-1 inline"/>Vazgeç ve belgeyi sil</button></div>
