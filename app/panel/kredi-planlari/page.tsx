@@ -6,6 +6,7 @@ import { supabase } from "../../../lib/supabase";
 import { useAile } from "../../../lib/aile-baglami";
 import { tl } from "../../../lib/finans";
 import { kart, girdi, dugme, etiket, baslik } from "../../../lib/ui";
+import { recognizeLoanDocument, type LocalOcrProgress } from "../../../lib/local-loan-ocr";
 
 type Installment = {
   installment_no: number; due_date: string; installment_amount: string; status: "pending" | "paid";
@@ -76,6 +77,8 @@ export default function KrediPlanlariPage() {
   const [savingInstallmentId, setSavingInstallmentId] = useState("");
   const [existingDebtId, setExistingDebtId] = useState("");
   const [busy, setBusy] = useState(false);
+  const [useAiAnalysis, setUseAiAnalysis] = useState(false);
+  const [ocrProgress, setOcrProgress] = useState<LocalOcrProgress>({ status: "", progress: 0 });
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
@@ -114,10 +117,12 @@ export default function KrediPlanlariPage() {
     const pdfs = selected.filter(f => mimeFor(f) === "application/pdf");
     if (pdfs.length > 1 || (pdfs.length && selected.length > 1)) { setError("PDF dosyasını tek başına yükle; birden fazla görseli birlikte seçebilirsin."); return; }
     setBusy(true);
+    setOcrProgress({ status: "OCR hazırlanıyor", progress: 0 });
     const uploaded: UploadRef[] = [];
     try {
       await removeUploads();
       setUploads([]); setPlan(null); setWarnings([]);
+      const localResult = useAiAnalysis ? null : await recognizeLoanDocument(selected, setOcrProgress);
       const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
       if (sessionError || !sessionData.session?.access_token) throw new Error("Oturumun doğrulanamadı. Yeniden giriş yap.");
       for (const file of selected) {
@@ -128,13 +133,18 @@ export default function KrediPlanlariPage() {
         if (uploadError) throw new Error("Belge güvenli alana yüklenemedi: " + uploadError.message);
         uploaded.push({ path, mimeType });
       }
-      const response = await fetch("/api/loan-plan", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: "Bearer " + sessionData.session.access_token },
-        body: JSON.stringify({ files: uploaded })
-      });
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(data.error || "Kredi ödeme planı okunamadı.");
+      let data: any;
+      if (localResult) {
+        data = { plan: localResult, warnings: localResult.warnings };
+      } else {
+        const response = await fetch("/api/loan-plan", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: "Bearer " + sessionData.session.access_token },
+          body: JSON.stringify({ files: uploaded })
+        });
+        data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data.error || "Kredi ödeme planı okunamadı.");
+      }
       const raw = data.plan;
       if (!raw || !Array.isArray(raw.schedule) || !raw.schedule.length) throw new Error("Belgeden ödeme tablosu çıkarılamadı.");
       setPlan({
@@ -159,6 +169,7 @@ export default function KrediPlanlariPage() {
       setFileName(selected.length === 1 ? selected[0].name : selected.length + " görselden okunan kredi planı");
       setUploads(uploaded);
       setExistingDebtId("");
+      setOcrProgress({ status: "Tamamlandı", progress: 1 });
     } catch (e) {
       await removeUploads(uploaded).catch(() => undefined);
       setError(e instanceof Error ? e.message : "Kredi planı analiz edilemedi.");
@@ -292,7 +303,7 @@ export default function KrediPlanlariPage() {
     <header>
       <p className="text-xs font-bold uppercase tracking-widest text-accent">Belge zekâsı</p>
       <h1 className={baslik}>Kredi Planlarım</h1>
-      <p className="text-sm text-muted">Banka kredi sözleşmeni veya aylık ödeme planını yükle. Bankayı tanıyıp taksitleri vade vade çıkaralım.</p>
+      <p className="text-sm text-muted">Belgeni cihazında OCR ile oku, ödeme satırlarını tabloya aktar ve kaydetmeden önce kontrol et. İstersen EVREN analizini ayrıca seçebilirsin.</p>
     </header>
 
     <section className={kart + " space-y-3"}>
@@ -303,8 +314,9 @@ export default function KrediPlanlariPage() {
         <span className="text-xs text-muted">Banka adı, kredi türü, faiz ve tüm taksitler okunmaya çalışılır.</span>
         <input className="sr-only" type="file" accept="application/pdf,image/jpeg,image/png,image/webp" multiple disabled={busy || !yazabilir} onChange={e => { void analyze(e.target.files); e.currentTarget.value = ""; }}/>
       </label>
+      <label className="flex items-center gap-2 text-xs text-muted"><input type="checkbox" checked={useAiAnalysis} onChange={e=>setUseAiAnalysis(e.target.checked)} disabled={busy || !yazabilir}/> EVREN ile yapay zekâ destekli analiz kullan (isteğe bağlı)</label>
       {!yazabilir && <p className="text-xs text-muted">Görüntüleyici rolünde belge yükleme kapalıdır.</p>}
-      {busy && <p className="text-xs text-accent">Belge güvenli alana yükleniyor ve yapay zekâ ile analiz ediliyor. Uzun ödeme planları biraz sürebilir.</p>}
+      {busy && <div className="space-y-1 text-xs text-accent"><p>{useAiAnalysis ? "Belge güvenli depolama alanına yükleniyor ve EVREN ile analiz ediliyor." : "Belge cihazında, yapay zekâ kullanılmadan okunuyor."} {ocrProgress.status}</p>{!useAiAnalysis && <div className="h-2 overflow-hidden rounded-full bg-inner"><div className="h-full rounded-full bg-accent transition-all" style={{width: Math.round(ocrProgress.progress*100)+"%"}}/></div>}</div>}
     </section>
 
     {error && <p role="alert" className="rounded-xl border border-down/30 bg-down/10 p-3 text-sm text-down">{error}</p>}
