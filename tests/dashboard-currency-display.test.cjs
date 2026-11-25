@@ -15,8 +15,9 @@ test("dashboard formats each account using its own currency", () => {
 });
 
 test("dashboard labels the aggregate as TRY-only, not total assets", () => {
-  assert.match(source, /title="Toplam TL bakiye"/);
-  assert.match(source, /Döviz hesapları ayrı para biriminde gösterilir/);
+  assert.match(source, /<span className="text-muted">Toplam TL bakiye<\/span>/);
+  assert.match(source, /tl\(toplamVarlik\)/);
+  assert.match(source, /döviz hariç/);
   assert.match(source, /Toplam TL bakiye/);
 });
 
