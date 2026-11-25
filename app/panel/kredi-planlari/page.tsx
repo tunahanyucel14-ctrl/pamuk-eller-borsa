@@ -13,13 +13,13 @@ type Installment = {
 };
 type LoanPlan = {
   bank_name: string; loan_type: "konut" | "ihtiyac" | "tasit" | "ticari" | "diger";
-  currency: string; principal_amount: string; annual_interest_rate: string;
+  currency: string; principal_amount: string; remaining_amount: string; annual_interest_rate: string;
   monthly_interest_rate: string; schedule: Installment[];
 };
 type ExistingDebt = { id: string; name: string; creditor: string; created_by: string };
 type SavedPlan = {
   id: string; debt_id: string | null; bank_name: string; loan_type: string; currency: string;
-  principal_amount: number; installment_count: number; first_due_date: string; last_due_date: string; status: string;
+  principal_amount: number; remaining_amount: number; installment_count: number; first_due_date: string; last_due_date: string; status: string;
 };
 type SavedInstallment = { id: string; installment_no: number; due_date: string; installment_amount: number; principal_amount: number | null; interest_amount: number | null; fees_amount: number | null; remaining_principal: number | null; status: string; paid_at: string | null };
 type UploadRef = { path: string; mimeType: string };
@@ -81,7 +81,7 @@ export default function KrediPlanlariPage() {
   const load = useCallback(async () => {
     const [debtResult, planResult] = await Promise.all([
       supabase.from("family_debts").select("id,name,creditor,created_by").eq("family_id", aileId).eq("debt_type", "kredi").order("created_at", { ascending: false }),
-      supabase.from("family_loan_plans").select("id,debt_id,bank_name,loan_type,currency,principal_amount,installment_count,first_due_date,last_due_date,status").eq("family_id", aileId).order("created_at", { ascending: false })
+      supabase.from("family_loan_plans").select("id,debt_id,bank_name,loan_type,currency,principal_amount,remaining_amount,installment_count,first_due_date,last_due_date,status").eq("family_id", aileId).order("created_at", { ascending: false })
     ]);
     if (debtResult.error || planResult.error) {
       setError((debtResult.error || planResult.error)?.message || "Kredi kayıtları yüklenemedi.");
@@ -141,6 +141,7 @@ export default function KrediPlanlariPage() {
         loan_type: raw.loan_type || "diger",
         currency: raw.currency || "",
         principal_amount: raw.principal_amount === null ? "" : String(raw.principal_amount),
+        remaining_amount: raw.remaining_amount === null ? "" : String(raw.remaining_amount),
         annual_interest_rate: raw.annual_interest_rate === null ? "" : String(raw.annual_interest_rate),
         monthly_interest_rate: raw.monthly_interest_rate === null ? "" : String(raw.monthly_interest_rate),
         schedule: raw.schedule.map((r: any) => ({
@@ -181,6 +182,8 @@ export default function KrediPlanlariPage() {
     if (!plan.bank_name.trim()) { setError("Banka adını kontrol edip gir."); return; }
     if (!/^[A-Z]{3}$/.test(plan.currency)) { setError("Geçerli bir para birimi seç."); return; }
     if (!Number.isFinite(principal) || principal <= 0) { setError("Kredi anaparasını kontrol et."); return; }
+    const remaining = numberFromTR(plan.remaining_amount);
+    if (!Number.isFinite(remaining) || remaining < 0 || remaining > principal) { setError("Kalan borç tutarını doğrula. Anaparadan büyük veya negatif olamaz."); return; }
     if (!plan.schedule.length || plan.schedule.length > 600) { setError("Ödeme tablosu 1–600 taksit içermeli."); return; }
     const optionalFields = plan.schedule.flatMap(row => [row.principal_amount, row.interest_amount, row.fees_amount, row.remaining_principal]).filter(value => value.trim());
     if (optionalFields.some(value => { const parsed = numberFromTR(value); return !Number.isFinite(parsed) || parsed < 0; })) { setError("Taksit anapara/faiz/masraf alanlarında geçersiz değer var."); return; }
@@ -289,7 +292,7 @@ export default function KrediPlanlariPage() {
         <div><label className={etiket}>Banka adı</label><input className={girdi} value={plan.bank_name} onChange={e=>updatePlan("bank_name",e.target.value)} placeholder="Örn. Garanti BBVA"/></div>
         <div><label className={etiket}>Kredi türü</label><select className={girdi} value={plan.loan_type} onChange={e=>updatePlan("loan_type",e.target.value as LoanPlan["loan_type"])}>{TYPES.map(x=><option key={x.value} value={x.value}>{x.label}</option>)}</select></div>
         <div><label className={etiket}>Para birimi</label><select className={girdi} value={plan.currency} onChange={e=>updatePlan("currency",e.target.value)}><option value="">Para birimi seç</option>{["TRY","USD","EUR","GBP","CHF"].map(x=><option key={x} value={x}>{x}</option>)}</select></div>
-        <div><label className={etiket}>İlk kredi anaparası</label><input className={girdi} inputMode="decimal" value={plan.principal_amount} onChange={e=>updatePlan("principal_amount",e.target.value)} placeholder="Örn. 1.500.000"/></div>
+        <div><label className={etiket}>İlk kredi anaparası</label><input className={girdi} inputMode="decimal" value={plan.principal_amount} onChange={e=>updatePlan("principal_amount",e.target.value)} placeholder="Örn. 1.500.000"/></div>\n        <div><label className={etiket}>Güncel kalan borç</label><input className={girdi} inputMode="decimal" value={plan.remaining_amount} onChange={e=>updatePlan("remaining_amount",e.target.value)} placeholder="Belgede yoksa elle gir"/></div>
         <div><label className={etiket}>Aylık nominal faiz (%)</label><input className={girdi} inputMode="decimal" value={plan.monthly_interest_rate} onChange={e=>updatePlan("monthly_interest_rate",e.target.value)} placeholder="Belgede varsa"/></div>
         <div><label className={etiket}>Yıllık nominal faiz (%)</label><input className={girdi} inputMode="decimal" value={plan.annual_interest_rate} onChange={e=>updatePlan("annual_interest_rate",e.target.value)} placeholder="Belgede varsa"/></div>
       </div>
