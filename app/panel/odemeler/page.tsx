@@ -51,20 +51,31 @@ export default function OdemelerPage() {
     const start = new Date(now.getFullYear(), now.getMonth() - 1, 1);
     const end = new Date(now.getFullYear(), now.getMonth() + 2, 0);
     const dateKey = (d: Date) => d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
-    const [billsResult, debtsResult, plansResult, installmentsResult] = await Promise.all([
+    const [billsResult, debtsResult, plansResult] = await Promise.all([
       supabase.from("family_bills").select("*").eq("family_id", aileId).eq("active", true).order("due_day"),
       supabase.from("family_debts").select("id,name,monthly_payment,due_day,remaining_amount").eq("family_id", aileId),
       supabase.from("family_loan_plans").select("id,debt_id").eq("family_id", aileId).eq("status", "active"),
-      supabase.from("family_loan_installments").select("id,plan_id,installment_no,due_date,installment_amount,status,family_loan_plans(bank_name,loan_type,currency)").eq("family_id", aileId).eq("status", "pending").gte("due_date", dateKey(start)).lte("due_date", dateKey(end)).order("due_date").limit(200),
     ]);
-    const failure = billsResult.error || debtsResult.error || plansResult.error || installmentsResult.error;
-    if (failure) setError(failure.message || "Kayıtlar yüklenemedi.");
-    else {
-      setRows((billsResult.data || []) as Bill[]);
-      setDebts((debtsResult.data || []) as Debt[]);
-      setLoanPlanLinks((plansResult.data || []) as LoanPlanLink[]);
-      setLoanInstallments((installmentsResult.data || []) as LoanInstallment[]);
+    const failure = billsResult.error || debtsResult.error || plansResult.error;
+    if (failure) { setError(failure.message || "Kayıtlar yüklenemedi."); return; }
+
+    const installmentRows: LoanInstallment[] = [];
+    for (let offset = 0; ; offset += 200) {
+      const result = await supabase.from("family_loan_installments")
+        .select("id,plan_id,installment_no,due_date,installment_amount,status,family_loan_plans(bank_name,loan_type,currency)")
+        .eq("family_id", aileId).eq("status", "pending")
+        .gte("due_date", dateKey(start)).lte("due_date", dateKey(end))
+        .order("due_date").order("id").range(offset, offset + 199);
+      if (result.error) { setError(result.error.message || "Kredi taksitleri yüklenemedi."); return; }
+      const batch = (result.data || []) as LoanInstallment[];
+      installmentRows.push(...batch);
+      if (batch.length < 200) break;
     }
+
+    setRows((billsResult.data || []) as Bill[]);
+    setDebts((debtsResult.data || []) as Debt[]);
+    setLoanPlanLinks((plansResult.data || []) as LoanPlanLink[]);
+    setLoanInstallments(installmentRows);
   }, [aileId]);
 
   useEffect(() => { void load(); }, [load]);
