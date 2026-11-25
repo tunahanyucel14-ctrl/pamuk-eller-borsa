@@ -64,7 +64,7 @@ for insert to authenticated with check (private.family_can_write(family_id) and 
 drop policy if exists family_loan_plans_update on public.family_loan_plans;
 create policy family_loan_plans_update on public.family_loan_plans
 for update to authenticated using (private.family_can_write(family_id))
-with check (private.family_can_write(family_id) and created_by = (select auth.uid()));
+with check (private.family_can_write(family_id));
 drop policy if exists family_loan_plans_delete on public.family_loan_plans;
 create policy family_loan_plans_delete on public.family_loan_plans
 for delete to authenticated using (private.family_can_manage(family_id));
@@ -84,7 +84,7 @@ create policy family_loan_installments_update on public.family_loan_installments
 for update to authenticated using (private.family_can_write(family_id))
 with check (
   private.family_can_write(family_id) and exists (
-    select 1 from public.family_loan_plans p where p.id = plan_id and p.family_id = family_id
+    select 1 from public.family_loan_plans p where p.id = family_loan_installments.plan_id and p.family_id = family_loan_installments.family_id
   )
 );
 drop policy if exists family_loan_installments_delete on public.family_loan_installments;
@@ -228,3 +228,80 @@ $$;
 
 revoke all on function public.save_family_loan_plan(uuid,jsonb) from public, anon;
 grant execute on function public.save_family_loan_plan(uuid,jsonb) to authenticated;
+
+
+-- A taksidini ödendi olarak işaretle; kalan anaparayı aynı işlemde güncelle.
+create or replace function public.mark_family_loan_installment_paid(p_installment_id uuid)
+returns jsonb
+language plpgsql
+security invoker
+set search_path = ''
+as $$
+declare
+  v_plan_id uuid;
+  v_family_id uuid;
+  v_status text;
+  v_principal_part numeric(18,2);
+  v_remaining_part numeric(18,2);
+  v_debt_id uuid;
+  v_currency text;
+  v_plan_remaining numeric(18,2);
+  v_new_remaining numeric(18,2);
+  v_balance_updated boolean := true;
+begin
+  if auth.uid() is null then raise exception 'Oturum gerekli.'; end if;
+
+  select i.plan_id, i.family_id, i.status, i.principal_amount, i.remaining_principal,
+         p.debt_id, p.currency, p.remaining_amount
+    into v_plan_id, v_family_id, v_status, v_principal_part, v_remaining_part,
+         v_debt_id, v_currency, v_plan_remaining
+  from public.family_loan_installments i
+  join public.family_loan_plans p on p.id = i.plan_id and p.family_id = i.family_id
+  where i.id = p_installment_id
+  for update of i, p;
+
+  if not found then raise exception 'Kredi taksiti bulunamadı.'; end if;
+  if not private.family_can_write(v_family_id) then raise exception 'Bu taksiti güncelleme yetkin yok.'; end if;
+  if v_status = 'paid' then
+    return jsonb_build_object('already_paid', true, 'balance_updated', true, 'remaining_amount', v_plan_remaining);
+  end if;
+  if v_status <> 'pending' then raise exception 'Yalnızca bekleyen taksitler ödenmiş işaretlenebilir.'; end if;
+
+  if v_remaining_part is not null then
+    v_new_remaining := v_remaining_part;
+  elsif v_principal_part is not null then
+    v_new_remaining := greatest(0, v_plan_remaining - v_principal_part);
+  else
+    v_new_remaining := v_plan_remaining;
+    v_balance_updated := false;
+  end if;
+
+  update public.family_loan_installments
+     set status = 'paid', paid_at = now()
+   where id = p_installment_id and family_id = v_family_id and status = 'pending';
+  if not found then raise exception 'Taksit başka bir işlem tarafından güncellenmiş. Listeyi yenile.'; end if;
+
+  if v_balance_updated then
+    update public.family_loan_plans
+       set remaining_amount = v_new_remaining, updated_at = now()
+     where id = v_plan_id and family_id = v_family_id;
+    if not found then raise exception 'Kredi planı güncellenemedi.'; end if;
+
+    if v_debt_id is not null and v_currency = 'TRY' then
+      update public.family_debts
+         set remaining_amount = v_new_remaining, updated_at = now()
+       where id = v_debt_id and family_id = v_family_id;
+      if not found then raise exception 'Bağlı kredi borcu güncellenemedi. Taksit durumu değiştirilmedi.'; end if;
+    end if;
+  end if;
+
+  return jsonb_build_object(
+    'already_paid', false,
+    'balance_updated', v_balance_updated,
+    'remaining_amount', v_new_remaining
+  );
+end;
+$$;
+
+revoke all on function public.mark_family_loan_installment_paid(uuid) from public, anon;
+grant execute on function public.mark_family_loan_installment_paid(uuid) to authenticated;
