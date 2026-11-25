@@ -76,7 +76,7 @@ drop policy if exists family_loan_installments_insert on public.family_loan_inst
 create policy family_loan_installments_insert on public.family_loan_installments
 for insert to authenticated with check (
   private.family_can_write(family_id) and exists (
-    select 1 from public.family_loan_plans p where p.id = plan_id and p.family_id = family_id
+    select 1 from public.family_loan_plans p where p.id = family_loan_installments.plan_id and p.family_id = family_loan_installments.family_id
   )
 );
 drop policy if exists family_loan_installments_update on public.family_loan_installments;
