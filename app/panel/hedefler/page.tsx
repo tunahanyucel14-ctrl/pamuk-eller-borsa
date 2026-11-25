@@ -145,14 +145,14 @@ export default function HedeflerPage(){
 
  async function deleteGoal(id:string){
   if(!window.confirm("Bu hedef ve katkı geçmişi silinsin mi?"))return;
-  setBusy(id);
+  setBusy(id);setError("");
   const goal=rows.find(g=>g.id===id);
-  const {error}=await supabase.from("family_goals").delete().eq("id",id).eq("family_id",aileId);
-  if(error)setError(error.message);
-  else{
-   if(goal?.image_path)await supabase.storage.from("goal-photos").remove([goal.image_path]);
-   await load();
+  if(goal?.image_path){
+   const {error:photoError}=await supabase.storage.from("goal-photos").remove([goal.image_path]);
+   if(photoError){setError("Hedef fotoğrafı silinemedi; hedef kaydı korunuyor: "+photoError.message);setBusy("");return;}
   }
+  const {error}=await supabase.from("family_goals").delete().eq("id",id).eq("family_id",aileId);
+  if(error)setError(error.message);else await load();
   setBusy("");
  }
 
