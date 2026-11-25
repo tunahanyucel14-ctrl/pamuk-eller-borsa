@@ -104,12 +104,38 @@ export default function GenelBakis() {
           .gte("tx_date", bas)
           .lt("tx_date", sonraki)
           .order("tx_date", { ascending: false })
-          .order("created_at", { ascending: false }),
+          .order("created_at", { ascending: false })
+          .order("id", { ascending: false })
+          .range(0, 999),
         supabase.from("categories").select("*").eq("family_id", aileId),
         supabase.from("family_category_budgets").select("category_id,limit_amount").eq("family_id", aileId).eq("budget_month", bas),
         supabase.from("fin_transactions").select("id,created_at,tx_date,kind,amount,account_id").eq("family_id", aileId).gte("tx_date", tarihISO(trendBaslangic)).lt("tx_date", tarihISO(trendBitis)).in("kind", ["gelir", "gider"]).order("tx_date", { ascending: true }).order("created_at", { ascending: true }).order("id", { ascending: true }).range(0, 999),
       ]);
       if (iptal) return;
+      let transactionRows = i.data ?? [];
+      let transactionPaginationError = i.error;
+      if (!transactionPaginationError && transactionRows.length === 1000) {
+        for (let offset = 1000; ; offset += 1000) {
+          const page = await supabase
+            .from("fin_transactions")
+            .select("*")
+            .eq("family_id", aileId)
+            .gte("tx_date", bas)
+            .lt("tx_date", sonraki)
+            .order("tx_date", { ascending: false })
+            .order("created_at", { ascending: false })
+            .order("id", { ascending: false })
+            .range(offset, offset + 999);
+          if (iptal) return;
+          if (page.error) {
+            transactionPaginationError = page.error;
+            break;
+          }
+          const rows = page.data ?? [];
+          transactionRows = transactionRows.concat(rows);
+          if (rows.length < 1000) break;
+        }
+      }
       let trendRows = trend.data ?? [];
       let trendPaginationError = trend.error;
       if (!trendPaginationError && trendRows.length === 1000) {
@@ -135,14 +161,14 @@ export default function GenelBakis() {
           if (rows.length < 1000) break;
         }
       }
-      const h = b.error || i.error || k.error;
+      const h = b.error || i.error || k.error || transactionPaginationError;
       if (h) {
         setHata(h.message);
       } else {
         const accountRows=((b.data ?? []) as Bakiye[]).map((x) => ({...x,balance:Number(x.balance),opening_balance:Number(x.opening_balance)}));
         const currencyByAccount=new Map(accountRows.map(x=>[x.account_id,String(x.currency||"TRY").toUpperCase()]));
         setBakiyeler(accountRows);
-        setIslemler(((i.data ?? []) as Islem[]).filter(x=>currencyByAccount.get(x.account_id)==="TRY").map(x=>({...x,amount:Number(x.amount)})));
+        setIslemler((transactionRows as Islem[]).filter(x=>currencyByAccount.get(x.account_id)==="TRY").map(x=>({...x,amount:Number(x.amount)})));
         setKategoriler((k.data ?? []) as Kategori[]);
         setButceLimitleri((budgets.data ?? []).map((x: any) => ({ category_id: x.category_id, limit_amount: Number(x.limit_amount) || 0 })));
         setButceHata(budgets.error ? "Kategori bütçeleri şu an yüklenemedi." : "");
