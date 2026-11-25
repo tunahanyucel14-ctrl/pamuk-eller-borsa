@@ -7,6 +7,7 @@ create table if not exists public.family_loan_plans (
   loan_type text not null check (loan_type in ('konut','ihtiyac','tasit','ticari','diger')),
   currency text not null default 'TRY' check (currency ~ '^[A-Z]{3}$'),
   principal_amount numeric(18,2) not null check (principal_amount > 0),
+  remaining_amount numeric(18,2) not null check (remaining_amount >= 0),
   annual_interest_rate numeric(9,4) check (annual_interest_rate is null or (annual_interest_rate >= 0 and annual_interest_rate <= 200)),
   monthly_interest_rate numeric(9,4) check (monthly_interest_rate is null or (monthly_interest_rate >= 0 and monthly_interest_rate <= 20)),
   installment_count integer not null check (installment_count between 1 and 600),
@@ -22,6 +23,7 @@ create table if not exists public.family_loan_plans (
   check (storage_path is null or (length(storage_path) <= 320 and split_part(storage_path,'/',1) = created_by::text))
 );
 
+alter table public.family_loan_plans add column if not exists remaining_amount numeric(18,2) check (remaining_amount is null or remaining_amount >= 0);
 alter table public.family_loan_plans add column if not exists monthly_interest_rate numeric(9,4) check (monthly_interest_rate is null or (monthly_interest_rate >= 0 and monthly_interest_rate <= 20));
 
 create index if not exists idx_family_loan_plans_family on public.family_loan_plans(family_id, status, first_due_date);
@@ -128,7 +130,7 @@ declare
 begin
   if auth.uid() is null then raise exception 'Oturum gerekli.'; end if;
   if not private.family_can_write(p_family_id) then raise exception 'Bu aileye kredi planı ekleme yetkin yok.'; end if;
-  if jsonb_typeof(p_plan) <> 'object' then raise exception 'Kredi planı biçimi geçersiz.'; end if;
+  if p_plan is null or jsonb_typeof(p_plan) is distinct from 'object' then raise exception 'Kredi planı biçimi geçersiz.'; end if;
 
   v_bank := left(trim(coalesce(p_plan->>'bank_name','')),80);
   v_type := p_plan->>'loan_type';
@@ -173,9 +175,11 @@ begin
   end loop;
 
   v_due_day := extract(day from v_first)::integer;
-  v_remaining := nullif(v_schedule->(v_count - 1)->>'remaining_principal','')::numeric(18,2);
+  v_remaining := nullif(p_plan->>'remaining_amount','')::numeric(18,2);
+  if v_remaining is null then v_remaining := nullif(v_schedule->(v_count - 1)->>'remaining_principal','')::numeric(18,2); end if;
   if v_remaining is null and v_has_principal then v_remaining := greatest(0, v_principal - v_sum_principal); end if;
-  if v_remaining is null then v_remaining := v_principal; end if;
+  if v_remaining is null then raise exception 'Kalan borç tutarı belgede hesaplanamadı. Kaydetmeden önce elle gir.'; end if;
+  if v_remaining < 0 or v_remaining > v_principal then raise exception 'Kalan borç tutarı anapara ile uyumlu değil.'; end if;
 
   v_debt_id := nullif(p_plan->>'debt_id','')::uuid;
   if v_debt_id is not null and v_currency <> 'TRY' then raise exception 'Mevcut aile borç kaydı yalnızca TRY kredi planıyla eşleştirilebilir.'; end if;
@@ -198,12 +202,12 @@ begin
     if not found then raise exception 'Seçilen borç bu ailede bulunamadı.'; end if;
   elsif v_currency = 'TRY' then
     insert into public.family_debts(family_id,created_by,name,creditor,debt_type,original_amount,remaining_amount,monthly_payment,annual_interest_rate,due_day,start_date,end_date,notes)
-    values(p_family_id,auth.uid(),v_bank || ' ' || v_type,v_bank,'kredi',v_principal,v_remaining,v_monthly,coalesce(v_rate,0),v_due_day,v_first,v_last,'Ödeme planı belgesi: ' || v_file)
+    values(p_family_id,auth.uid(),v_bank || ' ' || v_type,v_bank,'kredi',v_principal,v_remaining,v_monthly,coalesce(v_rate,v_monthly_rate * 12,0),v_due_day,v_first,v_last,'Ödeme planı belgesi: ' || v_file)
     returning id into v_debt_id;
   end if;
 
-  insert into public.family_loan_plans(family_id,debt_id,bank_name,loan_type,currency,principal_amount,annual_interest_rate,monthly_interest_rate,installment_count,first_due_date,last_due_date,file_name,storage_path,created_by)
-  values(p_family_id,v_debt_id,v_bank,v_type,v_currency,v_principal,v_rate,v_monthly_rate,v_count,v_first,v_last,v_file,v_path,auth.uid())
+  insert into public.family_loan_plans(family_id,debt_id,bank_name,loan_type,currency,principal_amount,remaining_amount,annual_interest_rate,monthly_interest_rate,installment_count,first_due_date,last_due_date,file_name,storage_path,created_by)
+  values(p_family_id,v_debt_id,v_bank,v_type,v_currency,v_principal,v_remaining,v_rate,v_monthly_rate,v_count,v_first,v_last,v_file,v_path,auth.uid())
   returning id into v_plan_id;
 
   for v_row in select value from jsonb_array_elements(v_schedule) loop
