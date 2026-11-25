@@ -39,6 +39,7 @@ export default function OdemelerPage() {
   const [day, setDay] = useState("1");
   const [category, setCategory] = useState("Fatura");
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
   const [settings, setSettings] = useState<ReminderSettings>({ salaryDay: "", leadDays: 3 });
   const [permission, setPermission] = useState<NotificationPermission | "unsupported">("default");
   const [saved, setSaved] = useState(false);
@@ -237,7 +238,8 @@ export default function OdemelerPage() {
         </div>)}</div>
       </section>}
 
-      {error && <p className="text-sm text-down">{error}</p>}
+      {error && <p role="alert" className="text-sm text-down">{error}</p>}
+      {notice && <p role="status" className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-muted">{notice}</p>}
       {debtsWithoutDueDate>0&&<p role="status" className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-muted">{debtsWithoutDueDate} açık borçta ödeme günü tanımlı değil. Bu borçlar için hatırlatma oluşturulamaz; Borçlar bölümünden ödeme gününü ekle.</p>}
       <section className={kart}>
         <h2 className="mb-3 font-bold">Ödeme listesi</h2>
@@ -264,7 +266,18 @@ export default function OdemelerPage() {
           const left = daysUntil(date);
           return <div key={row.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-inner p-3">
             <div><b className="text-sm">{plan?.bank_name || "Banka"} · {row.installment_no}. taksit</b><p className="text-xs text-muted">{dateLabel(date)} · {left < 0 ? Math.abs(left) + " gün gecikmiş" : left === 0 ? "Bugün" : left + " gün kaldı"}</p></div>
-            <div className="flex items-center gap-3"><b className="text-sm">{amountText}</b>{yazabilir && <button disabled={saving} onClick={async () => { if (saving) return; setSaving(true); setError(""); const { error } = await supabase.from("family_loan_installments").update({ status: "paid", paid_at: new Date().toISOString() }).eq("id", row.id).eq("family_id", aileId); if (error) setError(error.message); else await load(); setSaving(false); }} className="rounded-lg border border-line px-3 py-2 text-xs font-semibold hover:border-up hover:text-up">Ödendi</button>}</div>
+            <div className="flex items-center gap-3"><b className="text-sm">{amountText}</b>{yazabilir && <button disabled={saving} onClick={async () => {
+              if (saving) return;
+              setSaving(true); setError(""); setNotice("");
+              try {
+                const { data, error } = await supabase.rpc("mark_family_loan_installment_paid", { p_installment_id: row.id });
+                if (error) throw error;
+                if (data && data.balance_updated === false) setNotice("Taksit ödendi olarak işlendi; belgede anapara dağılımı bulunmadığı için kalan borç otomatik güncellenmedi. Bankanın güncel bakiyesini Borçlarım bölümünde kontrol et.");
+                await load();
+              } catch (e) {
+                setError(e instanceof Error ? e.message : "Taksit ödemesi kaydedilemedi.");
+              } finally { setSaving(false); }
+            }} className="rounded-lg border border-line px-3 py-2 text-xs font-semibold hover:border-up hover:text-up">{saving ? "İşleniyor..." : "Ödendi"}</button>}</div>
           </div>;
         })}</div>
       </section>}
