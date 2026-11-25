@@ -1,41 +1,71 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Plus, Target, Trash2, ArrowDownToLine, ArrowUpFromLine, History, Sparkles } from "lucide-react";
+import { Plus, Target, Trash2, ArrowDownToLine, ArrowUpFromLine, History, Sparkles, ImagePlus, X } from "lucide-react";
 import { supabase } from "../../../lib/supabase";
 import { useAile } from "../../../lib/aile-baglami";
 import { tl } from "../../../lib/finans";
 import { kart, girdi, dugme, baslik, etiket } from "../../../lib/ui";
 
-type Goal = { id:string; name:string; target_amount:number; current_amount:number; target_date:string|null };
+type Goal = { id:string; name:string; target_amount:number; current_amount:number; target_date:string|null; image_path:string|null };
 type Contribution = { id:string; goal_id:string; user_id:string; amount:number; direction:"deposit"|"withdrawal"; note:string; contribution_date:string; created_at:string };
 type FormState = { amount:string; direction:"deposit"|"withdrawal"; note:string };
 const emptyForm:FormState={amount:"",direction:"deposit",note:""};
+const MAX_PHOTO_BYTES=5*1024*1024;
+const QUOTES=[
+ {quote:"Beware of little expenses; a small leak will sink a great ship.",author:"Benjamin Franklin",source:"Poor Richard’s Almanack"},
+ {quote:"Rather go to bed supperless, than rise in debt.",author:"Benjamin Franklin",source:"Poor Richard’s Almanack"},
+ {quote:"If you would know the value of money, go and try to borrow some.",author:"Benjamin Franklin",source:"Poor Richard’s Almanack"}
+];
+
+function dailyQuote(){
+ const start=new Date(new Date().getFullYear(),0,0).getTime();
+ const today=new Date();
+ const day=Math.floor((today.getTime()-start)/86400000);
+ return QUOTES[day%QUOTES.length];
+}
 
 export default function HedeflerPage(){
  const {aileId,kullaniciId,yazabilir,yonetebilir}=useAile();
  const [rows,setRows]=useState<Goal[]>([]);
  const [contributions,setContributions]=useState<Contribution[]>([]);
  const [names,setNames]=useState<Record<string,string>>({});
+ const [imageUrls,setImageUrls]=useState<Record<string,string>>({});
  const [name,setName]=useState("");
  const [target,setTarget]=useState("");
  const [current,setCurrent]=useState("0");
  const [date,setDate]=useState("");
+ const [newPhoto,setNewPhoto]=useState<File|null>(null);
+ const [newPhotoPreview,setNewPhotoPreview]=useState("");
  const [forms,setForms]=useState<Record<string,FormState>>({});
  const [error,setError]=useState("");
  const [loading,setLoading]=useState(true);
  const [busy,setBusy]=useState("");
+ const quote=dailyQuote();
+
+ useEffect(()=>{
+  if(!newPhoto){setNewPhotoPreview("");return;}
+  const url=URL.createObjectURL(newPhoto);
+  setNewPhotoPreview(url);
+  return ()=>URL.revokeObjectURL(url);
+ },[newPhoto]);
 
  const load=useCallback(async()=>{
+  if(!aileId){setLoading(false);return;}
   setLoading(true);setError("");
   const [goalResult,contributionResult]=await Promise.all([
-   supabase.from("family_goals").select("id,name,target_amount,current_amount,target_date").eq("family_id",aileId).order("created_at",{ascending:false}),
+   supabase.from("family_goals").select("id,name,target_amount,current_amount,target_date,image_path").eq("family_id",aileId).order("created_at",{ascending:false}),
    supabase.from("family_goal_contributions").select("id,goal_id,user_id,amount,direction,note,contribution_date,created_at").eq("family_id",aileId).order("created_at",{ascending:false}).limit(300)
   ]);
   if(goalResult.error||contributionResult.error){setError(goalResult.error?.message||contributionResult.error?.message||"Veriler yüklenemedi.");setLoading(false);return;}
   const gs=(goalResult.data||[]) as Goal[];
   const cs=(contributionResult.data||[]).map((x:any)=>({...x,amount:Number(x.amount)||0})) as Contribution[];
   setRows(gs);setContributions(cs);
+  const signed=await Promise.all(gs.filter(g=>g.image_path).map(async g=>{
+   const {data,error}=await supabase.storage.from("goal-photos").createSignedUrl(g.image_path!,60*60);
+   return error||!data?null:[g.id,data.signedUrl] as const;
+  }));
+  setImageUrls(Object.fromEntries(signed.filter((x):x is readonly [string,string]=>Boolean(x))));
   const ids=Array.from(new Set(cs.map(x=>x.user_id)));
   if(ids.length){
    const {data:profiles}=await supabase.from("profiles").select("id,username").in("id",ids);
@@ -46,14 +76,60 @@ export default function HedeflerPage(){
 
  useEffect(()=>{void load();},[load]);
 
+ function validPhoto(file:File){
+  if(!["image/jpeg","image/png","image/webp"].includes(file.type)){setError("Yalnızca JPG, PNG veya WebP fotoğraf yükleyebilirsin.");return false;}
+  if(file.size>MAX_PHOTO_BYTES){setError("Fotoğraf en fazla 5 MB olabilir.");return false;}
+  setError("");return true;
+ }
+
+ async function uploadPhoto(goalId:string,file:File){
+  if(!validPhoto(file))return;
+  setBusy("photo-"+goalId);setError("");
+  const ext=file.type==="image/png"?"png":file.type==="image/webp"?"webp":"jpg";
+  const path=`${aileId}/${goalId}/${crypto.randomUUID()}.${ext}`;
+  const {error:uploadError}=await supabase.storage.from("goal-photos").upload(path,file,{contentType:file.type,upsert:false});
+  if(uploadError){setError(uploadError.message);setBusy("");return;}
+  const {data:oldGoal}=await supabase.from("family_goals").select("image_path").eq("id",goalId).eq("family_id",aileId).single();
+  const {error:updateError}=await supabase.from("family_goals").update({image_path:path}).eq("id",goalId).eq("family_id",aileId);
+  if(updateError){
+   await supabase.storage.from("goal-photos").remove([path]);
+   setError(updateError.message);setBusy("");return;
+  }
+  if(oldGoal?.image_path)await supabase.storage.from("goal-photos").remove([oldGoal.image_path]);
+  await load();setBusy("");
+ }
+
+ async function removePhoto(goal:Goal){
+  if(!goal.image_path)return;
+  if(!window.confirm("Bu hedefin fotoğrafı silinsin mi?"))return;
+  setBusy("photo-"+goal.id);setError("");
+  const {error:updateError}=await supabase.from("family_goals").update({image_path:null}).eq("id",goal.id).eq("family_id",aileId);
+  if(updateError){setError(updateError.message);setBusy("");return;}
+  const {error:removeError}=await supabase.storage.from("goal-photos").remove([goal.image_path]);
+  if(removeError)setError("Fotoğraf kaydı kaldırıldı ancak depodaki eski dosya silinemedi: "+removeError.message);
+  await load();setBusy("");
+ }
+
  async function addGoal(e:React.FormEvent){
   e.preventDefault();setError("");
   const targetAmount=Number(target),currentAmount=Number(current||0);
   if(!name.trim()||!Number.isFinite(targetAmount)||targetAmount<=0||!Number.isFinite(currentAmount)||currentAmount<0){setError("Hedef ve mevcut birikim tutarlarını kontrol et.");return;}
+  if(newPhoto&&!validPhoto(newPhoto))return;
   setBusy("new");
-  const {error}=await supabase.from("family_goals").insert({family_id:aileId,created_by:kullaniciId,name:name.trim(),target_amount:targetAmount,current_amount:currentAmount,target_date:date||null});
-  if(error)setError(error.message);else{setName("");setTarget("");setCurrent("0");setDate("");await load();}
-  setBusy("");
+  const {data:created,error}=await supabase.from("family_goals").insert({family_id:aileId,created_by:kullaniciId,name:name.trim(),target_amount:targetAmount,current_amount:currentAmount,target_date:date||null}).select("id").single();
+  if(error||!created){setError(error?.message||"Hedef oluşturulamadı.");setBusy("");return;}
+  if(newPhoto){
+   const ext=newPhoto.type==="image/png"?"png":newPhoto.type==="image/webp"?"webp":"jpg";
+   const path=`${aileId}/${created.id}/${crypto.randomUUID()}.${ext}`;
+   const {error:uploadError}=await supabase.storage.from("goal-photos").upload(path,newPhoto,{contentType:newPhoto.type,upsert:false});
+   if(uploadError)setError("Hedef oluşturuldu ancak fotoğraf yüklenemedi: "+uploadError.message);
+   else{
+    const {error:updateError}=await supabase.from("family_goals").update({image_path:path}).eq("id",created.id).eq("family_id",aileId);
+    if(updateError){await supabase.storage.from("goal-photos").remove([path]);setError("Hedef oluşturuldu ancak fotoğraf kaydedilemedi: "+updateError.message);}
+   }
+  }
+  setName("");setTarget("");setCurrent("0");setDate("");setNewPhoto(null);
+  await load();setBusy("");
  }
 
  async function addContribution(goalId:string,e:React.FormEvent){
@@ -80,7 +156,12 @@ export default function HedeflerPage(){
  if(loading)return <div className={kart+" animate-pulse"}>Birikim hedefleri yükleniyor…</div>;
 
  return <div className="space-y-5">
-  <header className="flex flex-wrap items-end justify-between gap-3"><div><p className="text-xs font-bold uppercase tracking-[.2em] text-accent">Pamuk Eller · Ortak birikim</p><h1 className={baslik}>Finansal hedefler</h1><p className="mt-2 text-sm text-muted">Aile hedefleri oluştur, kim ne kadar katkı yaptı takip et ve gerektiğinde birikimden çekim kaydet.</p></div><div className="rounded-2xl bg-accent/10 px-4 py-3"><p className="text-xs text-muted">Toplam hedef birikimi</p><b className="text-xl">{tl(totalSaved)}</b><p className="text-[11px] text-muted">{tl(totalTarget)} hedef toplamı</p></div></header>
+  <header className="flex flex-wrap items-end justify-between gap-3"><div><p className="text-xs font-bold uppercase tracking-[.2em] text-accent">Pamuk Eller · Ortak birikim</p><h1 className={baslik}>Finansal hedefler</h1><p className="mt-2 text-sm text-muted">Aile hedefleri oluştur, fotoğraf ekle, kim ne kadar katkı yaptı takip et.</p></div><div className="rounded-2xl bg-accent/10 px-4 py-3"><p className="text-xs text-muted">Toplam hedef birikimi</p><b className="text-xl">{tl(totalSaved)}</b><p className="text-[11px] text-muted">{tl(totalTarget)} hedef toplamı</p></div></header>
+  <section className="rounded-2xl border border-line bg-inner/60 p-4 sm:p-5">
+   <div className="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-accent"><Sparkles size={15}/> Günün finans sözü</div>
+   <blockquote className="text-base font-semibold leading-relaxed">“{quote.quote}”</blockquote>
+   <p className="mt-2 text-xs text-muted">{quote.author} · {quote.source} (18. yüzyıl)</p>
+  </section>
   {error&&<p role="alert" className="rounded-xl border border-down/30 bg-down/5 p-3 text-sm text-down">{error}</p>}
   <section className="grid gap-3 md:grid-cols-2">
    {rows.map(g=>{
@@ -93,7 +174,9 @@ export default function HedeflerPage(){
     const form=forms[g.id]||emptyForm;
     const history=contributions.filter(x=>x.goal_id===g.id).slice(0,5);
     return <article key={g.id} className={kart+" space-y-4"}>
+     {imageUrls[g.id]?<div className="relative overflow-hidden rounded-xl bg-inner"><img src={imageUrls[g.id]} alt={g.name+" hedef fotoğrafı"} className="h-44 w-full object-cover"/>{yazabilir&&<button type="button" disabled={busy==="photo-"+g.id} onClick={()=>removePhoto(g)} className="absolute right-2 top-2 rounded-full bg-black/65 p-2 text-white" aria-label="Hedef fotoğrafını kaldır"><X size={15}/></button>}</div>:<div className="flex h-24 items-center justify-center rounded-xl border border-dashed border-line bg-inner text-xs text-muted"><ImagePlus size={17} className="mr-2"/> Henüz hedef fotoğrafı eklenmedi</div>}
      <div className="flex items-start justify-between gap-3"><div className="flex items-center gap-2"><span className="rounded-xl bg-accent/10 p-2 text-accent"><Target size={19}/></span><div><b>{g.name}</b><p className="text-xs text-muted">{g.target_date?"Hedef tarihi: "+g.target_date:"Tarih belirlenmedi"}</p></div></div>{yonetebilir&&<button disabled={busy===g.id} onClick={()=>deleteGoal(g.id)} aria-label="Hedefi sil" className="text-muted hover:text-down"><Trash2 size={16}/></button>}</div>
+     {yazabilir&&<label className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-line px-3 py-2 text-xs font-semibold text-muted hover:bg-inner"><ImagePlus size={15}/>{busy==="photo-"+g.id?"Fotoğraf yükleniyor…":g.image_path?"Fotoğrafı değiştir":"Hedef fotoğrafı ekle"}<input type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" disabled={busy==="photo-"+g.id} onChange={e=>{const f=e.target.files?.[0];if(f)void uploadPhoto(g.id,f);e.currentTarget.value="";}}/></label>}
      <div className="flex justify-between text-sm"><span>{tl(currentAmount)} birikti</span><b>{tl(targetAmount)}</b></div>
      <div className="h-3 overflow-hidden rounded-full bg-inner"><div className="h-full rounded-full bg-accent transition-all" style={{width:pct+"%"}}/></div>
      <div className="flex justify-between text-xs text-muted"><span>%{pct.toFixed(1)} tamamlandı</span><span>Kalan: {tl(remaining)}</span></div>
@@ -115,8 +198,9 @@ export default function HedeflerPage(){
    <div><label className={etiket}>Hedef tutar (TL)</label><input required min="1" step="0.01" type="number" className={girdi} value={target} onChange={e=>setTarget(e.target.value)}/></div>
    <div><label className={etiket}>Başlangıç birikimi (TL)</label><input min="0" step="0.01" type="number" className={girdi} value={current} onChange={e=>setCurrent(e.target.value)}/></div>
    <div><label className={etiket}>Hedef tarihi</label><input type="date" className={girdi} value={date} onChange={e=>setDate(e.target.value)}/></div>
+   <div className="sm:col-span-2 space-y-2"><label className={etiket}>Hedef fotoğrafı (isteğe bağlı, en fazla 5 MB)</label><label className="flex cursor-pointer items-center gap-3 rounded-xl border border-dashed border-line p-3 text-sm text-muted"><ImagePlus size={18}/><span>{newPhoto?.name||"Fotoğraf seç (JPG, PNG, WebP)"}</span><input type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" onChange={e=>{const f=e.target.files?.[0];if(f&&validPhoto(f))setNewPhoto(f);e.currentTarget.value="";}}/></label>{newPhotoPreview&&<div className="relative w-fit"><img src={newPhotoPreview} alt="Seçilen hedef fotoğrafı" className="h-32 w-48 rounded-xl object-cover"/><button type="button" onClick={()=>setNewPhoto(null)} className="absolute right-1 top-1 rounded-full bg-black/65 p-1 text-white" aria-label="Seçilen fotoğrafı kaldır"><X size={14}/></button></div>}</div>
    <button disabled={busy==="new"} className={dugme+" sm:col-span-2"}><Plus size={16} className="mr-1 inline"/>{busy==="new"?"Oluşturuluyor…":"Hedef oluştur"}</button>
   </form>}
-  <p className="text-xs leading-5 text-muted">Katkı geçmişi aile üyelerine açıktır. Katkı ve çekim kayıtları silinemez; böylece hedef bakiyesi ve işlem geçmişi birbiriyle tutarlı kalır. Başlangıç birikimi, hedef oluşturulurken girilen açılış tutarıdır.</p>
+  <p className="text-xs leading-5 text-muted">Fotoğraflar yalnızca aile üyelerinin erişebildiği özel depoda tutulur. Katkı ve çekim kayıtları korunur; başlangıç birikimi hedef oluşturulurken girilen açılış tutarıdır. Günün sözleri Benjamin Franklin’in *Poor Richard’s Almanack* eserinden seçilmiştir.</p>
  </div>;
 }
