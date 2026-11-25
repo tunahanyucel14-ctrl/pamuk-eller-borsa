@@ -177,6 +177,7 @@ begin
   if v_remaining is null then v_remaining := v_principal; end if;
 
   v_debt_id := nullif(p_plan->>'debt_id','')::uuid;
+  if v_debt_id is not null and v_currency <> 'TRY' then raise exception 'Mevcut aile borç kaydı yalnızca TRY kredi planıyla eşleştirilebilir.'; end if;
   if v_debt_id is not null then
     update public.family_debts
       set name = v_bank || ' ' || v_type,
