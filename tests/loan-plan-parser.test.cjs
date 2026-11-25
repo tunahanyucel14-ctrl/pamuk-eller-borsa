@@ -20,6 +20,7 @@ test("kredi ödeme planında bankayı tanır ve taksitleri kronolojik sıraya di
   assert.equal(result.bank_name, "Garanti BBVA");
   assert.equal(result.loan_type, "konut");
   assert.equal(result.monthly_interest_rate, 2.89);
+  assert.equal(result.remaining_amount, 1471000);
   assert.equal(result.schedule[0].installment_no, 1);
   assert.equal(result.schedule[0].due_date, "2026-12-15");
 });
@@ -45,6 +46,7 @@ test("belgede bulunmayan banka ve para birimi için uyarı verir", () => {
   assert.equal(result.bank_name, null);
   assert.ok(result.warnings.some(x => x.includes("Banka adı")));
   assert.ok(result.warnings.some(x => x.includes("Para birimi")));
+  assert.ok(result.warnings.some(x => x.includes("Kalan borç")));
 });
 
 test("Türk lirası para birimini TRY olarak normalleştirir ve geçersiz tarihi reddeder", () => {
