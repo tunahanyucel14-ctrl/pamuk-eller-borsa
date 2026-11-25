@@ -176,9 +176,7 @@ begin
 
   v_due_day := extract(day from v_first)::integer;
   v_remaining := nullif(p_plan->>'remaining_amount','')::numeric(18,2);
-  if v_remaining is null then v_remaining := nullif(v_schedule->(v_count - 1)->>'remaining_principal','')::numeric(18,2); end if;
-  if v_remaining is null and v_has_principal then v_remaining := greatest(0, v_principal - v_sum_principal); end if;
-  if v_remaining is null then raise exception 'Kalan borç tutarı belgede hesaplanamadı. Kaydetmeden önce elle gir.'; end if;
+  if v_remaining is null then raise exception 'Güncel kalan borç tutarı belgede doğrulanamadı. Kaydetmeden önce elle gir.'; end if;
   if v_remaining < 0 or v_remaining > v_principal then raise exception 'Kalan borç tutarı anapara ile uyumlu değil.'; end if;
 
   v_debt_id := nullif(p_plan->>'debt_id','')::uuid;
