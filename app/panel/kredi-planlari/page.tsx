@@ -73,6 +73,7 @@ export default function KrediPlanlariPage() {
   const [savedPlans, setSavedPlans] = useState<SavedPlan[]>([]);
   const [expandedPlanId, setExpandedPlanId] = useState("");
   const [expandedInstallments, setExpandedInstallments] = useState<SavedInstallment[]>([]);
+  const [savingInstallmentId, setSavingInstallmentId] = useState("");
   const [existingDebtId, setExistingDebtId] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -256,6 +257,24 @@ export default function KrediPlanlariPage() {
     setExpandedPlanId(planId);
   }
 
+  async function markSavedInstallmentPaid(row: SavedInstallment, planId: string) {
+    if (savingInstallmentId) return;
+    setSavingInstallmentId(row.id); setError(""); setSuccess("");
+    try {
+      const { data, error } = await supabase.rpc("mark_family_loan_installment_paid", { p_installment_id: row.id });
+      if (error) throw error;
+      if (data && data.balance_updated === false) setError("Taksit ödendi olarak işlendi; anapara dağılımı belgede olmadığı için kalan borç otomatik güncellenmedi.");
+      const { data: refreshed, error: refreshError } = await supabase.from("family_loan_installments")
+        .select("id,installment_no,due_date,installment_amount,principal_amount,interest_amount,fees_amount,remaining_principal,status,paid_at")
+        .eq("family_id", aileId).eq("plan_id", planId).order("installment_no").limit(600);
+      if (refreshError) throw refreshError;
+      setExpandedInstallments((refreshed || []) as SavedInstallment[]);
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Taksit ödemesi kaydedilemedi.");
+    } finally { setSavingInstallmentId(""); }
+  }
+
   async function cancelPlan() {
     if (busy) return;
     setBusy(true);
@@ -318,7 +337,7 @@ export default function KrediPlanlariPage() {
           <div className="text-right"><b className="text-sm">{formatAmount(Number(p.principal_amount),p.currency)}</b><p className="text-xs text-muted">Kalan: {formatAmount(Number(p.remaining_amount),p.currency)}</p><p className="text-xs text-accent">{expandedPlanId===p.id?"Tabloyu gizle":"Ay ay ödeme tablosunu aç"}</p></div>
         </button>
         {expandedPlanId===p.id && <div className="mt-3 max-h-[420px] overflow-auto rounded-xl border border-line bg-card">
-          <table className="w-full min-w-[650px] text-xs"><thead className="sticky top-0 bg-inner"><tr className="text-left text-muted"><th className="p-2">Taksit</th><th className="p-2">Vade tarihi</th><th className="p-2 text-right">Taksit tutarı</th><th className="p-2 text-right">Anapara</th><th className="p-2 text-right">Faiz</th><th className="p-2 text-right">Kalan anapara</th><th className="p-2">Durum</th></tr></thead><tbody>{expandedInstallments.map(row=><tr key={row.id} className="border-t border-line/70"><td className="p-2">{row.installment_no}</td><td className="p-2">{row.due_date}</td><td className="p-2 text-right font-semibold">{formatAmount(Number(row.installment_amount),p.currency)}</td><td className="p-2 text-right">{row.principal_amount===null?"—":formatAmount(Number(row.principal_amount),p.currency)}</td><td className="p-2 text-right">{row.interest_amount===null?"—":formatAmount(Number(row.interest_amount),p.currency)}</td><td className="p-2 text-right">{row.remaining_principal===null?"—":formatAmount(Number(row.remaining_principal),p.currency)}</td><td className="p-2">{row.status==="paid"?"Ödendi":row.status==="skipped"?"Atlandı":"Bekliyor"}</td></tr>)}</tbody></table>
+          <table className="w-full min-w-[650px] text-xs"><thead className="sticky top-0 bg-inner"><tr className="text-left text-muted"><th className="p-2">Taksit</th><th className="p-2">Vade tarihi</th><th className="p-2 text-right">Taksit tutarı</th><th className="p-2 text-right">Anapara</th><th className="p-2 text-right">Faiz</th><th className="p-2 text-right">Kalan anapara</th><th className="p-2">Durum</th></tr></thead><tbody>{expandedInstallments.map(row=><tr key={row.id} className="border-t border-line/70"><td className="p-2">{row.installment_no}</td><td className="p-2">{row.due_date}</td><td className="p-2 text-right font-semibold">{formatAmount(Number(row.installment_amount),p.currency)}</td><td className="p-2 text-right">{row.principal_amount===null?"—":formatAmount(Number(row.principal_amount),p.currency)}</td><td className="p-2 text-right">{row.interest_amount===null?"—":formatAmount(Number(row.interest_amount),p.currency)}</td><td className="p-2 text-right">{row.remaining_principal===null?"—":formatAmount(Number(row.remaining_principal),p.currency)}</td><td className="p-2"><div className="flex items-center gap-2"><span>{row.status==="paid"?"Ödendi":row.status==="skipped"?"Atlandı":"Bekliyor"}</span>{row.status==="pending" && yazabilir && <button type="button" disabled={Boolean(savingInstallmentId)} onClick={()=>void markSavedInstallmentPaid(row,p.id)} className="rounded-md border border-line px-2 py-1 font-semibold hover:border-up hover:text-up">{savingInstallmentId===row.id?"İşleniyor":"Ödendi"}</button>}</div></td></tr>)}</tbody></table>
         </div>}
       </article>)}</div>}
     </section>
