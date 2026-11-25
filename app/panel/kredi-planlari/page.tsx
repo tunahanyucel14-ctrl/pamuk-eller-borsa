@@ -170,7 +170,7 @@ export default function KrediPlanlariPage() {
   function updatePlan<K extends keyof LoanPlan>(key: K, value: LoanPlan[K]) {
     setPlan(current => current ? { ...current, [key]: value } : current);
   }
-  function updateInstallment(index: number, key: keyof Installment, value: string) {
+  function updateInstallment<K extends keyof Installment>(index: number, key: K, value: Installment[K]) {
     setPlan(current => current ? {
       ...current,
       schedule: current.schedule.map((row, i) => i === index ? { ...row, [key]: value } : row)
@@ -313,7 +313,7 @@ export default function KrediPlanlariPage() {
       <div className="grid gap-3 sm:grid-cols-2">
         <div><label className={etiket}>Banka adı</label><input className={girdi} value={plan.bank_name} onChange={e=>updatePlan("bank_name",e.target.value)} placeholder="Örn. Garanti BBVA"/></div>
         <div><label className={etiket}>Kredi türü</label><select className={girdi} value={plan.loan_type} onChange={e=>updatePlan("loan_type",e.target.value as LoanPlan["loan_type"])}>{TYPES.map(x=><option key={x.value} value={x.value}>{x.label}</option>)}</select></div>
-        <div><label className={etiket}>Para birimi</label><select className={girdi} value={plan.currency} onChange={e=>updatePlan("currency",e.target.value)}><option value="">Para birimi seç</option>{["TRY","USD","EUR","GBP","CHF"].map(x=><option key={x} value={x}>{x}</option>)}</select></div>
+        <div><label className={etiket}>Para birimi</label><select className={girdi} value={plan.currency} onChange={e=>updatePlan("currency",e.target.value)}><option value="">Para birimi seç</option>{plan.currency && !["TRY","USD","EUR","GBP","CHF"].includes(plan.currency) && <option value={plan.currency}>{plan.currency}</option>}{["TRY","USD","EUR","GBP","CHF"].map(x=><option key={x} value={x}>{x}</option>)}</select></div>
         <div><label className={etiket}>İlk kredi anaparası</label><input className={girdi} inputMode="decimal" value={plan.principal_amount} onChange={e=>updatePlan("principal_amount",e.target.value)} placeholder="Örn. 1.500.000"/></div>
         <div><label className={etiket}>Güncel kalan borç (zorunlu)</label><input className={girdi} inputMode="decimal" value={plan.remaining_amount} onChange={e=>updatePlan("remaining_amount",e.target.value)} placeholder="Belgede yoksa elle gir"/></div>
         <div><label className={etiket}>Aylık nominal faiz (%)</label><input className={girdi} inputMode="decimal" value={plan.monthly_interest_rate} onChange={e=>updatePlan("monthly_interest_rate",e.target.value)} placeholder="Belgede varsa"/></div>
