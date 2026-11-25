@@ -33,8 +33,10 @@ function hesapla(anapara: number, vade: number, teklif: Teklif): Sonuc {
   const toplamTaksit = taksit * vade;
   const tahsis = anapara * Math.max(0, sayi(teklif.tahsis) || 0) / 100;
   const sigorta = Math.max(0, sayi(teklif.sigorta) || 0);
-  const vergi = (toplamTaksit - anapara) - (aylik === nominal ? 0 : (toplamTaksit - anapara) * nominal / Math.max(aylik, 0.0000001) * (bsmv + kkdf));
-  return { taksit, faiz: toplamTaksit - anapara, vergi: Math.max(0, vergi), masraf: tahsis + sigorta, toplam: toplamTaksit + tahsis + sigorta, oran: aylik };
+  const toplamFinansmanMaliyeti = toplamTaksit - anapara;
+  const vergi = toplamFinansmanMaliyeti * (bsmv + kkdf) / (1 + bsmv + kkdf);
+  const faiz = toplamFinansmanMaliyeti - vergi;
+  return { taksit, faiz, vergi, masraf: tahsis + sigorta, toplam: toplamTaksit + tahsis + sigorta, oran: aylik };
 }
 
 export default function KrediHesaplamaPage() {
