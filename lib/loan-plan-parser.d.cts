@@ -5,7 +5,7 @@ export type LoanInstallment = {
 };
 export type NormalizedLoanPlan = {
   bank_name: string | null; loan_type: "konut" | "ihtiyac" | "tasit" | "ticari" | "diger";
-  currency: string; principal_amount: number | null; annual_interest_rate: number | null;
+  currency: string; principal_amount: number | null; remaining_amount: number | null; annual_interest_rate: number | null;
   monthly_interest_rate: number | null; installment_count: number; first_due_date: string;
   schedule: LoanInstallment[]; warnings: string[]; skipped_rows: number;
 };
