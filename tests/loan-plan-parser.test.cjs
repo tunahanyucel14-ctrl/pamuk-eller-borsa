@@ -85,3 +85,11 @@ test("güncel kalan anapara ilk anaparadan büyükse reddeder", () => {
     schedule: [{ installment_no: 1, due_date: "2026-12-01", installment_amount: 5000 }]
   }), /ilk kredi anaparasından büyük olamaz/);
 });
+
+test("geçersiz faiz oranlarını reddeder", () => {
+  assert.throws(() => normalizeLoanPlan({
+    bank_name: "Akbank", loan_type: "ihtiyac", currency: "TRY",
+    principal_amount: 100000, annual_interest_rate: 201,
+    schedule: [{ installment_no: 1, due_date: "2026-12-01", installment_amount: 5000 }]
+  }), /faiz oranı geçerli aralıkta değil/);
+});
