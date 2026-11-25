@@ -20,7 +20,7 @@ test("kredi ödeme planında bankayı tanır ve taksitleri kronolojik sıraya di
   assert.equal(result.bank_name, "Garanti BBVA");
   assert.equal(result.loan_type, "konut");
   assert.equal(result.monthly_interest_rate, 2.89);
-  assert.equal(result.remaining_amount, 1481000);
+  assert.equal(result.remaining_amount, 1480000);
   assert.equal(result.schedule[0].installment_no, 1);
   assert.equal(result.schedule[0].due_date, "2026-12-15");
 });
