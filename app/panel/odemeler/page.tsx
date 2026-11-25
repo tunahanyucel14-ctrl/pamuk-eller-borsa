@@ -26,6 +26,7 @@ function daysUntil(date: Date) {
   return Math.round((date.getTime() - today.getTime()) / 86400000);
 }
 function dateLabel(date: Date) { return date.toLocaleDateString("tr-TR", { day: "numeric", month: "long" }); }
+function loanCurrency(row: LoanInstallment) { const plan = Array.isArray(row.family_loan_plans) ? row.family_loan_plans[0] : row.family_loan_plans; return plan?.currency || "TRY"; }
 
 export default function OdemelerPage() {
   const { aileId, kullaniciId, yazabilir, yonetebilir } = useAile();
@@ -81,7 +82,7 @@ export default function OdemelerPage() {
   const linkedDebtIds = new Set(loanPlanLinks.map(row => row.debt_id).filter((id): id is string => Boolean(id)));
   const unplannedDebtMonthly = debts.filter(row => Number(row.remaining_amount) > 0 && !linkedDebtIds.has(row.id)).reduce((sum, row) => sum + Number(row.monthly_payment), 0);
   const monthKey = new Date().getFullYear() + "-" + String(new Date().getMonth() + 1).padStart(2, "0");
-  const scheduledLoanMonthly = loanInstallments.filter(row => row.due_date.slice(0, 7) === monthKey).reduce((sum, row) => sum + Number(row.installment_amount), 0);
+  const scheduledLoanMonthly = loanInstallments.filter(row => row.due_date.slice(0, 7) === monthKey && loanCurrency(row) === "TRY").reduce((sum, row) => sum + Number(row.installment_amount), 0);
   const total = rows.reduce((sum, row) => sum + Number(row.amount), 0) + unplannedDebtMonthly + scheduledLoanMonthly;
   const debtsWithoutDueDate=debts.filter(row=>Number(row.remaining_amount)>0&&Number(row.monthly_payment)>0&&!row.due_day&&!linkedDebtIds.has(row.id)).length;
   const billEvents = rows.map(row => ({ title: row.name, detail: tl(Number(row.amount)), date: dateForDay(row.due_day), kind: "bill" as const }));
