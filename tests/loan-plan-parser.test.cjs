@@ -1,6 +1,6 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { normalizeLoanPlan } = require("../lib/loan-plan-parser.cjs");
+const { normalizeLoanPlan, validDate } = require("../lib/loan-plan-parser.cjs");
 
 test("kredi ödeme planında bankayı tanır ve taksitleri kronolojik sıraya dizer", () => {
   const result = normalizeLoanPlan({
@@ -42,4 +42,18 @@ test("belgede bulunmayan banka ve para birimi için uyarı verir", () => {
   assert.equal(result.bank_name, null);
   assert.ok(result.warnings.some(x => x.includes("Banka adı")));
   assert.ok(result.warnings.some(x => x.includes("Para birimi")));
+});
+
+test("Türk lirası para birimini TRY olarak normalleştirir ve geçersiz tarihi reddeder", () => {
+  const result = normalizeLoanPlan({
+    bank_name: "Akbank",
+    loan_type: "ihtiyaç kredisi",
+    currency: "TL",
+    principal_amount: 50000,
+    schedule: [{ installment_no: 1, due_date: "2026-12-10", installment_amount: 5000 }]
+  });
+  assert.equal(result.currency, "TRY");
+  assert.equal(result.loan_type, "ihtiyac");
+  assert.equal(validDate("2026-02-29"), false);
+  assert.equal(validDate("2026-12-10"), true);
 });
