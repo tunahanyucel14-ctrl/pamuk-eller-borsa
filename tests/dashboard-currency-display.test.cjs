@@ -35,3 +35,17 @@ test("debt extra budget is allocated once across the snowball order", () => {
   assert.match(healthSource, /extraLeft -= payment/);
   assert.doesNotMatch(healthSource, /monthly_payment\)\|\|0\) \+ extra/);
 });
+
+test("dashboard paginates monthly transactions instead of silently stopping at 1000", () => {
+  assert.match(source, /\.range\(0, 999\)/);
+  assert.match(source, /transactionRows\.length === 1000/);
+  assert.match(source, /transactionRows = transactionRows\.concat\(rows\)/);
+  assert.match(source, /transactionPaginationError/);
+});
+
+test("net worth subtracts family debt from TRY account balances only", () => {
+  assert.match(source, /from\("family_debts"\)\.select\("remaining_amount"\)/);
+  assert.match(source, /const netVarlik = toplamVarlik - toplamBorc/);
+  assert.match(source, /title="Tahmini net varlık \(TL\)"/);
+  assert.match(source, /döviz hariç/);
+});
