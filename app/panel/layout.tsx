@@ -30,6 +30,7 @@ const MENU = [
   { href: "/panel/butce-limitleri", ad: "Kategori Bütçeleri", icon: Gauge },
   { href: "/panel/borclar", ad: "Borçlarım", icon: CreditCard },
   { href: "/panel/kredi-hesaplama", ad: "Kredi Hesaplama", icon: Calculator },
+  { href: "/panel/kredi-planlari", ad: "Kredi Planlarım", icon: FileUp },
   { href: "/panel/odemeler", ad: "Ödemeler", icon: Receipt },
   { href: "/panel/abonelikler", ad: "Aboneliklerim", icon: Repeat },
   { href: "/panel/hedefler", ad: "Hedefler", icon: Target },
