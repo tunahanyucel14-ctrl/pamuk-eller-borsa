@@ -223,6 +223,7 @@ export default function KrediPlanlariPage() {
         loan_type: plan.loan_type,
         currency: plan.currency,
         principal_amount: principal,
+        remaining_amount: remaining,
         annual_interest_rate: annualRate,
         monthly_interest_rate: monthlyRate,
         installment_count: schedule.length,
@@ -292,7 +293,8 @@ export default function KrediPlanlariPage() {
         <div><label className={etiket}>Banka adı</label><input className={girdi} value={plan.bank_name} onChange={e=>updatePlan("bank_name",e.target.value)} placeholder="Örn. Garanti BBVA"/></div>
         <div><label className={etiket}>Kredi türü</label><select className={girdi} value={plan.loan_type} onChange={e=>updatePlan("loan_type",e.target.value as LoanPlan["loan_type"])}>{TYPES.map(x=><option key={x.value} value={x.value}>{x.label}</option>)}</select></div>
         <div><label className={etiket}>Para birimi</label><select className={girdi} value={plan.currency} onChange={e=>updatePlan("currency",e.target.value)}><option value="">Para birimi seç</option>{["TRY","USD","EUR","GBP","CHF"].map(x=><option key={x} value={x}>{x}</option>)}</select></div>
-        <div><label className={etiket}>İlk kredi anaparası</label><input className={girdi} inputMode="decimal" value={plan.principal_amount} onChange={e=>updatePlan("principal_amount",e.target.value)} placeholder="Örn. 1.500.000"/></div>\n        <div><label className={etiket}>Güncel kalan borç</label><input className={girdi} inputMode="decimal" value={plan.remaining_amount} onChange={e=>updatePlan("remaining_amount",e.target.value)} placeholder="Belgede yoksa elle gir"/></div>
+        <div><label className={etiket}>İlk kredi anaparası</label><input className={girdi} inputMode="decimal" value={plan.principal_amount} onChange={e=>updatePlan("principal_amount",e.target.value)} placeholder="Örn. 1.500.000"/></div>
+        <div><label className={etiket}>Güncel kalan borç</label><input className={girdi} inputMode="decimal" value={plan.remaining_amount} onChange={e=>updatePlan("remaining_amount",e.target.value)} placeholder="Belgede yoksa elle gir"/></div>
         <div><label className={etiket}>Aylık nominal faiz (%)</label><input className={girdi} inputMode="decimal" value={plan.monthly_interest_rate} onChange={e=>updatePlan("monthly_interest_rate",e.target.value)} placeholder="Belgede varsa"/></div>
         <div><label className={etiket}>Yıllık nominal faiz (%)</label><input className={girdi} inputMode="decimal" value={plan.annual_interest_rate} onChange={e=>updatePlan("annual_interest_rate",e.target.value)} placeholder="Belgede varsa"/></div>
       </div>
@@ -313,7 +315,7 @@ export default function KrediPlanlariPage() {
       {savedPlans.length === 0 ? <p className="text-sm text-muted">Henüz onaylanmış kredi ödeme planı yok.</p> : <div className="space-y-2">{savedPlans.map(p=><article key={p.id} className="rounded-xl bg-inner p-3">
         <button type="button" onClick={()=>void toggleSavedPlan(p.id)} className="flex w-full flex-wrap items-center justify-between gap-3 text-left">
           <div><b className="text-sm">{p.bank_name} · {TYPES.find(x=>x.value===p.loan_type)?.label || "Kredi"}</b><p className="mt-1 text-xs text-muted">{p.installment_count} taksit · {p.first_due_date} – {p.last_due_date}</p></div>
-          <div className="text-right"><b className="text-sm">{formatAmount(Number(p.principal_amount),p.currency)}</b><p className="text-xs text-accent">{expandedPlanId===p.id?"Tabloyu gizle":"Ay ay ödeme tablosunu aç"}</p></div>
+          <div className="text-right"><b className="text-sm">{formatAmount(Number(p.principal_amount),p.currency)}</b><p className="text-xs text-muted">Kalan: {formatAmount(Number(p.remaining_amount),p.currency)}</p><p className="text-xs text-accent">{expandedPlanId===p.id?"Tabloyu gizle":"Ay ay ödeme tablosunu aç"}</p></div>
         </button>
         {expandedPlanId===p.id && <div className="mt-3 max-h-[420px] overflow-auto rounded-xl border border-line bg-card">
           <table className="w-full min-w-[650px] text-xs"><thead className="sticky top-0 bg-inner"><tr className="text-left text-muted"><th className="p-2">Taksit</th><th className="p-2">Vade tarihi</th><th className="p-2 text-right">Taksit tutarı</th><th className="p-2 text-right">Anapara</th><th className="p-2 text-right">Faiz</th><th className="p-2 text-right">Kalan anapara</th><th className="p-2">Durum</th></tr></thead><tbody>{expandedInstallments.map(row=><tr key={row.id} className="border-t border-line/70"><td className="p-2">{row.installment_no}</td><td className="p-2">{row.due_date}</td><td className="p-2 text-right font-semibold">{formatAmount(Number(row.installment_amount),p.currency)}</td><td className="p-2 text-right">{row.principal_amount===null?"—":formatAmount(Number(row.principal_amount),p.currency)}</td><td className="p-2 text-right">{row.interest_amount===null?"—":formatAmount(Number(row.interest_amount),p.currency)}</td><td className="p-2 text-right">{row.remaining_principal===null?"—":formatAmount(Number(row.remaining_principal),p.currency)}</td><td className="p-2">{row.status==="paid"?"Ödendi":row.status==="skipped"?"Atlandı":"Bekliyor"}</td></tr>)}</tbody></table>
