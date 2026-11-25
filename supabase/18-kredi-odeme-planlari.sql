@@ -24,6 +24,7 @@ create table if not exists public.family_loan_plans (
 );
 
 alter table public.family_loan_plans add column if not exists remaining_amount numeric(18,2) check (remaining_amount is null or remaining_amount >= 0);
+alter table public.family_loan_plans alter column remaining_amount set not null;
 alter table public.family_loan_plans add column if not exists monthly_interest_rate numeric(9,4) check (monthly_interest_rate is null or (monthly_interest_rate >= 0 and monthly_interest_rate <= 20));
 
 create index if not exists idx_family_loan_plans_family on public.family_loan_plans(family_id, status, first_due_date);
