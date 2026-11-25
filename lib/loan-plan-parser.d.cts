@@ -1,5 +1,5 @@
 export type LoanInstallment = {
-  installment_no: number; due_date: string; installment_amount: number;
+  installment_no: number; due_date: string; installment_amount: number; status: "pending" | "paid";
   principal_amount: number | null; interest_amount: number | null;
   fees_amount: number | null; remaining_principal: number | null;
 };
