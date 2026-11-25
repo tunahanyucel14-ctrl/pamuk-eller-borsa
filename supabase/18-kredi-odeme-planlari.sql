@@ -210,6 +210,7 @@ begin
   returning id into v_plan_id;
 
   for v_row in select value from jsonb_array_elements(v_schedule) loop
+    v_installment_status := coalesce(v_row->>'status','pending');
     insert into public.family_loan_installments(family_id,plan_id,installment_no,due_date,installment_amount,status,principal_amount,interest_amount,fees_amount,remaining_principal,paid_at)
     values(
       p_family_id,v_plan_id,(v_row->>'installment_no')::integer,(v_row->>'due_date')::date,
