@@ -232,10 +232,34 @@ grant execute on function public.save_family_loan_plan(uuid,jsonb) to authentica
 
 
 -- A taksidini ödendi olarak işaretle; kalan anaparayı aynı işlemde güncelle.
+-- Plan bakiyesi değiştiğinde aynı TRY borç kaydını güvenli biçimde eşitle.
+create or replace function private.sync_family_loan_debt_balance()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  if new.debt_id is not null and new.currency = 'TRY' then
+    update public.family_debts
+       set remaining_amount = new.remaining_amount,
+           updated_at = now()
+     where id = new.debt_id and family_id = new.family_id;
+    if not found then raise exception 'Bağlı kredi borcu bulunamadı; bakiye değişikliği geri alındı.'; end if;
+  end if;
+  return new;
+end;
+$$;
+revoke all on function private.sync_family_loan_debt_balance() from public, anon, authenticated;
+drop trigger if exists sync_family_loan_debt_balance on public.family_loan_plans;
+create trigger sync_family_loan_debt_balance
+after update of remaining_amount on public.family_loan_plans
+for each row execute function private.sync_family_loan_debt_balance();
+
 create or replace function public.mark_family_loan_installment_paid(p_installment_id uuid)
 returns jsonb
 language plpgsql
-security definer
+security invoker
 set search_path = ''
 as $$
 declare
@@ -296,12 +320,6 @@ begin
      where id = v_plan_id and family_id = v_family_id;
     if not found then raise exception 'Kredi planı güncellenemedi.'; end if;
 
-    if v_debt_id is not null and v_currency = 'TRY' then
-      update public.family_debts
-         set remaining_amount = v_new_remaining, updated_at = now()
-       where id = v_debt_id and family_id = v_family_id;
-      if not found then raise exception 'Bağlı kredi borcu güncellenemedi. Taksit durumu değiştirilmedi.'; end if;
-    end if;
   end if;
 
   return jsonb_build_object(
