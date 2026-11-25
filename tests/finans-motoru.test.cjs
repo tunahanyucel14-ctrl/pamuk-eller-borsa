@@ -57,3 +57,25 @@ test("invalid or non-positive ledger amounts are rejected", () => {
     [{ account_id: "a", kind: "gider", amount: 0 }]
   ), /greater than zero/);
 });
+
+test("credit card liabilities are deducted from cash and investment assets", () => {
+  const result = calculateNetWorth({
+    accountBalances: [{ currency: "TRY", balance: 80000 }],
+    assets: [{ currency: "TRY", market_value: 120000 }],
+    debts: [{ currency: "TRY", remaining_amount: 35000 }],
+  });
+  assert.deepEqual(result.TRY, { cash: 80000, assets: 120000, liabilities: 35000, netWorth: 165000 });
+});
+
+test("negative account balances are preserved as overdraft liabilities", () => {
+  const result = calculateNetWorth({
+    accountBalances: [{ currency: "TRY", balance: -5000 }],
+    debts: [{ currency: "TRY", remaining_amount: 10000 }],
+  });
+  assert.deepEqual(result.TRY, { cash: -5000, assets: 0, liabilities: 10000, netWorth: -15000 });
+});
+
+test("negative asset values and negative debt balances are rejected", () => {
+  assert.throws(() => calculateNetWorth({ assets: [{ currency: "TRY", market_value: -1 }] }), /cannot be negative/);
+  assert.throws(() => calculateNetWorth({ debts: [{ currency: "TRY", remaining_amount: -1 }] }), /cannot be negative/);
+});
