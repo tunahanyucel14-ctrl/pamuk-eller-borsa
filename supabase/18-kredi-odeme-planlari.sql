@@ -135,11 +135,11 @@ begin
   v_path := nullif(p_plan->>'storage_path','');
 
   if v_bank = '' then raise exception 'Banka adı gerekli.'; end if;
-  if v_type not in ('konut','ihtiyac','tasit','ticari','diger') then raise exception 'Kredi türü geçersiz.'; end if;
+  if v_type is null or v_type not in ('konut','ihtiyac','tasit','ticari','diger') then raise exception 'Kredi türü geçersiz.'; end if;
   if v_currency !~ '^[A-Z]{3}$' then raise exception 'Para birimi kodu geçersiz.'; end if;
-  if v_principal <= 0 then raise exception 'Kredi anaparası sıfırdan büyük olmalı.'; end if;
+  if v_principal is null or v_principal <= 0 then raise exception 'Kredi anaparası sıfırdan büyük olmalı.'; end if;
   if v_rate is not null and (v_rate < 0 or v_rate > 200) then raise exception 'Yıllık faiz oranı geçersiz.'; end if;
-  if jsonb_typeof(v_schedule) <> 'array' then raise exception 'Aylık ödeme tablosu bulunamadı.'; end if;
+  if v_schedule is null or jsonb_typeof(v_schedule) is distinct from 'array' then raise exception 'Aylık ödeme tablosu bulunamadı.'; end if;
   v_count := jsonb_array_length(v_schedule);
   if v_count < 1 or v_count > 600 then raise exception 'Ödeme tablosu 1–600 taksit içermeli.'; end if;
   if v_path is not null and (length(v_path) > 320 or split_part(v_path,'/',1) <> auth.uid()::text) then raise exception 'Belge yolu kullanıcıya ait değil.'; end if;
@@ -153,9 +153,9 @@ begin
     v_interest := nullif(v_row->>'interest_amount','')::numeric(18,2);
     v_fees := nullif(v_row->>'fees_amount','')::numeric(18,2);
     v_remaining_part := nullif(v_row->>'remaining_principal','')::numeric(18,2);
-    if v_no <> v_index then raise exception 'Taksit numaraları 1’den başlayarak sıralı olmalı.'; end if;
+    if v_no is null or v_due is null or v_amount is null or v_no <> v_index then raise exception 'Taksit numaraları 1’den başlayarak sıralı olmalı.'; end if;
     if v_amount <= 0 then raise exception '% numaralı taksit tutarı geçersiz.',v_no; end if;
-    if v_principal_part is null then v_has_principal := false; else v_sum_principal := v_sum_principal + v_principal_part; end if;
+    if v_principal_part is null then v_has_principal := false; else if v_principal_part < 0 then raise exception '% numaralı taksitin anapara payı negatif olamaz.',v_no; end if; v_sum_principal := v_sum_principal + v_principal_part; end if;\n    if v_interest is not null and v_interest < 0 then raise exception '% numaralı taksitin faiz payı negatif olamaz.',v_no; end if;\n    if v_fees is not null and v_fees < 0 then raise exception '% numaralı taksitin masrafı negatif olamaz.',v_no; end if;\n    if v_remaining_part is not null and v_remaining_part < 0 then raise exception '% numaralı taksitin kalan anaparası negatif olamaz.',v_no; end if;
     if v_index = 1 then v_first := v_due; v_monthly := v_amount; end if;
     if v_previous is not null and v_due <= v_previous then raise exception 'Taksit tarihleri artan sırada olmalı.'; end if;
     v_previous := v_due;
