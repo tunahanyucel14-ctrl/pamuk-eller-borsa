@@ -77,3 +77,11 @@ test("son taksit sonrası kalan anaparayı güncel borç diye kullanmaz", () => 
   assert.equal(result.remaining_amount, null);
   assert.ok(result.warnings.some(x => x.includes("Kalan borç")));
 });
+
+test("güncel kalan anapara ilk anaparadan büyükse reddeder", () => {
+  assert.throws(() => normalizeLoanPlan({
+    bank_name: "Akbank", loan_type: "ihtiyac", currency: "TRY",
+    principal_amount: 100000, remaining_amount: 110000,
+    schedule: [{ installment_no: 1, due_date: "2026-12-01", installment_amount: 5000 }]
+  }), /ilk kredi anaparasından büyük olamaz/);
+});
