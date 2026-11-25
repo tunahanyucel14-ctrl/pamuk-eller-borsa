@@ -18,7 +18,7 @@ type LoanPlan = {
 };
 type ExistingDebt = { id: string; name: string; creditor: string; created_by: string };
 type SavedPlan = {
-  id: string; bank_name: string; loan_type: string; currency: string;
+  id: string; debt_id: string | null; bank_name: string; loan_type: string; currency: string;
   principal_amount: number; installment_count: number; first_due_date: string; last_due_date: string; status: string;
 };
 type UploadRef = { path: string; mimeType: string };
@@ -78,7 +78,7 @@ export default function KrediPlanlariPage() {
   const load = useCallback(async () => {
     const [debtResult, planResult] = await Promise.all([
       supabase.from("family_debts").select("id,name,creditor,created_by").eq("family_id", aileId).eq("debt_type", "kredi").order("created_at", { ascending: false }),
-      supabase.from("family_loan_plans").select("id,bank_name,loan_type,currency,principal_amount,installment_count,first_due_date,last_due_date,status").eq("family_id", aileId).order("created_at", { ascending: false })
+      supabase.from("family_loan_plans").select("id,debt_id,bank_name,loan_type,currency,principal_amount,installment_count,first_due_date,last_due_date,status").eq("family_id", aileId).order("created_at", { ascending: false })
     ]);
     if (debtResult.error || planResult.error) {
       setError((debtResult.error || planResult.error)?.message || "Kredi kayıtları yüklenemedi.");
@@ -236,6 +236,8 @@ export default function KrediPlanlariPage() {
     } finally { setBusy(false); }
   }
 
+  const availableDebts = debts.filter(debt => !savedPlans.some(saved => saved.debt_id === debt.id));
+
   async function cancelPlan() {
     if (busy) return;
     setBusy(true);
@@ -277,7 +279,7 @@ export default function KrediPlanlariPage() {
         <div><label className={etiket}>Aylık nominal faiz (%)</label><input className={girdi} inputMode="decimal" value={plan.monthly_interest_rate} onChange={e=>updatePlan("monthly_interest_rate",e.target.value)} placeholder="Belgede varsa"/></div>
         <div><label className={etiket}>Yıllık nominal faiz (%)</label><input className={girdi} inputMode="decimal" value={plan.annual_interest_rate} onChange={e=>updatePlan("annual_interest_rate",e.target.value)} placeholder="Belgede varsa"/></div>
       </div>
-      {plan.currency === "TRY" && debts.length > 0 && <div><label className={etiket}>Mevcut kredi borcuyla eşleştir (isteğe bağlı)</label><select className={girdi} value={existingDebtId} onChange={e=>setExistingDebtId(e.target.value)}><option value="">Yeni kredi borcu oluştur</option>{debts.map(d=><option key={d.id} value={d.id}>{d.creditor || d.name} · {d.name}</option>)}</select><p className="mt-1 text-xs text-muted">Mevcut kayıt seçilirse borç bilgileri yeni planla güncellenir; seçilmezse yeni bir borç kaydı açılır.</p></div>}
+      {plan.currency === "TRY" && availableDebts.length > 0 && <div><label className={etiket}>Mevcut kredi borcuyla eşleştir (isteğe bağlı)</label><select className={girdi} value={existingDebtId} onChange={e=>setExistingDebtId(e.target.value)}><option value="">Yeni kredi borcu oluştur</option>{availableDebts.map(d=><option key={d.id} value={d.id}>{d.creditor || d.name} · {d.name}</option>)}</select><p className="mt-1 text-xs text-muted">Mevcut kayıt seçilirse borç bilgileri yeni planla güncellenir; seçilmezse yeni bir borç kaydı açılır.</p></div>}
       <div className="flex flex-wrap items-center justify-between gap-2"><h3 className="font-bold">Aylık taksit tablosu</h3><span className="text-xs text-muted">Tutarlar belgeye göre düzenlenebilir</span></div>
       <div className="max-h-[520px] overflow-auto rounded-xl border border-line">
         <table className="w-full min-w-[840px] text-xs">
