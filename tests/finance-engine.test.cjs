@@ -90,3 +90,26 @@ test("debt payoff flags zero-budget plans and validates inputs", () => {
   assert.throws(() => engine.simulateDebtPayoff(debt, -1), RangeError);
   assert.throws(() => engine.simulateDebtPayoff([{ ...debt[0], annualRatePercent: -1 }]), RangeError);
 });
+
+
+test("early principal repayment reduces remaining interest and includes fees", () => {
+  const result = engine.calculateEarlyRepayment(500000, 36, 48, 50000, 1000);
+  assert.ok(result.revisedInterest < result.originalInterest);
+  assert.ok(result.revisedMonthlyPayment < engine.calculateMonthlyPayment(500000, 36, 48));
+  assert.equal(result.totalBenefit, Number((result.interestSaved - 1000).toFixed(2)));
+  assert.equal(result.revisedSchedule.at(-1).closingBalance, 0);
+});
+
+test("refinance comparison includes fees and identifies a cheaper offer", () => {
+  const result = engine.compareRefinance(500000, 42, 48, 24, 48, 5000);
+  assert.equal(result.worthwhile, true);
+  assert.ok(result.totalSavings > 0);
+  assert.ok(result.newMonthlyPayment < result.currentMonthlyPayment);
+  const expensive = engine.compareRefinance(500000, 24, 48, 42, 48, 5000);
+  assert.equal(expensive.worthwhile, false);
+});
+
+test("early repayment and refinance reject invalid terms", () => {
+  assert.throws(() => engine.calculateEarlyRepayment(100000, 12, 12, 100000), RangeError);
+  assert.throws(() => engine.compareRefinance(100000, 12, 0, 10, 12), RangeError);
+});
