@@ -44,3 +44,16 @@ test("debt-to-income ratio handles zero income without division by zero", () => 
   assert.equal(engine.calculateDebtToIncomeRatio(12000, 40000), 30);
   assert.equal(engine.calculateDebtToIncomeRatio(12000, 0), null);
 });
+
+
+test("final installment clears rounding residue on long high-rate schedules", () => {
+  const principal = 3787218.52;
+  const annualRatePercent = 40.0256;
+  const months = 236;
+  const regularPayment = engine.calculateMonthlyPayment(principal, annualRatePercent, months);
+  const rows = engine.buildAmortizationSchedule(principal, annualRatePercent, months);
+  assert.equal(rows.length, months);
+  assert.equal(rows.at(-1).closingBalance, 0);
+  assert.ok(rows.at(-1).payment >= regularPayment);
+  assert.equal(Number(rows.reduce((sum, row) => sum + row.principal, 0).toFixed(2)), principal);
+});
