@@ -54,7 +54,15 @@ export default function KrediHesaplamaPage() {
   const [vade, setVade] = useState("120");
   const [teklifler, setTeklifler] = useState<Teklif[]>([ilkTeklif("Banka A"), ilkTeklif("Banka B")]);
   const [aktif, setAktif] = useState(0);
-  const [tabloAcik, setTabloAcik] = useState(false);\n  const [kalanAnapara, setKalanAnapara] = useState("500000");\n  const [mevcutFaiz, setMevcutFaiz] = useState("36");\n  const [kalanVade, setKalanVade] = useState("48");\n  const [araOdeme, setAraOdeme] = useState("50000");\n  const [erkenMasraf, setErkenMasraf] = useState("0");\n  const [yeniFaiz, setYeniFaiz] = useState("24");\n  const [yeniVade, setYeniVade] = useState("48");\n  const [yapilandirmaMasraf, setYapilandirmaMasraf] = useState("5000");
+  const [tabloAcik, setTabloAcik] = useState(false);
+  const [kalanAnapara, setKalanAnapara] = useState("500000");
+  const [mevcutFaiz, setMevcutFaiz] = useState("36");
+  const [kalanVade, setKalanVade] = useState("48");
+  const [araOdeme, setAraOdeme] = useState("50000");
+  const [erkenMasraf, setErkenMasraf] = useState("0");
+  const [yeniFaiz, setYeniFaiz] = useState("24");
+  const [yeniVade, setYeniVade] = useState("48");
+  const [yapilandirmaMasraf, setYapilandirmaMasraf] = useState("5000");
   const anapara = sayi(tutar);
   const ay = Number(vade);
   const temelGecerli = Number.isFinite(anapara) && anapara > 0 && Number.isInteger(ay) && ay > 0 && ay <= 240;
