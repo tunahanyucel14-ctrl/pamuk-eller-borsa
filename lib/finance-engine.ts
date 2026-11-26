@@ -89,3 +89,74 @@ export function calculateDebtToIncomeRatio(
   if (!Number.isFinite(monthlyIncome) || monthlyIncome <= 0) return null;
   return roundMoney((monthlyDebtPayments / monthlyIncome) * 100);
 }
+
+
+export type DebtPayoffInput = {
+  id: string;
+  name: string;
+  balance: number;
+  monthlyPayment: number;
+  annualRatePercent: number;
+};
+export type DebtPayoffStrategy = "avalanche" | "snowball";
+export type DebtPayoffResult = { months: number; interest: number; paid: number; stuck: boolean; strategy: DebtPayoffStrategy };
+
+/** Simulates a fixed monthly debt budget, rolling freed minimum payments into the next target debt. */
+export function simulateDebtPayoff(
+  debts: DebtPayoffInput[],
+  extraMonthlyBudget = 0,
+  strategy: DebtPayoffStrategy = "avalanche",
+  maxMonths = 600,
+): DebtPayoffResult {
+  if (!Number.isFinite(extraMonthlyBudget) || extraMonthlyBudget < 0) throw new RangeError("Extra monthly budget must be finite and non-negative.");
+  if (!Number.isInteger(maxMonths) || maxMonths <= 0) throw new RangeError("Maximum months must be a positive integer.");
+  if (strategy !== "avalanche" && strategy !== "snowball") throw new RangeError("Unknown debt payoff strategy.");
+
+  const balances = debts.map((debt) => {
+    for (const [value, name] of [[debt.balance, "Balance"], [debt.monthlyPayment, "Monthly payment"], [debt.annualRatePercent, "Annual rate"]] as const) {
+      if (!Number.isFinite(value) || value < 0) throw new RangeError(`${name} must be finite and non-negative.`);
+    }
+    return { id: debt.id, balance: roundMoney(debt.balance), monthlyPayment: roundMoney(debt.monthlyPayment), annualRatePercent: debt.annualRatePercent };
+  }).filter((debt) => debt.balance > 0);
+
+  const minimums = roundMoney(balances.reduce((sum, debt) => sum + debt.monthlyPayment, 0));
+  const monthlyBudget = roundMoney(minimums + extraMonthlyBudget);
+  const result = (months: number, interest: number, paid: number, stuck: boolean): DebtPayoffResult => ({
+    months, interest: roundMoney(interest), paid: roundMoney(paid), stuck, strategy,
+  });
+  if (!balances.length) return result(0, 0, 0, false);
+  if (monthlyBudget <= 0) return result(0, 0, 0, true);
+
+  let interestTotal = 0;
+  let paidTotal = 0;
+  for (let month = 1; month <= maxMonths; month += 1) {
+    for (const debt of balances) {
+      if (debt.balance <= 0) continue;
+      const interest = roundMoney(debt.balance * debt.annualRatePercent / 1200);
+      debt.balance = roundMoney(debt.balance + interest);
+      interestTotal = roundMoney(interestTotal + interest);
+    }
+    let spent = 0;
+    for (const debt of balances) {
+      if (debt.balance <= 0 || debt.monthlyPayment <= 0) continue;
+      const payment = roundMoney(Math.min(debt.balance, debt.monthlyPayment));
+      debt.balance = roundMoney(Math.max(0, debt.balance - payment));
+      spent = roundMoney(spent + payment);
+      paidTotal = roundMoney(paidTotal + payment);
+    }
+    let remainingBudget = roundMoney(Math.max(0, monthlyBudget - spent));
+    const priority = [...balances].sort((a, b) => strategy === "snowball"
+      ? a.balance - b.balance || a.annualRatePercent - b.annualRatePercent
+      : b.annualRatePercent - a.annualRatePercent || a.balance - b.balance);
+    for (const debt of priority) {
+      if (remainingBudget <= 0) break;
+      if (debt.balance <= 0) continue;
+      const payment = roundMoney(Math.min(debt.balance, remainingBudget));
+      debt.balance = roundMoney(Math.max(0, debt.balance - payment));
+      remainingBudget = roundMoney(Math.max(0, remainingBudget - payment));
+      paidTotal = roundMoney(paidTotal + payment);
+    }
+    if (balances.every((debt) => debt.balance <= 0)) return result(month, interestTotal, paidTotal, false);
+  }
+  return result(maxMonths, interestTotal, paidTotal, true);
+}
