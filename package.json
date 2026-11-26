@@ -19,7 +19,7 @@
     "lucide-react": "^0.468.0",
     "exceljs-hardened": "^5.1.0",
     "tesseract.js": "^6.0.1",
-    "pdfjs-dist": "^5.4.394"
+    "pdfjs-dist": "^6.2.108"
   },
   "devDependencies": {
     "typescript": "^5.9.0",
