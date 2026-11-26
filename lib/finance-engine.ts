@@ -160,3 +160,87 @@ export function simulateDebtPayoff(
   }
   return result(maxMonths, interestTotal, paidTotal, true);
 }
+
+
+export type EarlyRepaymentResult = {
+  originalInterest: number;
+  revisedInterest: number;
+  interestSaved: number;
+  revisedMonthlyPayment: number;
+  totalBenefit: number;
+  revisedSchedule: AmortizationRow[];
+};
+
+/** Recalculates installments after an immediate principal prepayment, keeping the remaining term. */
+export function calculateEarlyRepayment(
+  remainingPrincipal: number,
+  annualRatePercent: number,
+  remainingMonths: number,
+  extraPrincipalPayment: number,
+  fees = 0,
+): EarlyRepaymentResult {
+  assertFinitePositive(remainingPrincipal, "Remaining principal");
+  if (!Number.isFinite(annualRatePercent) || annualRatePercent < 0) throw new RangeError("Annual rate must be non-negative.");
+  if (!Number.isInteger(remainingMonths) || remainingMonths <= 0) throw new RangeError("Remaining months must be a positive integer.");
+  if (!Number.isFinite(extraPrincipalPayment) || extraPrincipalPayment < 0 || extraPrincipalPayment >= remainingPrincipal) throw new RangeError("Extra payment must be non-negative and lower than the remaining principal.");
+  if (!Number.isFinite(fees) || fees < 0) throw new RangeError("Fees must be non-negative.");
+  const originalSchedule = buildAmortizationSchedule(remainingPrincipal, annualRatePercent, remainingMonths);
+  const revisedPrincipal = roundMoney(remainingPrincipal - extraPrincipalPayment);
+  const revisedSchedule = buildAmortizationSchedule(revisedPrincipal, annualRatePercent, remainingMonths);
+  const originalInterest = roundMoney(originalSchedule.reduce((sum, row) => sum + row.interest, 0));
+  const revisedInterest = roundMoney(revisedSchedule.reduce((sum, row) => sum + row.interest, 0));
+  const interestSaved = roundMoney(originalInterest - revisedInterest);
+  return {
+    originalInterest,
+    revisedInterest,
+    interestSaved,
+    revisedMonthlyPayment: revisedSchedule[0]?.payment ?? 0,
+    totalBenefit: roundMoney(interestSaved - fees),
+    revisedSchedule,
+  };
+}
+
+export type RefinanceComparison = {
+  currentMonthlyPayment: number;
+  newMonthlyPayment: number;
+  currentTotalRemaining: number;
+  newTotalWithFees: number;
+  monthlyDifference: number;
+  totalSavings: number;
+  worthwhile: boolean;
+};
+
+/** Compares refinancing against the remaining current schedule, including user-entered one-off fees. */
+export function compareRefinance(
+  remainingPrincipal: number,
+  currentAnnualRatePercent: number,
+  remainingMonths: number,
+  newAnnualRatePercent: number,
+  newMonths: number,
+  oneOffFees = 0,
+): RefinanceComparison {
+  assertFinitePositive(remainingPrincipal, "Remaining principal");
+  if (!Number.isFinite(currentAnnualRatePercent) || currentAnnualRatePercent < 0 || !Number.isFinite(newAnnualRatePercent) || newAnnualRatePercent < 0) {
+    throw new RangeError("Interest rates must be finite and non-negative.");
+  }
+  if (!Number.isInteger(remainingMonths) || remainingMonths <= 0 || !Number.isInteger(newMonths) || newMonths <= 0) {
+    throw new RangeError("Loan terms must be positive integers.");
+  }
+  if (!Number.isFinite(oneOffFees) || oneOffFees < 0) throw new RangeError("One-off fees must be non-negative.");
+  const currentSchedule = buildAmortizationSchedule(remainingPrincipal, currentAnnualRatePercent, remainingMonths);
+  const newSchedule = buildAmortizationSchedule(remainingPrincipal, newAnnualRatePercent, newMonths);
+  const currentTotalRemaining = roundMoney(currentSchedule.reduce((sum, row) => sum + row.payment, 0));
+  const newTotalWithFees = roundMoney(newSchedule.reduce((sum, row) => sum + row.payment, 0) + oneOffFees);
+  const currentMonthlyPayment = currentSchedule[0]?.payment ?? 0;
+  const newMonthlyPayment = newSchedule[0]?.payment ?? 0;
+  const totalSavings = roundMoney(currentTotalRemaining - newTotalWithFees);
+  return {
+    currentMonthlyPayment,
+    newMonthlyPayment,
+    currentTotalRemaining,
+    newTotalWithFees,
+    monthlyDifference: roundMoney(currentMonthlyPayment - newMonthlyPayment),
+    totalSavings,
+    worthwhile: totalSavings > 0,
+  };
+}
