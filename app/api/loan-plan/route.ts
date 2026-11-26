@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { postAiRequest } from "@/lib/ai-gateway";
 import { normalizeLoanPlan } from "@/lib/loan-plan-parser.cjs";
+import { readJsonLimited } from "@/lib/limited-json-body.cjs";
 
 export const runtime = "nodejs";
 export const maxDuration = 55;
@@ -69,7 +70,6 @@ const schema = {
 export async function POST(request: Request) {
   const token = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "").trim();
   if (!token || token.length > 4096) return NextResponse.json({ error: "Giriş yapman gerekiyor." }, { status: 401 });
-  if (Number(request.headers.get("content-length") || 0) > 16000) return NextResponse.json({ error: "İstek çok büyük." }, { status: 413 });
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://tdwoqankjznioxnupsvn.supabase.co";
   const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "sb_publishable_wFIqSF7Jg2pW2Wu_n_od9g_DrHCTtRj";
   const auth = await fetch(supabaseUrl + "/auth/v1/user", {
@@ -79,7 +79,14 @@ export async function POST(request: Request) {
   const user = await auth.json().catch(() => null) as { id?: string } | null;
   if (!user?.id) return NextResponse.json({ error: "Kullanıcı doğrulanamadı." }, { status: 401 });
 
-  const payload = await request.json().catch(() => null);
+  const body = await readJsonLimited(request, 16_000);
+  if (!body.ok) {
+    return NextResponse.json(
+      { error: body.tooLarge ? "İstek çok büyük." : "İstek gövdesi geçerli JSON değil." },
+      { status: body.tooLarge ? 413 : 400 }
+    );
+  }
+  const payload = body.value;
   const files = payload && typeof payload === "object" && Array.isArray((payload as { files?: unknown }).files) ? (payload as { files: unknown[] }).files : [];
   if (!files.length || files.length > 5) return NextResponse.json({ error: "Bir PDF veya en fazla 5 görsel yükleyebilirsin." }, { status: 400 });
   const loaded: { bytes: Buffer; mime: string; path: string }[] = [];
