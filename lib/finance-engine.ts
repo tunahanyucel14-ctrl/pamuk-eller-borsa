@@ -61,7 +61,9 @@ export function buildAmortizationSchedule(
   for (let period = 1; period <= months && balance > 0; period += 1) {
     const openingBalance = balance;
     const interest = roundMoney(openingBalance * monthlyRate);
-    const payment = roundMoney(Math.min(regularPayment, openingBalance + interest));
+    const payment = period === months
+      ? roundMoney(openingBalance + interest)
+      : roundMoney(Math.min(regularPayment, openingBalance + interest));
     const principalPaid = roundMoney(Math.min(openingBalance, payment - interest));
     balance = roundMoney(Math.max(0, openingBalance - principalPaid));
     rows.push({
