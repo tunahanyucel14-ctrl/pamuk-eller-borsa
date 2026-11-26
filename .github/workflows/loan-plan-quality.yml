@@ -4,6 +4,7 @@ on:
   pull_request:
     branches:
       - feature/kredi-hesaplama-merkezi
+      - feature/loan-plan-upload-analysis
   push:
     branches:
       - feature/loan-plan-upload-analysis
