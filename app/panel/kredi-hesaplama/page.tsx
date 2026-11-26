@@ -3,11 +3,12 @@
 import { useMemo, useState } from "react";
 import { Calculator, Home, CarFront, Wallet, ArrowDownUp, Info, TrendingDown } from "lucide-react";
 import { tl } from "../../../lib/finans";
+import { buildAmortizationSchedule, calculateMonthlyPayment, type AmortizationRow } from "../../../lib/finance-engine";
 import { kart, girdi, etiket, baslik } from "../../../lib/ui";
 
 type KrediTuru = "konut" | "ihtiyac" | "tasit" | "borc";
 type Teklif = { banka: string; aylikFaiz: string; tahsis: string; sigorta: string; bsmv: string; kkdf: string };
-type Sonuc = { taksit: number; faiz: number; vergi: number; masraf: number; toplam: number; oran: number };
+type Sonuc = { taksit: number; faiz: number; vergi: number; masraf: number; toplam: number; oran: number; schedule: AmortizationRow[] };
 
 const TURLER: { id: KrediTuru; ad: string; aciklama: string; ikon: typeof Home; vade: number }[] = [
   { id: "konut", ad: "Konut", aciklama: "Ev finansmanı", ikon: Home, vade: 120 },
@@ -33,14 +34,17 @@ function hesapla(anapara: number, vade: number, teklif: Teklif): Sonuc {
   const bsmv = Math.max(0, sayi(teklif.bsmv) || 0) / 100;
   const kkdf = Math.max(0, sayi(teklif.kkdf) || 0) / 100;
   const aylik = nominal * (1 + bsmv + kkdf);
-  const taksit = aylik === 0 ? anapara / vade : anapara * aylik / (1 - Math.pow(1 + aylik, -vade));
-  const toplamTaksit = taksit * vade;
+  // Finance engine accepts an annual nominal percentage; convert the effective monthly rate.
+  const annualRatePercent = aylik * 1200;
+  const schedule = buildAmortizationSchedule(anapara, annualRatePercent, vade);
+  const taksit = calculateMonthlyPayment(anapara, annualRatePercent, vade);
+  const toplamTaksit = schedule.reduce((sum, row) => sum + row.payment, 0);
   const tahsis = anapara * Math.max(0, sayi(teklif.tahsis) || 0) / 100;
   const sigorta = Math.max(0, sayi(teklif.sigorta) || 0);
   const toplamFinansmanMaliyeti = toplamTaksit - anapara;
   const vergi = toplamFinansmanMaliyeti * (bsmv + kkdf) / (1 + bsmv + kkdf);
   const faiz = toplamFinansmanMaliyeti - vergi;
-  return { taksit, faiz, vergi, masraf: tahsis + sigorta, toplam: toplamTaksit + tahsis + sigorta, oran: aylik };
+  return { taksit, faiz, vergi, masraf: tahsis + sigorta, toplam: toplamTaksit + tahsis + sigorta, oran: aylik, schedule };
 }
 
 export default function KrediHesaplamaPage() {
@@ -54,21 +58,23 @@ export default function KrediHesaplamaPage() {
   const ay = Number(vade);
   const temelGecerli = Number.isFinite(anapara) && anapara > 0 && Number.isInteger(ay) && ay > 0 && ay <= 240;
   const gecerli = temelGecerli && teklifler.every(teklifGecerli);
-  const sonuclar = useMemo(() => teklifler.map((t) => hesapla(anapara, ay, t)), [anapara, ay, teklifler]);
+  const sonuclar = useMemo(
+    () => temelGecerli && teklifler.every(teklifGecerli) ? teklifler.map((t) => hesapla(anapara, ay, t)) : [],
+    [temelGecerli, anapara, ay, teklifler]
+  );
   const guncelle = (index: number, alan: keyof Teklif, deger: string) => setTeklifler((onceki) => onceki.map((t, i) => i === index ? { ...t, [alan]: deger } : t));
   const seciliTur = TURLER.find((x) => x.id === tur)!;
   const seciliSonuc = sonuclar[aktif];
   const taksitler = useMemo(() => {
     if (!gecerli || !seciliSonuc) return [];
-    let bakiye = anapara;
-    const faizOrani = seciliSonuc.oran;
-    return Array.from({ length: Math.min(ay, 240) }, (_, i) => {
-      const faiz = bakiye * faizOrani;
-      const anaparaPayi = Math.min(bakiye, Math.max(0, seciliSonuc.taksit - faiz));
-      bakiye = Math.max(0, bakiye - anaparaPayi);
-      return { ay: i + 1, taksit: anaparaPayi + faiz, anapara: anaparaPayi, faiz, bakiye };
-    });
-  }, [gecerli, seciliSonuc, anapara, ay]);
+    return seciliSonuc.schedule.map((row) => ({
+      ay: row.period,
+      taksit: row.payment,
+      anapara: row.principal,
+      faiz: row.interest,
+      bakiye: row.closingBalance
+    }));
+  }, [gecerli, seciliSonuc]);
 
   return <div className="space-y-5">
     <header><p className="text-xs font-bold uppercase tracking-widest text-accent">Finansman laboratuvarı</p><h1 className={baslik}>Kredi Hesaplama Merkezi</h1><p className="mt-1 text-sm text-muted">Konut, ihtiyaç, taşıt ve borç transferi kredilerini hesapla; banka tekliflerini aynı koşullarda karşılaştır.</p></header>
