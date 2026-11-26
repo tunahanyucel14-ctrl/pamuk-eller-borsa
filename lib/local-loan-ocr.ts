@@ -132,8 +132,9 @@ async function readPdf(file: File, worker: Awaited<ReturnType<typeof createWorke
   const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
   pdfjs.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.mjs`;
   const bytes = new Uint8Array(await file.arrayBuffer());
-  const pdf = await pdfjs.getDocument({ data: bytes }).promise;
-  if (pdf.numPages > 30) throw new Error("PDF en fazla 30 sayfa olabilir. Belgeyi bölerek tekrar yükle.");
+  const loadingTask = pdfjs.getDocument({ data: bytes });
+  const pdf = await loadingTask.promise;
+  if (pdf.numPages > 30) { await loadingTask.destroy(); throw new Error("PDF en fazla 30 sayfa olabilir. Belgeyi bölerek tekrar yükle."); }
   const extracted: string[] = [];
   for (let pageNo = 1; pageNo <= pdf.numPages; pageNo++) {
     onProgress?.({ status: `PDF sayfası okunuyor (${pageNo}/${pdf.numPages})`, progress: pageNo / pdf.numPages });
@@ -155,7 +156,7 @@ async function readPdf(file: File, worker: Awaited<ReturnType<typeof createWorke
       canvas.width = 0; canvas.height = 0;
     }
   }
-  await pdf.destroy();
+  await loadingTask.destroy();
   return extracted.join("\n");
 }
 
