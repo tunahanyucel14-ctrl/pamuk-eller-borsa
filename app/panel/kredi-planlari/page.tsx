@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import { FileUp, FileText, ShieldCheck, AlertTriangle, CheckCircle2, Trash2, Save, CalendarClock, Landmark } from "lucide-react";
 import { supabase } from "../../../lib/supabase";
 import { useAile } from "../../../lib/aile-baglami";
@@ -300,10 +301,9 @@ export default function KrediPlanlariPage() {
   }
 
   return <div className="space-y-5">
-    <header>
-      <p className="text-xs font-bold uppercase tracking-widest text-accent">Belge zekâsı</p>
-      <h1 className={baslik}>Kredi Planlarım</h1>
-      <p className="text-sm text-muted">Belgeni cihazında OCR ile oku, ödeme satırlarını tabloya aktar ve kaydetmeden önce kontrol et. İstersen EVREN analizini ayrıca seçebilirsin.</p>
+    <header className="flex flex-wrap items-end justify-between gap-3">
+      <div><p className="text-xs font-bold uppercase tracking-widest text-accent">Belge zekâsı</p><h1 className={baslik}>Kredi Planlarım</h1><p className="text-sm text-muted">Belgeni cihazında OCR ile oku, ödeme satırlarını tabloya aktar ve kaydetmeden önce kontrol et. İstersen EVREN analizini ayrıca seçebilirsin.</p></div>
+      <Link href="/panel/kredi-merkezi" className="rounded-xl border border-line px-3 py-2 text-xs font-bold hover:border-accent">Kredi Merkezi</Link>
     </header>
 
     <section className={kart + " space-y-3"}>
