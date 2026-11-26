@@ -31,7 +31,7 @@ test("amortization schedule clears the balance and reconciles principal", () => 
   assert.equal(rows.length, 12);
   assert.equal(rows.at(-1).closingBalance, 0);
   assert.equal(Number(rows.reduce((sum, row) => sum + row.principal, 0).toFixed(2)), 100000);
-  assert.ok(rows.every((row) => row.payment === row.interest + row.principal));
+  assert.ok(rows.every((row) => Math.round((row.interest + row.principal) * 100) / 100 === row.payment));
 });
 
 test("invalid loan terms are rejected", () => {
