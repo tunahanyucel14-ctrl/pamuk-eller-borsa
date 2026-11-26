@@ -33,10 +33,12 @@ export default function FinansalSaglikPage() {
     async function load() {
       setLoading(true); setError("");
       const now = new Date();
+      // Son üç tamamlanmış takvim ayını kullan; içinde bulunulan ayın kısmi verisini ortalamaya katma.
       const start = new Date(now.getFullYear(), now.getMonth() - 3, 1);
+      const end = new Date(now.getFullYear(), now.getMonth(), 1);
       const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
       const [tx, balances, debtRows, billRows] = await Promise.all([
-        supabase.from("fin_transactions").select("kind,amount,tx_date,account_id").eq("family_id", aileId).gte("tx_date", iso(start)).lt("tx_date", iso(new Date(now.getFullYear(), now.getMonth()+1, 1))).in("kind", ["gelir","gider"]),
+        supabase.from("fin_transactions").select("kind,amount,tx_date,account_id").eq("family_id", aileId).gte("tx_date", iso(start)).lt("tx_date", iso(end)).in("kind", ["gelir","gider"]),
         supabase.from("account_balances").select("account_id,balance,currency").eq("family_id", aileId),
         supabase.from("family_debts").select("id,name,remaining_amount,monthly_payment,due_day").eq("family_id", aileId),
         supabase.from("family_bills").select("id,name,amount,due_day,active").eq("family_id", aileId).eq("active", true)
@@ -116,12 +118,36 @@ export default function FinansalSaglikPage() {
     const afterShock = cash - shockAmount;
     const extra = Math.max(0, Number(extraPayment) || 0);
     const ranked = [...debts].filter(d => Number(d.remaining_amount) > 0).sort((a,b) => Number(a.remaining_amount)-Number(b.remaining_amount));
-    const payoff = ranked.map(d => {
-      const balance = Math.max(0, Number(d.remaining_amount)||0);
-      const payment = Math.max(0, Number(d.monthly_payment)||0) + extra;
-      return { ...d, balance, months: payment > 0 ? Math.ceil(balance/payment) : null };
-    });
-    return { shockAmount, afterShock, extra, payoff };
+    const payoff = ranked.map(d => ({
+      ...d,
+      balance: Math.max(0, Number(d.remaining_amount)||0),
+    }));
+    // Ek bütçe tüm borçlara ayrı ayrı eklenmez; her ay yalnızca bir kez
+    // oluşturulur ve küçük bakiyeden başlayarak sırayla dağıtılır.
+    const simulated = payoff.map(d => ({
+      id: d.id,
+      balance: d.balance,
+      installment: Math.max(0, Number(d.monthly_payment)||0),
+    }));
+    let payoffMonths: number | null = simulated.length ? null : 0;
+    for (let month = 1; month <= 600 && simulated.some(d => d.balance > 0.01); month++) {
+      for (const debt of simulated) {
+        debt.balance = Math.max(0, debt.balance - Math.min(debt.balance, debt.installment));
+      }
+      let extraLeft = extra;
+      for (const debt of simulated) {
+        if (extraLeft <= 0) break;
+        const payment = Math.min(debt.balance, extraLeft);
+        debt.balance -= payment;
+        extraLeft -= payment;
+      }
+      if (simulated.every(d => d.balance <= 0.01)) {
+        payoffMonths = month;
+        break;
+      }
+      if (simulated.every(d => d.installment <= 0) && extra <= 0) break;
+    }
+    return { shockAmount, afterShock, extra, payoff, payoffMonths };
   }, [cash, debts, shock, extraPayment]);
 
   const scoreLabel=metrics.score>=80?"Güçlü":metrics.score>=60?"Dengeli":metrics.score>=40?"Geliştirilebilir":"Yakından takip edilmeli";
@@ -148,7 +174,7 @@ export default function FinansalSaglikPage() {
       <p className="mt-3 text-xs leading-5 text-muted">Bu gösterge yalnızca TL hesap bakiyelerini kullanır; döviz bakiyelerini kur çevrimi olmadan TL'ye eklemez. Üç aylık hedef, son üç aylık kayıtların aylık gider ortalamasından hesaplanır.</p>
     </section>
     <section className={kart}><div className="mb-4 flex items-center gap-2"><Activity className="text-accent" size={20}/><div><h2 className="font-bold">90 günlük nakit akışı görünümü</h2><p className="text-xs text-muted">Mevcut bakiye + geçmiş üç aylık ortalama net akışın doğrusal uzatımı</p></div></div><div className="grid gap-3 sm:grid-cols-3">{projection.map(x=><div key={x.days} className="rounded-2xl bg-inner p-4"><p className="text-xs text-muted">{x.days} gün sonra tahmini bakiye</p><b className={"mt-2 block text-xl "+(x.balance>=0?"text-up":"text-down")}>{tl(x.balance)}</b><p className="mt-1 text-[11px] text-muted">{x.balance<0?"Bu varsayımda nakit açığı oluşabilir.":"Bu varsayımda bakiye pozitif kalıyor."}</p></div>)}</div><p className="mt-4 text-xs leading-5 text-muted">Bu tahmin; maaş günü, gelecekteki tek seferlik harcamalar, faiz, enflasyon ve ödeme tarihlerini henüz modellemez. Finansal karar öncesi Gelecek Planı bölümünde kendi varsayımlarını düzenle.</p></section>
-    <section className={kart}><div className="mb-4 flex items-center gap-2"><AlertTriangle className="text-accent" size={20}/><div><h2 className="font-bold">Finansal karar laboratuvarı</h2><p className="text-xs text-muted">Beklenmedik gider ve borç kapatma senaryolarını mevcut kayıtlarınla dene.</p></div></div><div className="grid gap-4 md:grid-cols-2"><div className="rounded-2xl bg-inner p-4"><label className="text-sm font-semibold" htmlFor="shockAmount">Beklenmedik masraf (TL)</label><input id="shockAmount" type="number" min="0" step="500" value={shock} onChange={e=>setShock(e.target.value)} className="mt-2 w-full rounded-xl border border-line bg-panel px-3 py-2"/><p className="mt-3 text-xs text-muted">Masraf sonrası hesap bakiyesi</p><b className={"mt-1 block text-2xl "+(decision.afterShock<0?"text-down":"text-up")}>{tl(decision.afterShock)}</b><p className="mt-1 text-xs text-muted">{decision.afterShock<0?"Bu şok mevcut bakiyeyi aşar; "+tl(Math.abs(decision.afterShock))+" tutarında açık oluşur.":"Bu varsayımda bakiye pozitif kalır."}</p></div><div className="rounded-2xl bg-inner p-4"><label className="text-sm font-semibold" htmlFor="extraPayment">Borçlara ek aylık ödeme (TL)</label><input id="extraPayment" type="number" min="0" step="500" value={extraPayment} onChange={e=>setExtraPayment(e.target.value)} className="mt-2 w-full rounded-xl border border-line bg-panel px-3 py-2"/><p className="mt-3 text-xs text-muted">Ek ödeme senaryosu</p><b className="mt-1 block text-2xl">{tl(decision.extra)}</b><p className="mt-1 text-xs text-muted">Aşağıdaki yaklaşık kapanış süreleri, faiz ve masraflar hariç basit bölme hesabıdır.</p></div></div><div className="mt-4"><h3 className="mb-2 text-sm font-bold">Küçük borçtan başlayarak kapatma sırası</h3>{decision.payoff.length===0?<p className="text-sm text-muted">Karşılaştırmak için kayıtlı kalan borç bulunamadı.</p>:<div className="space-y-2">{decision.payoff.map((d,i)=><div key={d.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-line p-3"><div><p className="text-sm font-semibold">{i+1}. {d.name}</p><p className="text-xs text-muted">Kalan: {tl(d.balance)} · Mevcut taksit: {tl(Number(d.monthly_payment)||0)}</p></div><div className="text-right"><b className="text-sm">{d.months===null?"Taksit girilmemiş":d.months+" ay (ek ödeme dahil)"}</b><p className="text-[11px] text-muted">Faiz hariç yaklaşık süre</p></div></div>)}</div>}<p className="mt-3 text-xs leading-5 text-muted">Bu liste kartopu yaklaşımıdır: küçük bakiyeli borç önce gelir. Borç kayıtlarında faiz oranı ve erken kapama ücreti bulunmadığından faiz açısından en ucuz sıra olduğu söylenemez. Ek ödeme tutarı her borcun taksidine ayrı ayrı eklenerek gösterilen süreyi hesaplar; gerçek ödeme planı değildir.</p></div></section>
+    <section className={kart}><div className="mb-4 flex items-center gap-2"><AlertTriangle className="text-accent" size={20}/><div><h2 className="font-bold">Finansal karar laboratuvarı</h2><p className="text-xs text-muted">Beklenmedik gider ve borç kapatma senaryolarını mevcut kayıtlarınla dene.</p></div></div><div className="grid gap-4 md:grid-cols-2"><div className="rounded-2xl bg-inner p-4"><label className="text-sm font-semibold" htmlFor="shockAmount">Beklenmedik masraf (TL)</label><input id="shockAmount" type="number" min="0" step="500" value={shock} onChange={e=>setShock(e.target.value)} className="mt-2 w-full rounded-xl border border-line bg-panel px-3 py-2"/><p className="mt-3 text-xs text-muted">Masraf sonrası hesap bakiyesi</p><b className={"mt-1 block text-2xl "+(decision.afterShock<0?"text-down":"text-up")}>{tl(decision.afterShock)}</b><p className="mt-1 text-xs text-muted">{decision.afterShock<0?"Bu şok mevcut bakiyeyi aşar; "+tl(Math.abs(decision.afterShock))+" tutarında açık oluşur.":"Bu varsayımda bakiye pozitif kalır."}</p></div><div className="rounded-2xl bg-inner p-4"><label className="text-sm font-semibold" htmlFor="extraPayment">Borçlara ek aylık ödeme (TL)</label><input id="extraPayment" type="number" min="0" step="500" value={extraPayment} onChange={e=>setExtraPayment(e.target.value)} className="mt-2 w-full rounded-xl border border-line bg-panel px-3 py-2"/><p className="mt-3 text-xs text-muted">Ek ödeme senaryosu</p><b className="mt-1 block text-2xl">{tl(decision.extra)}</b><p className="mt-1 text-xs text-muted">Aşağıdaki yaklaşık kapanış süreleri, faiz ve masraflar hariç basit bölme hesabıdır.</p></div></div><div className="mt-4"><h3 className="mb-2 text-sm font-bold">Küçük borçtan başlayarak kapatma sırası</h3><p className="mb-3 text-sm text-muted">{decision.payoffMonths===null?"Bu taksit ve ek bütçeyle 600 ay içinde kapanış hesaplanamadı.":decision.payoffMonths===0?"Kapatılacak borç bulunmuyor.":`Ek bütçe tüm borçlara birer birer eklenmeden, ayda yalnızca bir kez dağıtıldığında tahmini toplam kapanış: ${decision.payoffMonths} ay.`}</p>{decision.payoff.length===0?<p className="text-sm text-muted">Karşılaştırmak için kayıtlı kalan borç bulunamadı.</p>:<div className="space-y-2">{decision.payoff.map((d,i)=><div key={d.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-line p-3"><div><p className="text-sm font-semibold">{i+1}. {d.name}</p><p className="text-xs text-muted">Kalan: {tl(d.balance)} · Mevcut taksit: {tl(Number(d.monthly_payment)||0)}</p></div><div className="text-right"><b className="text-sm">{i+1}. sırada</b><p className="text-[11px] text-muted">Ek ödeme bu sıraya göre dağıtılır</p></div></div>)}</div>}<p className="mt-3 text-xs leading-5 text-muted">Bu liste kartopu yaklaşımıdır: küçük bakiyeli borç önce gelir. Ek bütçe ayda yalnızca bir kez kullanılır ve sırayla dağıtılır. Tahmin faiz, vergi, ücret, değişken faiz, erken kapama cezası ve bankanın ödeme planını içermez; resmi kapama tarihi değildir.</p></div></section>
     <section className={kart}><div className="mb-4 flex items-center gap-2"><CalendarClock className="text-accent" size={20}/><h2 className="font-bold">Yaklaşan yükümlülükler</h2></div>{events.length===0?<p className="text-sm text-muted">Yaklaşan aktif fatura veya ödeme günü kaydı bulunamadı.</p>:<div className="divide-y divide-line">{events.map(x=><div key={x.type+x.id} className="flex flex-wrap items-center justify-between gap-2 py-3"><div><p className="font-semibold">{x.title}</p><p className="text-xs text-muted">{x.type} · {dateText(x.date)}</p></div><b className="text-sm">{tl(x.amount)}</b></div>)}</div>}<div className="mt-3 flex flex-wrap gap-2"><Link href="/panel/odemeler" className="rounded-xl bg-accent/10 px-3 py-2 text-xs font-bold text-accent">Ödeme takvimini yönet</Link><Link href="/panel/borclar" className="rounded-xl border border-line px-3 py-2 text-xs font-bold">Borçları güncelle</Link></div></section>
     <section className="flex items-start gap-3 rounded-2xl border border-accent/20 bg-accent/5 p-4"><CheckCircle2 className="mt-0.5 shrink-0 text-accent" size={18}/><p className="text-xs leading-5 text-muted">Pamuk Eller analizleri yalnızca kayıtlı verileri kullanır. Maaş günü ve gelir bileşenleri girildiğinde harcanabilir tutar hesabı daha isabetli hale getirilebilir. Otomatik ödeme veya yatırım işlemi yapılmaz.</p></section>
   </div>;

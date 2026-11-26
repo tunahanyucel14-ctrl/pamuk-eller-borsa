@@ -23,6 +23,15 @@ import { ayAraligi, bugunAy, tarihTR, tl } from "../../lib/finans";
 import type { Bakiye, Islem, Kategori } from "../../lib/tipler";
 import { kart, girdi, baslik } from "../../lib/ui";
 
+function paraBirimi(tutar: number, currency: string) {
+  const code = String(currency || "TRY").toUpperCase();
+  try {
+    return new Intl.NumberFormat("tr-TR", { style: "currency", currency: code, maximumFractionDigits: 2 }).format(tutar);
+  } catch {
+    return `${Number(tutar).toLocaleString("tr-TR", { maximumFractionDigits: 2 })} ${code}`;
+  }
+}
+
 function StatCard({
   title,
   value,
@@ -67,6 +76,7 @@ export default function GenelBakis() {
   const [ay, setAy] = useState(bugunAy());
   const [trendDonem, setTrendDonem] = useState<3 | 6 | 12>(6);
   const [bakiyeler, setBakiyeler] = useState<Bakiye[]>([]);
+  const [toplamBorc, setToplamBorc] = useState(0);
   const [islemler, setIslemler] = useState<Islem[]>([]);
   const [kategoriler, setKategoriler] = useState<Kategori[]>([]);
   const [butceLimitleri, setButceLimitleri] = useState<{ category_id: string; limit_amount: number }[]>([]);
@@ -86,7 +96,7 @@ export default function GenelBakis() {
       const trendBaslangic = new Date(yil, ayNo - trendDonem, 1);
       const trendBitis = new Date(yil, ayNo, 1);
       const tarihISO = (d: Date) => String(d.getFullYear()) + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
-      const [b, i, k, budgets, trend] = await Promise.all([
+      const [b, i, k, budgets, trend, debts] = await Promise.all([
         supabase.from("account_balances").select("*").eq("family_id", aileId),
         supabase
           .from("fin_transactions")
@@ -95,12 +105,39 @@ export default function GenelBakis() {
           .gte("tx_date", bas)
           .lt("tx_date", sonraki)
           .order("tx_date", { ascending: false })
-          .order("created_at", { ascending: false }),
+          .order("created_at", { ascending: false })
+          .order("id", { ascending: false })
+          .range(0, 999),
         supabase.from("categories").select("*").eq("family_id", aileId),
         supabase.from("family_category_budgets").select("category_id,limit_amount").eq("family_id", aileId).eq("budget_month", bas),
         supabase.from("fin_transactions").select("id,created_at,tx_date,kind,amount,account_id").eq("family_id", aileId).gte("tx_date", tarihISO(trendBaslangic)).lt("tx_date", tarihISO(trendBitis)).in("kind", ["gelir", "gider"]).order("tx_date", { ascending: true }).order("created_at", { ascending: true }).order("id", { ascending: true }).range(0, 999),
+        supabase.from("family_debts").select("remaining_amount").eq("family_id", aileId),
       ]);
       if (iptal) return;
+      let transactionRows = i.data ?? [];
+      let transactionPaginationError = i.error;
+      if (!transactionPaginationError && transactionRows.length === 1000) {
+        for (let offset = 1000; ; offset += 1000) {
+          const page = await supabase
+            .from("fin_transactions")
+            .select("*")
+            .eq("family_id", aileId)
+            .gte("tx_date", bas)
+            .lt("tx_date", sonraki)
+            .order("tx_date", { ascending: false })
+            .order("created_at", { ascending: false })
+            .order("id", { ascending: false })
+            .range(offset, offset + 999);
+          if (iptal) return;
+          if (page.error) {
+            transactionPaginationError = page.error;
+            break;
+          }
+          const rows = page.data ?? [];
+          transactionRows = transactionRows.concat(rows);
+          if (rows.length < 1000) break;
+        }
+      }
       let trendRows = trend.data ?? [];
       let trendPaginationError = trend.error;
       if (!trendPaginationError && trendRows.length === 1000) {
@@ -126,14 +163,15 @@ export default function GenelBakis() {
           if (rows.length < 1000) break;
         }
       }
-      const h = b.error || i.error || k.error;
+      const h = b.error || i.error || k.error || debts.error || transactionPaginationError;
       if (h) {
         setHata(h.message);
       } else {
         const accountRows=((b.data ?? []) as Bakiye[]).map((x) => ({...x,balance:Number(x.balance),opening_balance:Number(x.opening_balance)}));
         const currencyByAccount=new Map(accountRows.map(x=>[x.account_id,String(x.currency||"TRY").toUpperCase()]));
         setBakiyeler(accountRows);
-        setIslemler(((i.data ?? []) as Islem[]).filter(x=>currencyByAccount.get(x.account_id)==="TRY").map(x=>({...x,amount:Number(x.amount)})));
+        setToplamBorc((debts.data ?? []).reduce((sum: number, debt: {remaining_amount: number|string|null}) => sum + Math.max(0, Number(debt.remaining_amount) || 0), 0));
+        setIslemler((transactionRows as Islem[]).filter(x=>currencyByAccount.get(x.account_id)==="TRY").map(x=>({...x,amount:Number(x.amount)})));
         setKategoriler((k.data ?? []) as Kategori[]);
         setButceLimitleri((budgets.data ?? []).map((x: any) => ({ category_id: x.category_id, limit_amount: Number(x.limit_amount) || 0 })));
         setButceHata(budgets.error ? "Kategori bütçeleri şu an yüklenemedi." : "");
@@ -171,6 +209,7 @@ export default function GenelBakis() {
   const net = gelir - gider;
   const toplamVarlik = bakiyeler.filter(x=>String(x.currency||"TRY").toUpperCase()==="TRY").reduce((t, x) => t + x.balance, 0);
   const yabanciBakiyeler = bakiyeler.filter(x=>String(x.currency||"TRY").toUpperCase()!=="TRY");
+  const netVarlik = toplamVarlik - toplamBorc;
   const tasarrufOrani = gelir > 0 ? (net / gelir) * 100 : 0;
 
   const kategoriAdi = (id: string | null) =>
@@ -261,9 +300,9 @@ export default function GenelBakis() {
         <>
           <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <StatCard
-              title="Toplam varlık"
-              value={tl(toplamVarlik)}
-              note={`${bakiyeler.length} aktif hesap`}
+              title="Tahmini net varlık (TL)"
+              value={tl(netVarlik)}
+              note={`TL varlık ${tl(toplamVarlik)} − kalan borç ${tl(toplamBorc)} · döviz hariç` }
               icon={CircleDollarSign}
             />
             <StatCard
@@ -370,13 +409,13 @@ export default function GenelBakis() {
                         <span className="rounded-xl bg-accent/10 p-2 text-accent"><Wallet size={16} /></span>
                         <span className="truncate text-sm font-medium">{h.name}</span>
                       </div>
-                      <span className="shrink-0 text-sm font-bold">{tl(h.balance)}</span>
+                      <span className="shrink-0 text-sm font-bold">{paraBirimi(h.balance, h.currency || "TRY")}</span>
                     </div>
                   ))}
                 </div>
               )}
               <div className="mt-4 flex items-center justify-between border-t border-line pt-3 text-sm">
-                <span className="text-muted">Toplam bakiye</span>
+                <span className="text-muted">Toplam TL bakiye</span>
                 <span className="font-black">{tl(toplamVarlik)}</span>
               </div>
             </div>
