@@ -78,7 +78,7 @@ test("debt payoff rolls freed minimum payments into the remaining balance", () =
     { id: "one", name: "First", balance: 100, monthlyPayment: 100, annualRatePercent: 0 },
     { id: "two", name: "Second", balance: 250, monthlyPayment: 50, annualRatePercent: 0 },
   ], 0, "avalanche");
-  assert.equal(result.months, 2);
+  assert.equal(result.months, 3);
   assert.equal(result.interest, 0);
   assert.equal(result.paid, 350);
   assert.equal(result.stuck, false);
