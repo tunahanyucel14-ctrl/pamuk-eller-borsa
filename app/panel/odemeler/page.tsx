@@ -9,6 +9,8 @@ import { kart, girdi, dugme, baslik, etiket } from "../../../lib/ui";
 
 type Bill = { id: string; name: string; amount: number; due_day: number; category: string; active: boolean };
 type Debt = { id: string; name: string; monthly_payment: number; due_day: number | null; remaining_amount: number };
+type LoanInstallment = { id: string; plan_id: string; installment_no: number; due_date: string; installment_amount: number; status: string; family_loan_plans: { bank_name: string; loan_type: string; currency: string } | { bank_name: string; loan_type: string; currency: string }[] | null };
+type LoanPlanLink = { id: string; debt_id: string | null };
 type ReminderSettings = { salaryDay: string; leadDays: number };
 const SETTINGS_KEY = "pamuk-reminder-settings-v1";
 const SENT_KEY = "pamuk-reminder-sent-v1";
@@ -24,29 +26,56 @@ function daysUntil(date: Date) {
   return Math.round((date.getTime() - today.getTime()) / 86400000);
 }
 function dateLabel(date: Date) { return date.toLocaleDateString("tr-TR", { day: "numeric", month: "long" }); }
+function loanCurrency(row: LoanInstallment) { const plan = Array.isArray(row.family_loan_plans) ? row.family_loan_plans[0] : row.family_loan_plans; return plan?.currency || "TRY"; }
 
 export default function OdemelerPage() {
   const { aileId, kullaniciId, yazabilir, yonetebilir } = useAile();
   const [rows, setRows] = useState<Bill[]>([]);
   const [debts, setDebts] = useState<Debt[]>([]);
+  const [loanInstallments, setLoanInstallments] = useState<LoanInstallment[]>([]);
+  const [loanPlanLinks, setLoanPlanLinks] = useState<LoanPlanLink[]>([]);
   const [name, setName] = useState("");
   const [amount, setAmount] = useState("");
   const [day, setDay] = useState("1");
   const [category, setCategory] = useState("Fatura");
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
   const [settings, setSettings] = useState<ReminderSettings>({ salaryDay: "", leadDays: 3 });
   const [permission, setPermission] = useState<NotificationPermission | "unsupported">("default");
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [upcoming, setUpcoming] = useState<{ title: string; detail: string; date: Date; kind: "salary" | "bill" | "debt" }[]>([]);
+  const [upcoming, setUpcoming] = useState<{ title: string; detail: string; date: Date; kind: "salary" | "bill" | "debt" | "loan" }[]>([]);
 
   const load = useCallback(async () => {
-    const [billsResult, debtsResult] = await Promise.all([
+    const now = new Date();
+    const start = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const end = new Date(now.getFullYear(), now.getMonth() + 2, 0);
+    const dateKey = (d: Date) => d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+    const [billsResult, debtsResult, plansResult] = await Promise.all([
       supabase.from("family_bills").select("*").eq("family_id", aileId).eq("active", true).order("due_day"),
       supabase.from("family_debts").select("id,name,monthly_payment,due_day,remaining_amount").eq("family_id", aileId),
+      supabase.from("family_loan_plans").select("id,debt_id").eq("family_id", aileId).eq("status", "active"),
     ]);
-    if (billsResult.error || debtsResult.error) setError((billsResult.error || debtsResult.error)?.message || "Kayıtlar yüklenemedi.");
-    else { setRows((billsResult.data || []) as Bill[]); setDebts((debtsResult.data || []) as Debt[]); }
+    const failure = billsResult.error || debtsResult.error || plansResult.error;
+    if (failure) { setError(failure.message || "Kayıtlar yüklenemedi."); return; }
+
+    const installmentRows: LoanInstallment[] = [];
+    for (let offset = 0; ; offset += 200) {
+      const result = await supabase.from("family_loan_installments")
+        .select("id,plan_id,installment_no,due_date,installment_amount,status,family_loan_plans(bank_name,loan_type,currency)")
+        .eq("family_id", aileId).eq("status", "pending")
+        .gte("due_date", dateKey(start)).lte("due_date", dateKey(end))
+        .order("due_date").order("id").range(offset, offset + 199);
+      if (result.error) { setError(result.error.message || "Kredi taksitleri yüklenemedi."); return; }
+      const batch = (result.data || []) as LoanInstallment[];
+      installmentRows.push(...batch);
+      if (batch.length < 200) break;
+    }
+
+    setRows((billsResult.data || []) as Bill[]);
+    setDebts((debtsResult.data || []) as Debt[]);
+    setLoanPlanLinks((plansResult.data || []) as LoanPlanLink[]);
+    setLoanInstallments(installmentRows);
   }, [aileId]);
 
   useEffect(() => { void load(); }, [load]);
@@ -62,19 +91,31 @@ export default function OdemelerPage() {
     setPermission("Notification" in window ? Notification.permission : "unsupported");
   }, []);
 
-  const total = rows.reduce((sum, row) => sum + Number(row.amount), 0) + debts.filter(row=>Number(row.remaining_amount)>0).reduce((sum, row) => sum + Number(row.monthly_payment), 0);
-  const debtsWithoutDueDate=debts.filter(row=>Number(row.remaining_amount)>0&&Number(row.monthly_payment)>0&&!row.due_day).length;
+  const linkedDebtIds = new Set(loanPlanLinks.map(row => row.debt_id).filter((id): id is string => Boolean(id)));
+  const unplannedDebtMonthly = debts.filter(row => Number(row.remaining_amount) > 0 && !linkedDebtIds.has(row.id)).reduce((sum, row) => sum + Number(row.monthly_payment), 0);
+  const monthKey = new Date().getFullYear() + "-" + String(new Date().getMonth() + 1).padStart(2, "0");
+  const scheduledLoanMonthly = loanInstallments.filter(row => row.due_date.slice(0, 7) === monthKey && loanCurrency(row) === "TRY").reduce((sum, row) => sum + Number(row.installment_amount), 0);
+  const total = rows.reduce((sum, row) => sum + Number(row.amount), 0) + unplannedDebtMonthly + scheduledLoanMonthly;
+  const debtsWithoutDueDate=debts.filter(row=>Number(row.remaining_amount)>0&&Number(row.monthly_payment)>0&&!row.due_day&&!linkedDebtIds.has(row.id)).length;
   const billEvents = rows.map(row => ({ title: row.name, detail: tl(Number(row.amount)), date: dateForDay(row.due_day), kind: "bill" as const }));
-  const debtEvents = debts.filter(row => Number(row.monthly_payment) > 0 && Number(row.remaining_amount) > 0 && row.due_day).map(row => ({
+  const debtEvents = debts.filter(row => Number(row.monthly_payment) > 0 && Number(row.remaining_amount) > 0 && row.due_day && !linkedDebtIds.has(row.id)).map(row => ({
     title: row.name + " taksiti", detail: tl(Number(row.monthly_payment)), date: dateForDay(Number(row.due_day)), kind: "debt" as const,
   }));
+  const loanEvents = loanInstallments.map(row => {
+    const plan = Array.isArray(row.family_loan_plans) ? row.family_loan_plans[0] : row.family_loan_plans;
+    const date = new Date(row.due_date + "T00:00:00");
+    const amount = Number(row.installment_amount);
+    let detail = tl(amount);
+    try { detail = new Intl.NumberFormat("tr-TR", { style: "currency", currency: plan?.currency || "TRY", maximumFractionDigits: 2 }).format(amount); } catch { /* TRY biçimi korunur. */ }
+    return { title: (plan?.bank_name || "Banka") + " · " + row.installment_no + ". taksit", detail, date, kind: "loan" as const };
+  });
   const salaryEvents = settings.salaryDay ? [{
     title: "Maaş günü",
     detail: "Maaşını kontrol etmeyi unutma.",
     date: dateForDay(Number(settings.salaryDay)),
     kind: "salary" as const,
   }] : [];
-  const events = [...billEvents, ...debtEvents, ...salaryEvents].sort((a, b) => a.date.getTime() - b.date.getTime());
+  const events = [...billEvents, ...debtEvents, ...loanEvents, ...salaryEvents].sort((a, b) => a.date.getTime() - b.date.getTime());
 
   useEffect(() => {
     const next = events.map(event => ({ ...event, days: daysUntil(event.date) })).filter(event => event.days >= 0 && event.days <= settings.leadDays);
@@ -88,7 +129,7 @@ export default function OdemelerPage() {
       if (sent.includes(eventKey)) continue;
       const timing = event.days === 0 ? "Bugün" : event.days + " gün sonra";
       try {
-        new Notification("Pamuk Eller · " + (event.kind === "salary" ? "Maaş hatırlatması" : event.kind === "debt" ? "Borç taksiti hatırlatması" : "Ödeme hatırlatması"), {
+        new Notification("Pamuk Eller · " + (event.kind === "salary" ? "Maaş hatırlatması" : event.kind === "loan" ? "Kredi taksiti hatırlatması" : event.kind === "debt" ? "Borç taksiti hatırlatması" : "Ödeme hatırlatması"), {
           body: event.title + " · " + timing + " (" + dateLabel(event.date) + ") · " + event.detail,
           icon: "/icon.svg",
           tag: eventKey,
@@ -99,7 +140,7 @@ export default function OdemelerPage() {
     if (changed) localStorage.setItem(SENT_KEY, JSON.stringify(sent.slice(-100)));
   // The list is intentionally rechecked when payment rows or reminder preferences change.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rows, debts, settings, permission]);
+  }, [rows, debts, loanInstallments, settings, permission]);
 
   function saveSettings() {
     setError("");
@@ -208,7 +249,8 @@ export default function OdemelerPage() {
         </div>)}</div>
       </section>}
 
-      {error && <p className="text-sm text-down">{error}</p>}
+      {error && <p role="alert" className="text-sm text-down">{error}</p>}
+      {notice && <p role="status" className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-muted">{notice}</p>}
       {debtsWithoutDueDate>0&&<p role="status" className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-muted">{debtsWithoutDueDate} açık borçta ödeme günü tanımlı değil. Bu borçlar için hatırlatma oluşturulamaz; Borçlar bölümünden ödeme gününü ekle.</p>}
       <section className={kart}>
         <h2 className="mb-3 font-bold">Ödeme listesi</h2>
@@ -222,6 +264,34 @@ export default function OdemelerPage() {
           })}
         </div>}
       </section>
+
+      {loanInstallments.length > 0 && <section className={kart}>
+        <h2 className="mb-3 flex items-center gap-2 font-bold"><CalendarClock size={17} className="text-accent"/> Kredi taksit planı</h2>
+        <p className="mb-3 text-xs text-muted">Onayladığın banka ödeme planındaki taksitler, kendi vade tarihleriyle gösterilir. Bu taksitler ayrıca genel borç aylık ödemesine ikinci kez eklenmez.</p>
+        <div className="space-y-2">{loanInstallments.map(row => {
+          const plan = Array.isArray(row.family_loan_plans) ? row.family_loan_plans[0] : row.family_loan_plans;
+          const date = new Date(row.due_date + "T00:00:00");
+          const amount = Number(row.installment_amount);
+          let amountText = tl(amount);
+          try { amountText = new Intl.NumberFormat("tr-TR", { style: "currency", currency: plan?.currency || "TRY", maximumFractionDigits: 2 }).format(amount); } catch { /* TRY biçimi korunur. */ }
+          const left = daysUntil(date);
+          return <div key={row.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-inner p-3">
+            <div><b className="text-sm">{plan?.bank_name || "Banka"} · {row.installment_no}. taksit</b><p className="text-xs text-muted">{dateLabel(date)} · {left < 0 ? Math.abs(left) + " gün gecikmiş" : left === 0 ? "Bugün" : left + " gün kaldı"}</p></div>
+            <div className="flex items-center gap-3"><b className="text-sm">{amountText}</b>{yazabilir && <button disabled={saving} onClick={async () => {
+              if (saving) return;
+              setSaving(true); setError(""); setNotice("");
+              try {
+                const { data, error } = await supabase.rpc("mark_family_loan_installment_paid", { p_installment_id: row.id });
+                if (error) throw error;
+                if (data && data.balance_updated === false) setNotice("Taksit ödendi olarak işlendi; belgede anapara dağılımı bulunmadığı için kalan borç otomatik güncellenmedi. Bankanın güncel bakiyesini Borçlarım bölümünde kontrol et.");
+                await load();
+              } catch (e) {
+                setError(e instanceof Error ? e.message : "Taksit ödemesi kaydedilemedi.");
+              } finally { setSaving(false); }
+            }} className="rounded-lg border border-line px-3 py-2 text-xs font-semibold hover:border-up hover:text-up">{saving ? "İşleniyor..." : "Ödendi"}</button>}</div>
+          </div>;
+        })}</div>
+      </section>}
 
       {yazabilir && <form onSubmit={add} className={kart + " grid gap-3 sm:grid-cols-2"}>
         <h2 className="font-bold sm:col-span-2">Ödeme ekle</h2>
