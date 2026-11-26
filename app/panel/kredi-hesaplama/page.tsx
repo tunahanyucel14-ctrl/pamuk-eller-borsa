@@ -1,7 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Calculator, Home, CarFront, Wallet, ArrowDownUp, Info, TrendingDown } from "lucide-react";
+import Link from "next/link";
+import { Calculator, Home, CarFront, Wallet, ArrowDownUp, Info, TrendingDown, FileUp } from "lucide-react";
 import { tl } from "../../../lib/finans";
 import { buildAmortizationSchedule, calculateMonthlyPayment, type AmortizationRow } from "../../../lib/finance-engine";
 import { kart, girdi, etiket, baslik } from "../../../lib/ui";
@@ -77,7 +78,7 @@ export default function KrediHesaplamaPage() {
   }, [gecerli, seciliSonuc]);
 
   return <div className="space-y-5">
-    <header><p className="text-xs font-bold uppercase tracking-widest text-accent">Finansman laboratuvarı</p><h1 className={baslik}>Kredi Hesaplama Merkezi</h1><p className="mt-1 text-sm text-muted">Konut, ihtiyaç, taşıt ve borç transferi kredilerini hesapla; banka tekliflerini aynı koşullarda karşılaştır.</p></header>
+    <header className="flex flex-wrap items-end justify-between gap-3"><div><p className="text-xs font-bold uppercase tracking-widest text-accent">Finansman laboratuvarı</p><h1 className={baslik}>Kredi Hesaplama Merkezi</h1><p className="mt-1 text-sm text-muted">Konut, ihtiyaç, taşıt ve borç transferi kredilerini hesapla; banka tekliflerini aynı koşullarda karşılaştır.</p></div><div className="flex flex-wrap gap-2"><Link href="/panel/kredi-merkezi" className="rounded-xl border border-line px-3 py-2 text-xs font-bold hover:border-accent">Kredi Merkezi</Link><Link href="/panel/kredi-planlari" className="rounded-xl bg-accent px-3 py-2 text-xs font-bold text-accent-fg"><FileUp size={14} className="mr-1 inline"/>Banka planı yükle</Link></div></header>
     <section className="grid grid-cols-2 gap-2 sm:grid-cols-4">
       {TURLER.map((x) => { const Icon = x.ikon; return <button key={x.id} onClick={() => { setTur(x.id); setVade(String(x.vade)); }} className={"rounded-2xl border p-3 text-left transition " + (tur === x.id ? "border-accent bg-accent/10" : "border-line bg-card hover:border-accent")}><Icon size={20} className={tur === x.id ? "text-accent" : "text-muted"}/><b className="mt-2 block text-sm">{x.ad}</b><span className="text-xs text-muted">{x.aciklama}</span></button>; })}
     </section>
