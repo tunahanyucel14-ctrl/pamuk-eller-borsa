@@ -13,9 +13,24 @@ type FormState = { amount:string; direction:"deposit"|"withdrawal"; note:string 
 const emptyForm:FormState={amount:"",direction:"deposit",note:""};
 const MAX_PHOTO_BYTES=5*1024*1024;
 const QUOTES=[
- {quote:"Beware of little expenses; a small leak will sink a great ship.",author:"Benjamin Franklin",source:"Poor Richard’s Almanack"},
- {quote:"Rather go to bed supperless, than rise in debt.",author:"Benjamin Franklin",source:"Poor Richard’s Almanack"},
- {quote:"If you would know the value of money, go and try to borrow some.",author:"Benjamin Franklin",source:"Poor Richard’s Almanack"}
+ "Büyük hedefler, her ay tekrarlanan küçük birikimlerle gerçeğe dönüşür.",
+ "Paranı nereye yönlendirdiğin, geleceğinin nereye gideceğini belirler.",
+ "Bütçe, hayallerinden vazgeçmek değil; onlara yol açmaktır.",
+ "Önce kendine birikim yap, sonra kalanla harca.",
+ "Borcu yönetmek, finansal özgürlüğe atılan ilk adımlardan biridir.",
+ "Az ama düzenli birikim, hiç başlamamaktan her zaman iyidir.",
+ "Bir hedefin varsa, her tasarruf o hedefe atılmış bir adımdır.",
+ "Fiyatı değil, sana kattığı değeri düşünerek harca.",
+ "Gelecekteki rahatlığın, bugünkü bilinçli kararlarınla başlar.",
+ "Finansal güç, kazandığın kadarını değil, yönettiğin kadarını bilmektir.",
+ "Acil durum birikimi, beklenmedik günlere karşı kendi güvencendir.",
+ "Paranın kontrolünü eline aldığında, hedeflerinin kontrolünü de alırsın.",
+ "Her ay küçük bir ilerleme, yıl sonunda büyük bir fark yaratır.",
+ "İhtiyaçlarını planla, isteklerini bütçele, hedeflerini erteleme.",
+ "En iyi yatırım kararlarından biri, kendi finansal alışkanlıklarını geliştirmektir.",
+ "Borçlarını azaltırken geleceğin için de küçük bir pay ayır.",
+ "Birikim bir yarış değil; sürdürülebilir bir yolculuktur.",
+ "Hayalini görünür kıl, planını ölçülebilir yap, adımını bugün at."
 ];
 
 function dailyQuote(){
@@ -161,11 +176,11 @@ export default function HedeflerPage(){
  if(loading)return <div className={kart+" animate-pulse"}>Birikim hedefleri yükleniyor…</div>;
 
  return <div className="space-y-5">
-  <header className="flex flex-wrap items-end justify-between gap-3"><div><p className="text-xs font-bold uppercase tracking-[.2em] text-accent">Pamuk Eller · Ortak birikim</p><h1 className={baslik}>Finansal hedefler</h1><p className="mt-2 text-sm text-muted">Aile hedefleri oluştur, fotoğraf ekle, kim ne kadar katkı yaptı takip et.</p></div><div className="rounded-2xl bg-accent/10 px-4 py-3"><p className="text-xs text-muted">Toplam hedef birikimi</p><b className="text-xl">{tl(totalSaved)}</b><p className="text-[11px] text-muted">{tl(totalTarget)} hedef toplamı</p></div></header>
+  <header className="flex flex-wrap items-end justify-between gap-3"><div><p className="text-xs font-bold uppercase tracking-[.2em] text-accent">Pamuk Eller · Ortak birikim</p><h1 className={baslik}>Finansal hedefler</h1><p className="mt-2 text-sm text-muted">Hayalindeki hedefin fotoğrafını ekle, birikimini planla ve ailece ilerlemeni takip et.</p></div><div className="rounded-2xl bg-accent/10 px-4 py-3"><p className="text-xs text-muted">Toplam hedef birikimi</p><b className="text-xl">{tl(totalSaved)}</b><p className="text-[11px] text-muted">{tl(totalTarget)} hedef toplamı</p></div></header>
   <section className="rounded-2xl border border-line bg-inner/60 p-4 sm:p-5">
    <div className="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-accent"><Sparkles size={15}/> Günün finans sözü</div>
-   <blockquote className="text-base font-semibold leading-relaxed">“{quote.quote}”</blockquote>
-   <p className="mt-2 text-xs text-muted">{quote.author} · {quote.source} (18. yüzyıl)</p>
+   <blockquote className="text-base font-semibold leading-relaxed">“{quote}”</blockquote>
+   <p className="mt-2 text-xs text-muted">Pamuk Eller · Günlük birikim notu</p>
   </section>
   {error&&<p role="alert" className="rounded-xl border border-down/30 bg-down/5 p-3 text-sm text-down">{error}</p>}
   <section className="grid gap-3 md:grid-cols-2">
@@ -179,7 +194,7 @@ export default function HedeflerPage(){
     const form=forms[g.id]||emptyForm;
     const history=contributions.filter(x=>x.goal_id===g.id).slice(0,5);
     return <article key={g.id} className={kart+" space-y-4"}>
-     {imageUrls[g.id]?<div className="relative overflow-hidden rounded-xl bg-inner"><img src={imageUrls[g.id]} alt={g.name+" hedef fotoğrafı"} className="h-44 w-full object-cover"/>{yazabilir&&<button type="button" disabled={busy==="photo-"+g.id} onClick={()=>removePhoto(g)} className="absolute right-2 top-2 rounded-full bg-black/65 p-2 text-white" aria-label="Hedef fotoğrafını kaldır"><X size={15}/></button>}</div>:<div className="flex h-24 items-center justify-center rounded-xl border border-dashed border-line bg-inner text-xs text-muted"><ImagePlus size={17} className="mr-2"/> Henüz hedef fotoğrafı eklenmedi</div>}
+     {imageUrls[g.id]?<div className="relative overflow-hidden rounded-xl bg-inner"><img src={imageUrls[g.id]} alt={g.name+" hedef fotoğrafı"} className="h-44 w-full object-cover"/>{yazabilir&&<button type="button" disabled={busy==="photo-"+g.id} onClick={()=>removePhoto(g)} className="absolute right-2 top-2 rounded-full bg-black/65 p-2 text-white" aria-label="Hedef fotoğrafını kaldır"><X size={15}/></button>}</div>:<div className="flex h-24 items-center justify-center rounded-xl border border-dashed border-line bg-inner text-xs text-muted"><ImagePlus size={17} className="mr-2"/> Hayalini buraya taşı · Ev, araba, tatil veya kendi hedefinin fotoğrafını ekle</div>}
      <div className="flex items-start justify-between gap-3"><div className="flex items-center gap-2"><span className="rounded-xl bg-accent/10 p-2 text-accent"><Target size={19}/></span><div><b>{g.name}</b><p className="text-xs text-muted">{g.target_date?"Hedef tarihi: "+g.target_date:"Tarih belirlenmedi"}</p></div></div>{yonetebilir&&<button disabled={busy===g.id} onClick={()=>deleteGoal(g.id)} aria-label="Hedefi sil" className="text-muted hover:text-down"><Trash2 size={16}/></button>}</div>
      {yazabilir&&<label className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-line px-3 py-2 text-xs font-semibold text-muted hover:bg-inner"><ImagePlus size={15}/>{busy==="photo-"+g.id?"Fotoğraf yükleniyor…":g.image_path?"Fotoğrafı değiştir":"Hedef fotoğrafı ekle"}<input type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" disabled={busy==="photo-"+g.id} onChange={e=>{const f=e.target.files?.[0];if(f)void uploadPhoto(g.id,f);e.currentTarget.value="";}}/></label>}
      <div className="flex justify-between text-sm"><span>{tl(currentAmount)} birikti</span><b>{tl(targetAmount)}</b></div>
@@ -203,9 +218,9 @@ export default function HedeflerPage(){
    <div><label className={etiket}>Hedef tutar (TL)</label><input required min="1" step="0.01" type="number" className={girdi} value={target} onChange={e=>setTarget(e.target.value)}/></div>
    <div><label className={etiket}>Başlangıç birikimi (TL)</label><input min="0" step="0.01" type="number" className={girdi} value={current} onChange={e=>setCurrent(e.target.value)}/></div>
    <div><label className={etiket}>Hedef tarihi</label><input type="date" className={girdi} value={date} onChange={e=>setDate(e.target.value)}/></div>
-   <div className="sm:col-span-2 space-y-2"><label className={etiket}>Hedef fotoğrafı (isteğe bağlı, en fazla 5 MB)</label><label className="flex cursor-pointer items-center gap-3 rounded-xl border border-dashed border-line p-3 text-sm text-muted"><ImagePlus size={18}/><span>{newPhoto?.name||"Fotoğraf seç (JPG, PNG, WebP)"}</span><input type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" onChange={e=>{const f=e.target.files?.[0];if(f&&validPhoto(f))setNewPhoto(f);e.currentTarget.value="";}}/></label>{newPhotoPreview&&<div className="relative w-fit"><img src={newPhotoPreview} alt="Seçilen hedef fotoğrafı" className="h-32 w-48 rounded-xl object-cover"/><button type="button" onClick={()=>setNewPhoto(null)} className="absolute right-1 top-1 rounded-full bg-black/65 p-1 text-white" aria-label="Seçilen fotoğrafı kaldır"><X size={14}/></button></div>}</div>
+   <div className="sm:col-span-2 space-y-2"><label className={etiket}>Hayalindeki hedefin fotoğrafı (isteğe bağlı · JPG, PNG veya WebP · en fazla 5 MB)</label><label className="flex cursor-pointer items-center gap-3 rounded-xl border border-dashed border-line p-3 text-sm text-muted"><ImagePlus size={18}/><span>{newPhoto?.name||"Fotoğraf seç (JPG, PNG, WebP)"}</span><input type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" onChange={e=>{const f=e.target.files?.[0];if(f&&validPhoto(f))setNewPhoto(f);e.currentTarget.value="";}}/></label>{newPhotoPreview&&<div className="relative w-fit"><img src={newPhotoPreview} alt="Seçilen hedef fotoğrafı" className="h-32 w-48 rounded-xl object-cover"/><button type="button" onClick={()=>setNewPhoto(null)} className="absolute right-1 top-1 rounded-full bg-black/65 p-1 text-white" aria-label="Seçilen fotoğrafı kaldır"><X size={14}/></button></div>}</div>
    <button disabled={busy==="new"} className={dugme+" sm:col-span-2"}><Plus size={16} className="mr-1 inline"/>{busy==="new"?"Oluşturuluyor…":"Hedef oluştur"}</button>
   </form>}
-  <p className="text-xs leading-5 text-muted">Fotoğraflar yalnızca aile üyelerinin erişebildiği özel depoda tutulur. Katkı ve çekim kayıtları korunur; başlangıç birikimi hedef oluşturulurken girilen açılış tutarıdır. Günün sözleri Benjamin Franklin’in *Poor Richard’s Almanack* eserinden seçilmiştir.</p>
+  <p className="text-xs leading-5 text-muted">Hedef fotoğrafları yalnızca aile üyelerinin erişebildiği özel depoda tutulur. Kendi evinin, aracının, tatilinin veya başka bir hayalinin fotoğrafını yükleyebilirsin. Günün sözleri Pamuk Eller için özgün olarak hazırlanmıştır.</p>
  </div>;
 }
