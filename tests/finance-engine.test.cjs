@@ -57,3 +57,36 @@ test("final installment clears rounding residue on long high-rate schedules", ()
   assert.ok(rows.at(-1).payment >= regularPayment);
   assert.equal(Number(rows.reduce((sum, row) => sum + row.principal, 0).toFixed(2)), principal);
 });
+
+
+test("debt payoff avalanche prioritizes the highest interest rate", () => {
+  const debts = [
+    { id: "small", name: "Small balance", balance: 1000, monthlyPayment: 100, annualRatePercent: 5 },
+    { id: "large", name: "High rate", balance: 5000, monthlyPayment: 100, annualRatePercent: 30 },
+  ];
+  const avalanche = engine.simulateDebtPayoff(debts, 100, "avalanche");
+  const snowball = engine.simulateDebtPayoff(debts, 100, "snowball");
+  assert.equal(avalanche.strategy, "avalanche");
+  assert.equal(snowball.strategy, "snowball");
+  assert.ok(avalanche.interest < snowball.interest);
+  assert.equal(avalanche.stuck, false);
+  assert.equal(snowball.stuck, false);
+});
+
+test("debt payoff rolls freed minimum payments into the remaining balance", () => {
+  const result = engine.simulateDebtPayoff([
+    { id: "one", name: "First", balance: 100, monthlyPayment: 100, annualRatePercent: 0 },
+    { id: "two", name: "Second", balance: 250, monthlyPayment: 50, annualRatePercent: 0 },
+  ], 0, "avalanche");
+  assert.equal(result.months, 3);
+  assert.equal(result.interest, 0);
+  assert.equal(result.paid, 350);
+  assert.equal(result.stuck, false);
+});
+
+test("debt payoff flags zero-budget plans and validates inputs", () => {
+  const debt = [{ id: "one", name: "First", balance: 1000, monthlyPayment: 0, annualRatePercent: 10 }];
+  assert.equal(engine.simulateDebtPayoff(debt).stuck, true);
+  assert.throws(() => engine.simulateDebtPayoff(debt, -1), RangeError);
+  assert.throws(() => engine.simulateDebtPayoff([{ ...debt[0], annualRatePercent: -1 }]), RangeError);
+});
