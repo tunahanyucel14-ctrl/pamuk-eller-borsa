@@ -3,11 +3,14 @@ name: Loan plan quality checks
 on:
   pull_request:
     branches:
+      - main
       - feature/kredi-hesaplama-merkezi
       - feature/loan-plan-upload-analysis
   push:
     branches:
+      - main
       - feature/loan-plan-upload-analysis
+      - chore/enable-main-ci
 
 permissions:
   contents: read
