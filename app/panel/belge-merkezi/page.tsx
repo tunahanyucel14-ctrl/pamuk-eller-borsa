@@ -30,8 +30,9 @@ function checkFiles(files: File[]) {
 }
 async function readPdfLines(file: File): Promise<PdfLine[]> {
   const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
+  pdfjs.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.mjs`;
   const bytes = new Uint8Array(await file.arrayBuffer());
-  const doc = await pdfjs.getDocument({ data: bytes, disableWorker: true }).promise;
+  const doc = await pdfjs.getDocument({ data: bytes }).promise;
   if (doc.numPages > MAX_PDF_PAGES) throw new Error("En fazla 100 sayfalık PDF işlenebilir.");
   const lines: PdfLine[] = [];
   for (let pageNo = 1; pageNo <= doc.numPages; pageNo++) {
@@ -113,7 +114,7 @@ export default function BelgeMerkeziPage() {
     sheet.getRow(1).font = { bold: true };
     sheet.views = [{ state: "frozen", ySplit: 1 }];
     const bytes = await workbook.xlsx.writeBuffer();
-    downloadBlob(new Blob([bytes], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }), safeName(files[0].name) + "-tablo.xlsx");
+    downloadBlob(new Blob([bytes as BlobPart], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }), safeName(files[0].name) + "-tablo.xlsx");
     setPdfLines(lines); setStatus("Excel dosyası hazır. PDF'den çıkarılabilen metin satırları tabloya aktarıldı.");
   }
   async function exportWord() {
@@ -185,7 +186,8 @@ export default function BelgeMerkeziPage() {
   async function runOcr() {
     if (!files[0] || !isPdfSet || files.length !== 1) throw new Error("OCR için tek PDF seç.");
     const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
-    const doc = await pdfjs.getDocument({ data: new Uint8Array(await files[0].arrayBuffer()), disableWorker: true }).promise;
+    pdfjs.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.mjs`;
+    const doc = await pdfjs.getDocument({ data: new Uint8Array(await files[0].arrayBuffer()) }).promise;
     if (doc.numPages > 20) throw new Error("OCR güvenli işlem sınırı 20 sayfadır. Büyük belgeleri bölerek işle.");
     const { createWorker } = await import("tesseract.js");
     const worker = await createWorker("tur+eng");
