@@ -50,6 +50,23 @@ function formatAmount(value: number, currency: string) {
   try { return new Intl.NumberFormat("tr-TR", { style: "currency", currency, maximumFractionDigits: 2 }).format(value); }
   catch { return value.toLocaleString("tr-TR", { maximumFractionDigits: 2 }) + " " + currency; }
 }
+function estimateLoanInterest(balance: number, monthlyRatePercent: number, payment: number) {
+  const rate = monthlyRatePercent / 100;
+  if (balance <= 0 || payment <= 0 || rate < 0 || rate > 1) return null;
+  let remaining = balance;
+  let totalInterest = 0;
+  let months = 0;
+  while (remaining > 0.01 && months < 1200) {
+    const interest = remaining * rate;
+    if (payment <= interest) return null;
+    const principalPaid = Math.min(remaining, payment - interest);
+    totalInterest += interest;
+    remaining -= principalPaid;
+    months += 1;
+  }
+  return months >= 1200 ? null : { totalInterest, months };
+}
+
 function validDate(value: string) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
   const date = new Date(value + "T00:00:00Z");
@@ -82,6 +99,10 @@ export default function KrediPlanlariPage() {
   const [ocrProgress, setOcrProgress] = useState<LocalOcrProgress>({ status: "", progress: 0 });
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [earlyBalance, setEarlyBalance] = useState("");
+  const [earlyRate, setEarlyRate] = useState("");
+  const [earlyPayment, setEarlyPayment] = useState("");
+  const [earlyExtra, setEarlyExtra] = useState("");
 
   const load = useCallback(async () => {
     const [debtResult, planResult] = await Promise.all([
@@ -405,6 +426,32 @@ export default function KrediPlanlariPage() {
       <div className="flex flex-wrap gap-2"><button type="button" disabled={busy} onClick={save} className={dugme}><Save size={16} className="mr-1 inline"/>{busy ? "Kaydediliyor..." : "Planı onayla ve takvime işle"}</button><button type="button" disabled={busy} onClick={()=>void cancelPlan()} className="rounded-xl border border-line px-4 py-3 text-sm font-semibold text-muted hover:text-down"><Trash2 size={16} className="mr-1 inline"/>Vazgeç ve belgeyi sil</button></div>
       <p className="flex items-start gap-2 rounded-xl bg-inner p-3 text-xs leading-5 text-muted"><ShieldCheck size={16} className="mt-0.5 shrink-0 text-accent"/> Onaylandığında kredi planı ve taksitleri aile ödeme takvimine kaydedilir. TRY kredisi ayrıca Borçlarım listesine eklenir veya seçtiğin mevcut kredi kaydı güncellenir. Taksitler otomatik banka hareketi oluşturmaz; ödeme yapıldığında ayrıca işaretlenir.</p>
     </section>}
+
+    <section className={kart + " space-y-3"}>
+      <div className="flex items-center gap-2"><CalendarClock size={18} className="text-accent"/><h2 className="font-bold">Ara ödeme ve erken kapama hesaplayıcısı</h2></div>
+      <p className="text-xs leading-5 text-muted">Kalan anapara, aylık faiz, mevcut taksit ve yapacağın ara ödeme ile yaklaşık faiz farkını hesaplar. Bankanın erken ödeme indirimi, vergi, sigorta ve ücretleri dahil değildir; kesin kapama tutarı değildir.</p>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div><label className={etiket}>Güncel kalan anapara (TL)</label><input className={girdi} inputMode="decimal" value={earlyBalance} onChange={e=>setEarlyBalance(e.target.value)} placeholder="Örn. 450000"/></div>
+        <div><label className={etiket}>Aylık faiz (%)</label><input className={girdi} inputMode="decimal" value={earlyRate} onChange={e=>setEarlyRate(e.target.value)} placeholder="Örn. 2,89"/></div>
+        <div><label className={etiket}>Mevcut aylık taksit (TL)</label><input className={girdi} inputMode="decimal" value={earlyPayment} onChange={e=>setEarlyPayment(e.target.value)} placeholder="Örn. 23672"/></div>
+        <div><label className={etiket}>Şimdi yapacağın ara ödeme (TL)</label><input className={girdi} inputMode="decimal" value={earlyExtra} onChange={e=>setEarlyExtra(e.target.value)} placeholder="Örn. 100000"/></div>
+      </div>
+      {(() => {
+        const balance = numberFromTR(earlyBalance);
+        const rate = numberFromTR(earlyRate);
+        const payment = numberFromTR(earlyPayment);
+        const extra = numberFromTR(earlyExtra);
+        const valid = [balance, rate, payment, extra].every(Number.isFinite) && balance > 0 && rate >= 0 && rate <= 100 && payment > 0 && extra > 0 && extra < balance;
+        const before = valid ? estimateLoanInterest(balance, rate, payment) : null;
+        const after = valid ? estimateLoanInterest(balance - extra, rate, payment) : null;
+        return valid && before && after ? <div className="grid gap-3 rounded-xl bg-inner p-3 sm:grid-cols-3">
+          <div><p className="text-xs text-muted">Ara ödemesiz tahmini faiz</p><b>{formatAmount(before.totalInterest,"TRY")}</b></div>
+          <div><p className="text-xs text-muted">Ara ödemeli tahmini faiz</p><b>{formatAmount(after.totalInterest,"TRY")}</b></div>
+          <div><p className="text-xs text-muted">Tahmini faiz farkı</p><b className="text-up">{formatAmount(Math.max(0,before.totalInterest-after.totalInterest),"TRY")}</b></div>
+          <p className="text-xs text-muted sm:col-span-3">Tahmini vade: ara ödemesiz {before.months} ay, ara ödemeli {after.months} ay. Hesaplama aynı taksitin devam ettiği varsayımına dayanır.</p>
+        </div> : <p className="rounded-xl bg-inner p-3 text-xs text-muted">Hesaplama için geçerli dört tutarı gir. Taksit aylık faizden büyük olmalı ve ara ödeme kalan anaparadan düşük olmalı.</p>;
+      })()}
+    </section>
 
     <section className={kart + " space-y-3"}>
       <div className="flex items-center gap-2"><Landmark size={18} className="text-accent"/><h2 className="font-bold">Kayıtlı kredi planları</h2></div>
