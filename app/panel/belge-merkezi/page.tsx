@@ -11,6 +11,12 @@ const MAX_FILE_BYTES = 25 * 1024 * 1024;
 const MAX_PDF_PAGES = 100;
 type PdfLine = { page: number; text: string };
 
+function toBlobArrayBuffer(bytes: Uint8Array): ArrayBuffer {
+  const buffer = new ArrayBuffer(bytes.byteLength);
+  new Uint8Array(buffer).set(bytes);
+  return buffer;
+}
+
 function downloadBlob(blob: Blob, name: string) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
@@ -200,7 +206,7 @@ export default function BelgeMerkeziPage() {
       planSheet.getColumn(6).numFmt = '#,##0.00';
     }
     const bytes = await workbook.xlsx.writeBuffer();
-    downloadBlob(new Blob([bytes as BlobPart], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }), safeName(files[0].name) + "-tablo.xlsx");
+    downloadBlob(new Blob([toBlobArrayBuffer(bytes)], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }), safeName(files[0].name) + "-tablo.xlsx");
     setPdfLines(lines); setStatus("Excel dosyası hazır. PDF'den çıkarılabilen metin satırları tabloya aktarıldı.");
   }
   async function exportWord() {
@@ -224,7 +230,7 @@ export default function BelgeMerkeziPage() {
       page.drawImage(image, { x: 0, y: 0, width, height });
     }
     const bytes = await doc.save({ useObjectStreams: true });
-    downloadBlob(new Blob([bytes], { type: "application/pdf" }), "pamuk-eller-resimler.pdf");
+    downloadBlob(new Blob([toBlobArrayBuffer(bytes)], { type: "application/pdf" }), "pamuk-eller-resimler.pdf");
     setStatus(files.length + " görsel tek PDF dosyasında birleştirildi.");
   }
   async function mergePdfs() {
@@ -237,7 +243,7 @@ export default function BelgeMerkeziPage() {
       copied.forEach((page) => merged.addPage(page));
     }
     const bytes = await merged.save({ useObjectStreams: true });
-    downloadBlob(new Blob([bytes], { type: "application/pdf" }), "pamuk-eller-birlestirilmis.pdf");
+    downloadBlob(new Blob([toBlobArrayBuffer(bytes)], { type: "application/pdf" }), "pamuk-eller-birlestirilmis.pdf");
     setStatus(files.length + " PDF birleştirildi.");
   }
   async function splitPdf() {
@@ -251,7 +257,7 @@ export default function BelgeMerkeziPage() {
     const copied = await output.copyPages(source, Array.from({ length: end - start + 1 }, (_, i) => start - 1 + i));
     copied.forEach((page) => output.addPage(page));
     const bytes = await output.save({ useObjectStreams: true });
-    downloadBlob(new Blob([bytes], { type: "application/pdf" }), safeName(files[0].name) + "-sayfa-" + start + "-" + end + ".pdf");
+    downloadBlob(new Blob([toBlobArrayBuffer(bytes)], { type: "application/pdf" }), safeName(files[0].name) + "-sayfa-" + start + "-" + end + ".pdf");
     setStatus(start + "–" + end + ". sayfalar ayrı PDF olarak kaydedildi.");
   }
   async function rotatePdf() {
@@ -259,14 +265,14 @@ export default function BelgeMerkeziPage() {
     const doc = await PDFDocument.load(await files[0].arrayBuffer());
     doc.getPages().forEach((page) => page.setRotation(degrees((page.getRotation().angle + 90) % 360)));
     const bytes = await doc.save({ useObjectStreams: true });
-    downloadBlob(new Blob([bytes], { type: "application/pdf" }), safeName(files[0].name) + "-dondurulmus.pdf");
+    downloadBlob(new Blob([toBlobArrayBuffer(bytes)], { type: "application/pdf" }), safeName(files[0].name) + "-dondurulmus.pdf");
     setStatus("PDF sayfaları saat yönünde 90° döndürüldü.");
   }
   async function optimizePdf() {
     if (!files[0] || !isPdfSet || files.length !== 1) throw new Error("Optimize etmek için tek PDF seç.");
     const doc = await PDFDocument.load(await files[0].arrayBuffer());
     const bytes = await doc.save({ useObjectStreams: true, objectsPerTick: 50 });
-    downloadBlob(new Blob([bytes], { type: "application/pdf" }), safeName(files[0].name) + "-optimize.pdf");
+    downloadBlob(new Blob([toBlobArrayBuffer(bytes)], { type: "application/pdf" }), safeName(files[0].name) + "-optimize.pdf");
     setStatus("PDF yeniden yazıldı. Sıkıştırma miktarı belgenin yapısına göre değişebilir; çıktı boyutunu kontrol et.");
   }
   async function runOcr() {
