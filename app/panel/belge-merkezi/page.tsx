@@ -200,7 +200,7 @@ export default function BelgeMerkeziPage() {
         canvas.width = Math.ceil(viewport.width); canvas.height = Math.ceil(viewport.height);
         const ctx = canvas.getContext("2d");
         if (!ctx) throw new Error("Belge sayfası görüntülenemedi.");
-        await page.render({ canvasContext: ctx, viewport }).promise;
+        await page.render({ canvasContext: ctx, canvas, viewport }).promise;
         const recognized = await worker.recognize(canvas);
         result += "\n--- Sayfa " + i + " ---\n" + recognized.data.text;
         canvas.width = 0; canvas.height = 0; page.cleanup();
