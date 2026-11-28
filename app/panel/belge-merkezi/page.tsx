@@ -123,6 +123,49 @@ export default function BelgeMerkeziPage() {
     setStatus("Kredi planı taslağı oluşturuldu. Tutarları kaynak PDF ile karşılaştırmadan kaydetme.");
   }
 
+  function sendCreditPlanToKrediPlanlari() {
+    if (!creditPlan) return;
+    const rows = creditPlan.installments
+      .filter((item) => item.dueDate && item.payment !== null && Number.isFinite(item.payment) && item.payment > 0)
+      .sort((a, b) => (a.dueDate || "").localeCompare(b.dueDate || ""));
+    if (!rows.length) {
+      setError("Aktarılabilecek geçerli taksit bulunamadı. Önce PDF metnini veya OCR sonucunu kontrol et.");
+      return;
+    }
+    const schedule = rows.map((item, index) => ({
+      installment_no: index + 1,
+      due_date: item.dueDate!,
+      installment_amount: String(item.payment),
+      status: "pending" as const,
+      principal_amount: item.principal === null ? "" : String(item.principal),
+      interest_amount: item.interest === null ? "" : String(item.interest),
+      fees_amount: "",
+      remaining_principal: item.remainingDebt === null ? "" : String(item.remainingDebt),
+    }));
+    const loanType = creditPlan.creditType === "Konut Kredisi" ? "konut"
+      : creditPlan.creditType === "Taşıt Kredisi" ? "tasit"
+      : creditPlan.creditType === "İhtiyaç Kredisi" ? "ihtiyac"
+      : creditPlan.creditType === "Ticari Kredi" ? "ticari" : "diger";
+    const draft = {
+      bank_name: creditPlan.bank || "",
+      loan_type: loanType,
+      currency: "TRY",
+      principal_amount: creditPlan.principal === null ? "" : String(creditPlan.principal),
+      remaining_amount: rows[rows.length - 1].remainingDebt === null ? "" : String(rows[rows.length - 1].remainingDebt),
+      annual_interest_rate: "",
+      monthly_interest_rate: creditPlan.monthlyInterestRate === null ? "" : String(creditPlan.monthlyInterestRate),
+      schedule,
+      warnings: [
+        ...creditPlan.warnings,
+        "Belge Merkezi aktarımı: banka, kredi anaparası, güncel kalan borç ve tüm taksitleri kaynak PDF ile karşılaştır.",
+        "Güncel kalan borç belgede bulunamadıysa Kredi Planlarım ekranında bankanın güncel bakiyesini gir.",
+      ],
+      fileName: files[0]?.name || "Belge Merkezi PDF aktarımı",
+    };
+    window.sessionStorage.setItem("pamuk-credit-plan-draft", JSON.stringify(draft));
+    window.location.assign("/panel/kredi-planlari");
+  }
+
   async function exportExcel() {
     let lines = pdfLines;
     if (!lines.length) lines = await readPdfLines(files[0]);
@@ -303,6 +346,10 @@ export default function BelgeMerkeziPage() {
         </div>}
         <p className="text-xs text-muted">Bu bir otomatik okuma taslağıdır. Tablodaki sütun eşleştirmeleri bankaya göre değişebilir. Henüz Kredi Merkezi'ne otomatik kayıt yapılmaz.</p>
         <button type="button" onClick={() => run(exportExcel)} disabled={busy} className={dugme + " w-full"}>Analiz ve taksitleri Excel'e aktar</button>
+        <button type="button" onClick={sendCreditPlanToKrediPlanlari} disabled={busy || !creditPlan.installments.some((item) => item.dueDate && item.payment !== null && item.payment > 0)} className={dugme + " w-full"}>
+          Taksitleri Kredi Planlarım'a aktar
+        </button>
+        <p className="text-xs text-muted">Aktarım bir taslak oluşturur. Kredi Planlarım'da banka ve borç bilgilerini kontrol edip kaydetmeden önce onaylayacaksın.</p>
       </div>}
     </section>
     <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
