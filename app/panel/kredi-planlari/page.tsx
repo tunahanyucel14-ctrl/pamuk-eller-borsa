@@ -275,6 +275,22 @@ export default function KrediPlanlariPage() {
       setError("Faiz oranı geçerli aralıkta değil."); return;
     }
     if (plan.currency !== "TRY" && existingDebtId) { setError("Mevcut borç kaydına bağlamak için para birimi TRY olmalı."); return; }
+
+    // Prevent accidental re-imports of the same PDF schedule.
+    const normalizedBank = plan.bank_name.trim().toLocaleLowerCase("tr-TR").replace(/\\s+/g, " ");
+    const duplicate = savedPlans.find(saved =>
+      saved.bank_name.trim().toLocaleLowerCase("tr-TR").replace(/\\s+/g, " ") === normalizedBank &&
+      saved.loan_type === plan.loan_type &&
+      saved.currency === plan.currency &&
+      Math.abs(Number(saved.principal_amount) - principal) < 0.01 &&
+      Number(saved.installment_count) === schedule.length &&
+      saved.first_due_date === schedule[0].due_date &&
+      saved.last_due_date === schedule[schedule.length - 1].due_date
+    );
+    if (duplicate) {
+      setError("Bu kredi planı mevcut kayıtlarla aynı banka, anapara, taksit sayısı ve vade aralığına sahip. Mükerrer kayıt oluşturmamak için aktarım durduruldu. Mevcut planı aşağıdaki kayıtlar bölümünden açıp kontrol et.");
+      return;
+    }
     setBusy(true);
     try {
       const payload = {
