@@ -151,7 +151,7 @@ export default function BelgeMerkeziPage() {
       loan_type: loanType,
       currency: "TRY",
       principal_amount: creditPlan.principal === null ? "" : String(creditPlan.principal),
-      remaining_amount: rows[rows.length - 1].remainingDebt === null ? "" : String(rows[rows.length - 1].remainingDebt),
+      remaining_amount: "",
       annual_interest_rate: "",
       monthly_interest_rate: creditPlan.monthlyInterestRate === null ? "" : String(creditPlan.monthlyInterestRate),
       schedule,
