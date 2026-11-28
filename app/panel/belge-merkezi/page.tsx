@@ -302,7 +302,7 @@ export default function BelgeMerkeziPage() {
           <table className="w-full text-left text-xs"><thead className="sticky top-0 bg-card"><tr><th className="p-2">No</th><th className="p-2">Vade</th><th className="p-2">Taksit</th><th className="p-2">Anapara</th><th className="p-2">Faiz</th><th className="p-2">Kalan borç</th></tr></thead><tbody>{creditPlan.installments.map((item, index) => <tr key={item.number + "-" + index} className="border-t border-line"><td className="p-2">{item.number}</td><td className="p-2 whitespace-nowrap">{item.dueDate || "—"}</td><td className="p-2 whitespace-nowrap">{item.payment?.toLocaleString("tr-TR") ?? "—"}</td><td className="p-2 whitespace-nowrap">{item.principal?.toLocaleString("tr-TR") ?? "—"}</td><td className="p-2 whitespace-nowrap">{item.interest?.toLocaleString("tr-TR") ?? "—"}</td><td className="p-2 whitespace-nowrap">{item.remainingDebt?.toLocaleString("tr-TR") ?? "—"}</td></tr>)}</tbody></table>
         </div>}
         <p className="text-xs text-muted">Bu bir otomatik okuma taslağıdır. Tablodaki sütun eşleştirmeleri bankaya göre değişebilir. Henüz Kredi Merkezi'ne otomatik kayıt yapılmaz.</p>
-        <button type="button" onClick={() => run(exportExcel)} disabled={busy} className={ikinci + " w-full"}>Analiz ve taksitleri Excel'e aktar</button>
+        <button type="button" onClick={() => run(exportExcel)} disabled={busy} className={dugme + " w-full"}>Analiz ve taksitleri Excel'e aktar</button>
       </div>}
     </section>
     <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
