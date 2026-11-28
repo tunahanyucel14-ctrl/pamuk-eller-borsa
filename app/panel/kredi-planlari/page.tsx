@@ -99,6 +99,50 @@ export default function KrediPlanlariPage() {
 
   useEffect(() => { void load(); }, [load]);
 
+  useEffect(() => {
+    const raw = window.sessionStorage.getItem("pamuk-credit-plan-draft");
+    if (!raw) return;
+    window.sessionStorage.removeItem("pamuk-credit-plan-draft");
+    try {
+      const draft = JSON.parse(raw) as Record<string, any>;
+      if (!Array.isArray(draft.schedule) || draft.schedule.length === 0 || draft.schedule.length > 600) {
+        throw new Error("Belge Merkezi aktarımında geçerli taksit listesi bulunamadı.");
+      }
+      const allowedTypes = ["konut", "ihtiyac", "tasit", "ticari", "diger"];
+      const schedule: Installment[] = draft.schedule.map((row: any, index: number) => ({
+        installment_no: index + 1,
+        due_date: String(row.due_date || ""),
+        installment_amount: String(row.installment_amount ?? ""),
+        status: "pending",
+        principal_amount: String(row.principal_amount ?? ""),
+        interest_amount: String(row.interest_amount ?? ""),
+        fees_amount: String(row.fees_amount ?? ""),
+        remaining_principal: String(row.remaining_principal ?? ""),
+      }));
+      setPlan({
+        bank_name: String(draft.bank_name || ""),
+        loan_type: allowedTypes.includes(draft.loan_type) ? draft.loan_type : "diger",
+        currency: String(draft.currency || "TRY"),
+        principal_amount: String(draft.principal_amount ?? ""),
+        remaining_amount: String(draft.remaining_amount ?? ""),
+        annual_interest_rate: String(draft.annual_interest_rate ?? ""),
+        monthly_interest_rate: String(draft.monthly_interest_rate ?? ""),
+        schedule,
+      });
+      setWarnings([
+        ...(Array.isArray(draft.warnings) ? draft.warnings.map(String) : []),
+        "Belge Merkezi'nden aktarıldı. Kaydetmeden önce banka belgesiyle tüm alanları karşılaştır.",
+      ]);
+      setFileName(String(draft.fileName || "Belge Merkezi PDF aktarımı"));
+      setUploads([]);
+      setExistingDebtId("");
+      setSuccess("PDF analiz taslağı aktarıldı. Bilgileri kontrol edip eksik alanları tamamla.");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "PDF taslağı aktarılamadı.");
+    }
+  }, []);
+
+
   async function removeUploads(paths = uploads) {
     const list = paths.map(x => x.path);
     if (list.length) { const { error } = await supabase.storage.from("receipts").remove(list); if (error) throw error; }
