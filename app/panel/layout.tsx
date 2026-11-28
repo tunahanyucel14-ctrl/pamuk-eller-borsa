@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { LayoutDashboard, ArrowLeftRight, Wallet, Tags, Users, Table2, CreditCard, Calculator, Receipt, Target, TrendingUp, Activity, CalendarClock, WalletCards, BrainCircuit, Gauge, GraduationCap, ScanLine, FileUp, FileText, Settings, ChartNoAxesCombined, Trophy, UserRound, LogOut, ShieldCheck, Repeat } from "lucide-react";
+import { LayoutDashboard, ArrowLeftRight, Wallet, Tags, Users, Table2, CreditCard, Calculator, Receipt, Target, TrendingUp, Activity, CalendarClock, WalletCards, BrainCircuit, Gauge, GraduationCap, ScanLine, FileUp, FileText, Files, Settings, ChartNoAxesCombined, Trophy, UserRound, LogOut, ShieldCheck, Repeat } from "lucide-react";
 import { supabase } from "../../lib/supabase";
 import { AileSaglayici } from "../../lib/aile-baglami";
 import AssistantBubble from "../components/assistant-bubble";
@@ -20,6 +20,7 @@ const MENU = [
   { href: "/panel/zeka", ad: "Finansal Zekâ", icon: BrainCircuit },
   { href: "/panel/islemler", ad: "İşlemler", icon: ArrowLeftRight },
   { href: "/panel/aktarim", ad: "Banka Ekstresi Aktar", icon: FileUp },
+  { href: "/panel/belge-merkezi", ad: "Belge Merkezi • PDF", icon: Files },
   { href: "/panel/hesaplar", ad: "Hesaplarım", icon: Wallet },
   { href: "/panel/gelirler", ad: "Gelir Planlama", icon: WalletCards },
   { href: "/panel/nakit-akisi", ad: "Nakit Akışı", icon: Activity },
