@@ -5,6 +5,7 @@ import ExcelJS from "exceljs-hardened/dist/exceljs.min.js";
 import { PDFDocument, degrees } from "pdf-lib";
 import { FileText, FileImage, Files, FileSpreadsheet, FileType, Scissors, RotateCw, Minimize2, ScanText, Download, Eye, ShieldCheck, AlertCircle, LoaderCircle } from "lucide-react";
 import { kart, girdi, dugme, etiket, baslik } from "../../../lib/ui";
+import { parseCreditPlan, type ParsedCreditPlan } from "../../../lib/credit-plan-parser";
 
 const MAX_FILE_BYTES = 25 * 1024 * 1024;
 const MAX_PDF_PAGES = 100;
@@ -69,6 +70,7 @@ export default function BelgeMerkeziPage() {
   const [pdfLines, setPdfLines] = useState<PdfLine[]>([]);
   const [ocrText, setOcrText] = useState("");
   const [pageCount, setPageCount] = useState<number | null>(null);
+  const [creditPlan, setCreditPlan] = useState<ParsedCreditPlan | null>(null);
 
   useEffect(() => {
     if (!files[0] || files[0].type !== "application/pdf") { setPreviewUrl(""); setPageCount(null); return; }
@@ -82,7 +84,7 @@ export default function BelgeMerkeziPage() {
 
   function selectFiles(list: FileList | null) {
     const chosen = Array.from(list || []);
-    setError(""); setStatus(""); setPdfLines([]); setOcrText("");
+    setError(""); setStatus(""); setPdfLines([]); setOcrText(""); setCreditPlan(null);
     try {
       if (chosen.length) checkFiles(chosen);
       setFiles(chosen);
@@ -103,6 +105,24 @@ export default function BelgeMerkeziPage() {
     setPdfLines(lines); setPageCount(new Set(lines.map((x) => x.page)).size);
     setStatus(lines.length + " metin satırı çıkarıldı. Tabloya aktarabilirsin.");
   }
+  async function analyzeCreditPlan() {
+    if (!files[0] || !isPdfSet || files.length !== 1) throw new Error("Kredi planı analizi için tek PDF seç.");
+    let lines = pdfLines;
+    if (!lines.length) {
+      try { lines = await readPdfLines(files[0]); }
+      catch { lines = []; }
+    }
+    const sourceText = lines.length ? lines.map((line) => line.text).join("\n") : ocrText;
+    if (!sourceText.trim()) throw new Error("Önce PDF metnini çıkar veya taranmış belge için OCR çalıştır.");
+    const parsed = parseCreditPlan(sourceText);
+    if (!parsed.installments.length && !parsed.principal && !parsed.bank) {
+      throw new Error("Belgeden yeterli kredi bilgisi çıkarılamadı. OCR sonucunu kontrol et.");
+    }
+    setPdfLines(lines);
+    setCreditPlan(parsed);
+    setStatus("Kredi planı taslağı oluşturuldu. Tutarları kaynak PDF ile karşılaştırmadan kaydetme.");
+  }
+
   async function exportExcel() {
     let lines = pdfLines;
     if (!lines.length) lines = await readPdfLines(files[0]);
@@ -113,6 +133,29 @@ export default function BelgeMerkeziPage() {
     lines.forEach((line, index) => sheet.addRow({ page: line.page, line: index + 1, text: line.text }));
     sheet.getRow(1).font = { bold: true };
     sheet.views = [{ state: "frozen", ySplit: 1 }];
+    if (creditPlan) {
+      const planSheet = workbook.addWorksheet("Kredi Planı");
+      planSheet.columns = [
+        { header: "Taksit", key: "number", width: 10 },
+        { header: "Vade Tarihi", key: "date", width: 16 },
+        { header: "Taksit Tutarı (TL)", key: "payment", width: 20 },
+        { header: "Anapara (TL)", key: "principal", width: 18 },
+        { header: "Faiz (TL)", key: "interest", width: 18 },
+        { header: "Kalan Borç (TL)", key: "remaining", width: 20 },
+        { header: "Kaynak Satır", key: "source", width: 70 },
+      ];
+      creditPlan.installments.forEach((item) => planSheet.addRow({
+        number: item.number, date: item.dueDate, payment: item.payment,
+        principal: item.principal, interest: item.interest,
+        remaining: item.remainingDebt, source: item.sourceLine,
+      }));
+      planSheet.getRow(1).font = { bold: true };
+      planSheet.views = [{ state: "frozen", ySplit: 1 }];
+      planSheet.getColumn(3).numFmt = '#,##0.00';
+      planSheet.getColumn(4).numFmt = '#,##0.00';
+      planSheet.getColumn(5).numFmt = '#,##0.00';
+      planSheet.getColumn(6).numFmt = '#,##0.00';
+    }
     const bytes = await workbook.xlsx.writeBuffer();
     downloadBlob(new Blob([bytes as BlobPart], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }), safeName(files[0].name) + "-tablo.xlsx");
     setPdfLines(lines); setStatus("Excel dosyası hazır. PDF'den çıkarılabilen metin satırları tabloya aktarıldı.");
@@ -234,6 +277,34 @@ export default function BelgeMerkeziPage() {
     </section>
     {error && <div role="alert" className="flex gap-2 rounded-xl border border-down/30 bg-down/10 p-3 text-sm text-down"><AlertCircle size={18} className="shrink-0"/>{error}</div>}
     {status && <div role="status" className="rounded-xl border border-up/30 bg-up/10 p-3 text-sm text-up">{status}</div>}
+    <section className={kart + " space-y-3"}>
+      <div className="flex items-center gap-2"><CalculatorIcon /><h2 className="font-bold">Akıllı kredi planı okuyucu</h2></div>
+      <p className="text-sm text-muted">Yüklediğin kredi ödeme planından banka, kredi tutarı ve taksit satırlarını çıkarmayı dener. Sonuçlar taslaktır; banka belgesiyle karşılaştırılmadan finansal kayda aktarılmaz.</p>
+      <button type="button" disabled={!isPdfSet || files.length !== 1 || busy} onClick={() => run(analyzeCreditPlan)} className={dugme + " w-full disabled:opacity-40"}>
+        {busy ? "Analiz ediliyor..." : "Kredi planını analiz et"}
+      </button>
+      {creditPlan && <div className="space-y-3 rounded-xl border border-line bg-inner p-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h3 className="font-bold">Analiz taslağı</h3>
+          <span className="rounded-full bg-card px-3 py-1 text-xs font-semibold">Güven göstergesi: %{creditPlan.confidence}</span>
+        </div>
+        <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-3">
+          <div><p className="text-xs text-muted">Banka</p><p className="font-semibold">{creditPlan.bank || "Bulunamadı"}</p></div>
+          <div><p className="text-xs text-muted">Kredi türü</p><p className="font-semibold">{creditPlan.creditType || "Bulunamadı"}</p></div>
+          <div><p className="text-xs text-muted">Kredi tutarı</p><p className="font-semibold">{creditPlan.principal === null ? "Bulunamadı" : creditPlan.principal.toLocaleString("tr-TR") + " TL"}</p></div>
+          <div><p className="text-xs text-muted">Aylık faiz</p><p className="font-semibold">{creditPlan.monthlyInterestRate === null ? "Bulunamadı" : "%" + creditPlan.monthlyInterestRate}</p></div>
+          <div><p className="text-xs text-muted">Bulunan taksit</p><p className="font-semibold">{creditPlan.installmentCount}</p></div>
+          <div><p className="text-xs text-muted">Bulunan toplam ödeme</p><p className="font-semibold">{creditPlan.totalPayment.toLocaleString("tr-TR", { maximumFractionDigits: 2 })} TL</p></div>
+        </div>
+        {creditPlan.totalInterest !== null && <p className="text-sm">Tahmini toplam faiz farkı: <b>{creditPlan.totalInterest.toLocaleString("tr-TR", { maximumFractionDigits: 2 })} TL</b> <span className="text-xs text-muted">(masraf ve sigortalar ayrıştırılmamış olabilir)</span></p>}
+        {creditPlan.warnings.length > 0 && <div className="rounded-lg border border-down/30 bg-down/5 p-3 text-xs text-down"><b>Kontrol edilmesi gerekenler</b><ul className="mt-1 list-disc pl-4">{creditPlan.warnings.map((warning, index) => <li key={index}>{warning}</li>)}</ul></div>}
+        {creditPlan.installments.length > 0 && <div className="max-h-72 overflow-auto rounded-lg border border-line">
+          <table className="w-full text-left text-xs"><thead className="sticky top-0 bg-card"><tr><th className="p-2">No</th><th className="p-2">Vade</th><th className="p-2">Taksit</th><th className="p-2">Anapara</th><th className="p-2">Faiz</th><th className="p-2">Kalan borç</th></tr></thead><tbody>{creditPlan.installments.map((item, index) => <tr key={item.number + "-" + index} className="border-t border-line"><td className="p-2">{item.number}</td><td className="p-2 whitespace-nowrap">{item.dueDate || "—"}</td><td className="p-2 whitespace-nowrap">{item.payment?.toLocaleString("tr-TR") ?? "—"}</td><td className="p-2 whitespace-nowrap">{item.principal?.toLocaleString("tr-TR") ?? "—"}</td><td className="p-2 whitespace-nowrap">{item.interest?.toLocaleString("tr-TR") ?? "—"}</td><td className="p-2 whitespace-nowrap">{item.remainingDebt?.toLocaleString("tr-TR") ?? "—"}</td></tr>)}</tbody></table>
+        </div>}
+        <p className="text-xs text-muted">Bu bir otomatik okuma taslağıdır. Tablodaki sütun eşleştirmeleri bankaya göre değişebilir. Henüz Kredi Merkezi'ne otomatik kayıt yapılmaz.</p>
+        <button type="button" onClick={() => run(exportExcel)} disabled={busy} className={ikinci + " w-full"}>Analiz ve taksitleri Excel'e aktar</button>
+      </div>}
+    </section>
     <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
       <Tool title="Resim → PDF" detail="JPG ve PNG dosyalarını tek PDF yap." icon={<FileImage/>} disabled={!hasFiles || busy} loading={busy} onClick={() => run(imagesToPdf)}/>
       <Tool title="PDF'leri birleştir" detail="Seçtiğin PDF'leri sırayla birleştir." icon={<Files/>} disabled={!isPdfSet || files.length < 2 || busy} loading={busy} onClick={() => run(mergePdfs)}/>
@@ -264,6 +335,7 @@ export default function BelgeMerkeziPage() {
 }
 
 function FileUpIcon() { return <Download size={18} className="text-accent"/>; }
+function CalculatorIcon() { return <FileSpreadsheet size={18} className="text-accent"/>; }
 function Tool({ title, detail, icon, disabled, loading, onClick, children }: { title: string; detail: string; icon: React.ReactNode; disabled: boolean; loading: boolean; onClick: () => void; children?: React.ReactNode }) {
   return <article className={kart + " flex flex-col gap-2"}>
     <div className="flex items-center gap-2 text-accent">{icon}<h2 className="font-bold text-fg">{title}</h2></div>
