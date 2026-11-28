@@ -158,7 +158,7 @@ export default function BelgeMerkeziPage() {
       warnings: [
         ...creditPlan.warnings,
         "Belge Merkezi aktarımı: banka, kredi anaparası, güncel kalan borç ve tüm taksitleri kaynak PDF ile karşılaştır.",
-        "Güncel kalan borç belgede bulunamadıysa Kredi Planlarım ekranında bankanın güncel bakiyesini gir.",
+        "Güncel kalan borç güvenli olması için otomatik doldurulmaz; bankanın güncel bakiye ekranından doğrulayarak gir.",
       ],
       fileName: files[0]?.name || "Belge Merkezi PDF aktarımı",
     };
